@@ -1,47 +1,50 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
-import { listExercises } from '@/lib/exercise';
-import { MUSCLES, muscleById } from '@/lib/muscles';
+import { MUSCLES, muscleById, muscleMatchesExercise } from '@/lib/muscles';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+interface Row {
+  id: string;
+  name: string;
+  zh_name: string;
+  equipment: string;
+  target: string;
+  body_part: string;
+  image: string;
+}
 
 export async function GET(req: Request) {
   const sp = new URL(req.url).searchParams;
   const muscleId = sp.get('muscle') ?? '';
   const limit = Math.min(100, Math.max(1, Number(sp.get('limit')) || 40));
 
-  // 各肌肉的动作数量，给选肌肉时做提示
   const db = getDb();
-  const rows = db.prepare('SELECT target, body_part FROM exercise').all() as unknown as Array<{
-    target: string;
-    body_part: string;
-  }>;
-  const byTarget = new Map<string, number>();
-  const byBody = new Map<string, number>();
-  for (const r of rows) {
-    byTarget.set(r.target, (byTarget.get(r.target) ?? 0) + 1);
-    byBody.set(r.body_part, (byBody.get(r.body_part) ?? 0) + 1);
-  }
+  const rows = db
+    .prepare('SELECT id, name, zh_name, equipment, target, body_part, image FROM exercise')
+    .all() as unknown as Row[];
+
   const counts: Record<string, number> = {};
-  for (const m of MUSCLES) {
-    counts[m.id] = m.target ? byTarget.get(m.target) ?? 0 : byBody.get(m.bodyPart ?? '') ?? 0;
-  }
+  for (const g of MUSCLES) counts[g.id] = 0;
 
   const def = muscleById(muscleId);
-  if (!def) return NextResponse.json({ counts, items: [], total: 0 });
+  const items: Row[] = [];
 
-  const items = listExercises({
-    target: def.target,
-    bodyPart: def.target ? undefined : def.bodyPart,
-    limit,
-  });
+  for (const r of rows) {
+    for (const g of MUSCLES) {
+      if (muscleMatchesExercise(g, r)) {
+        counts[g.id] += 1;
+        if (def && g.id === def.id && items.length < limit) items.push(r);
+      }
+    }
+  }
 
   return NextResponse.json({
     counts,
-    muscle: def.id,
-    label: def.label,
-    total: def.target ? byTarget.get(def.target) ?? 0 : byBody.get(def.bodyPart ?? '') ?? 0,
+    muscle: def?.id ?? null,
+    label: def?.label ?? null,
+    total: def ? (counts[def.id] ?? 0) : 0,
     items: items.map((x) => ({
       id: x.id,
       name: x.name,

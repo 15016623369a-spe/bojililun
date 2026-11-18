@@ -2528,7 +2528,7 @@ a.chip-btn {
 .body-canvas {
   position: relative;
   width: 100%;
-  height: min(58vh, 460px);
+  height: min(52vh, 420px);
   border-radius: 18px;
   background:
     radial-gradient(120% 80% at 50% 20%, rgba(61, 220, 151, 0.1), transparent 60%),
@@ -2769,4 +2769,42 @@ a.chip-btn {
   border-color: rgba(255, 107, 107, 0.45);
   color: var(--danger);
   background: rgba(255, 107, 107, 0.14);
+}
+
+/* 真实解剖模型 */
+.body-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  color: var(--muted);
+  background: rgba(10, 13, 18, 0.5);
+}
+
+.muscle-regions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.region-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.region-label {
+  flex: none;
+  width: 24px;
+  font-size: 11.5px;
+  color: var(--accent);
+  padding-top: 8px;
+}
+
+.region-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
 }

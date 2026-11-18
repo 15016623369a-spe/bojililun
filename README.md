@@ -12,7 +12,7 @@
 | --- | --- |
 | **训练** | 今日训练清单（组数/次数/重量/休息可改）、开始训练、今日热量与蛋白进度 |
 | **统计** | 周 / 月 / 季 / 年：训练容量、次数、天数、时长、组数、肌群分布、容量趋势、动作表现 |
-| **人体** | **可旋转 3D 人体**，点肌肉直接弹出该肌肉的动作（1,324 个动作，全中文名），一键加进今日清单 |
+| **人体** | **真实解剖 3D 人体**（440 块肌肉网格，Z-Anatomy 数据）：胸分上/中/下、肩分前/中/后束，点哪块肌肉出哪块肌肉的动作，一键加进今日清单 |
 | 动作库 | 完整列表：部位 × 器械筛选 / 搜索 / 动图详情（从「人体」页右上角或训练页进入） |
 | **历史** | 月历 + 每日详情（训练每组记录、饮食、当日计划） |
 | **我的** | 资料与目标推算、记忆管理、数据概览、模型状态 |
@@ -35,9 +35,12 @@
 | --- | --- | --- |
 | ![人体](docs/shots/22-body-3d.png) | ![肌肉动作](docs/shots/23-body-sheet.png) | ![背面](docs/shots/24-body-back.png) |
 
-- 程序化建模（three.js，无需下载模型文件），正面 6 块 + 背面 9 块肌肉独立高亮
-- 肌肉 → 数据集 `target` / `body_part` 的映射在 `lib/muscles.ts`
-- 自动旋转可暂停，支持惯性拖动、缩放
+- 模型：Z-Anatomy 解剖数据导出的 `body.glb`（7.9MB，DRACO 压缩，440 块肌肉网格），按解剖学命名，
+  例如 *Clavicular Head Of Pectoralis Major* = 上胸、*Sternocostal Head* = 中胸、*Abdominal Part* = 下胸
+- 可点 22 个肌肉区：胸（上/中/下/前锯肌）、肩（前中后束）、背（斜方/背阔/上背/下背）、
+  手臂（二头/三头/前臂）、核心（腹直/腹斜）、腿（臀/股四头/腘绳/小腿/内收）、颈
+- 点选后整块肌肉组高亮，弹层给出该肌束的动作；动作归类在 `lib/muscles.ts`（按 target + 动作名关键词细分）
+- 自动旋转可暂停，支持惯性拖动、缩放；未映射的小肌肉显示为暗红、不可点
 
 ---
 
@@ -120,10 +123,12 @@ lib/
   core/enrich.ts           食物名+克数 → 营养
   memory.ts                记忆读写 + 规则抽取
   exercise.ts              动作查询
-  muscles.ts               肌肉 → 数据集筛选条件映射
+  muscles.ts               细分肌肉 → 动作筛选 + 模型网格名匹配
   exercise-label.ts        部位 / 器械 / 肌肉中文标签
   period.ts                周月季年区间、月历
-components/                BodyExplorer(three.js) / TrainingRunner / TodayPlan / BottomNav / ...
+components/                BodyAtlas(GLTF 解剖模型) / TrainingRunner / TodayPlan / BottomNav / ...
+public/models/body.glb     Z-Anatomy 解剖模型（CC BY-SA 4.0，见 NOTICE）
+public/draco/              DRACO 解码器（three.js 自带）
 ```
 
 ### 数据表
@@ -159,6 +164,9 @@ node scripts/translate-exercises.mjs   # 重新生成动作中文名（改词典
 
 ## 数据来源与许可
 
+- **3D 人体模型**：`public/models/body.glb` 来自 [hpfrei/body-anatomy-3d-viewer](https://github.com/hpfrei/body-anatomy-3d-viewer)（CC BY-SA 4.0），
+  其数据源自 [Z-Anatomy](https://www.z-anatomy.com/)（CC BY-SA 4.0，基于 BodyParts3D）。
+  该模型文件及其衍生作品需沿用 CC BY-SA 4.0 并保留署名，详见 `NOTICE.md`。
 - **动作数据集**：[hasaneyldrm/exercises-dataset](https://github.com/hasaneyldrm/exercises-dataset)，1,324 个动作，代码与数据 MIT。
   - 使用了元数据字段与 180×180 缩略图（`public/exercises/`，约 11MB）
   - **未打包 GIF**：详情页首次访问由 `/api/gif/[id]` 按需拉取并缓存到 `data/gifs/`，失败自动回落静态图

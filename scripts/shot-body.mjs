@@ -25,13 +25,15 @@ page.on('console', (m) => {
 });
 
 await page.goto(`${BASE}/body`, { waitUntil: 'networkidle' });
-await page.waitForSelector('.body-canvas canvas', { timeout: 20000 });
+await page.waitForSelector('.body-canvas canvas', { timeout: 30000 });
+// 等模型加载完（加载提示消失）
+await page.waitForFunction(() => !document.querySelector('.body-loading'), null, { timeout: 60000 });
 await page.waitForTimeout(2500);
 await shot(page, '22-body-3d');
 
-// 点「胸大肌」打开动作弹层
-await page.click('.muscle-chip:has-text("胸大肌")');
-await page.waitForTimeout(1500);
+// 点「上胸」打开动作弹层
+await page.click('.muscle-chip:has-text("上胸")');
+await page.waitForTimeout(1800);
 await shot(page, '23-body-sheet');
 
 // 关掉，旋转一下看背面

@@ -1,5 +1,16 @@
 # NOTICE
 
+## 3D 人体解剖模型（public/models/body.glb）
+
+- 模型文件来自 [hpfrei/body-anatomy-3d-viewer](https://github.com/hpfrei/body-anatomy-3d-viewer)，
+  由该项目的作者从 [Z-Anatomy](https://www.z-anatomy.com/) 数据集简化并做 DRACO 压缩而成
+- 解剖数据版权：**Z-Anatomy**（CC BY-SA 4.0，基于 BodyParts3D / FMA 等开放解剖数据集）
+- 模型文件（`public/models/body.glb`）及其在本项目中的衍生使用遵循 **CC BY-SA 4.0**：
+  - 需保留署名：Z-Anatomy（https://www.z-anatomy.com/）与 hpfrei（https://github.com/hpfrei/body-anatomy-3d-viewer）
+  - 若分发修改后的模型，需以相同许可（CC BY-SA 4.0）分发
+  - 本项目的业务代码（训练记录、饮食、统计等）与模型资产相互独立；CC BY-SA 只覆盖模型资产本身
+- 如不希望引入该许可，可删除 `public/models/body.glb`，`/body` 页会提示加载失败，但肌肉列表与动作筛选仍可用
+
 ## 动作数据与媒体
 
 本项目的动作元数据、中文分步说明与 180×180 缩略图来自：
