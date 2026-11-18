@@ -7,7 +7,7 @@ export default function AddToPlanButton({
   variant = 'icon',
 }: {
   exerciseId: string;
-  variant?: 'icon' | 'full';
+  variant?: 'icon' | 'full' | 'mini';
 }) {
   const [state, setState] = useState<'idle' | 'busy' | 'done' | 'err'>('idle');
 
@@ -35,6 +35,14 @@ export default function AddToPlanButton({
     return (
       <button className={`btn primary full-add ${state}`} onClick={add}>
         {state === 'done' ? '✓ 已加入今日训练' : state === 'err' ? '加入失败，重试' : state === 'busy' ? '加入中…' : '+ 加入今日训练'}
+      </button>
+    );
+  }
+
+  if (variant === 'mini') {
+    return (
+      <button className={`mini-add ${state}`} onClick={add} aria-label="加入今日训练" title="加入今日训练">
+        {state === 'done' ? '✓' : state === 'err' ? '!' : '+'}
       </button>
     );
   }

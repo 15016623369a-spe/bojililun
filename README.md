@@ -12,7 +12,8 @@
 | --- | --- |
 | **训练** | 今日训练清单（组数/次数/重量/休息可改）、开始训练、今日热量与蛋白进度 |
 | **统计** | 周 / 月 / 季 / 年：训练容量、次数、天数、时长、组数、肌群分布、容量趋势、动作表现 |
-| **动作** | 1,324 个动作按「部位 × 器械」浏览 / 搜索，卡片上一键加进今日清单，详情页有动图 + 中文分步 |
+| **人体** | **可旋转 3D 人体**，点肌肉直接弹出该肌肉的动作（1,324 个动作，全中文名），一键加进今日清单 |
+| 动作库 | 完整列表：部位 × 器械筛选 / 搜索 / 动图详情（从「人体」页右上角或训练页进入） |
 | **历史** | 月历 + 每日详情（训练每组记录、饮食、当日计划） |
 | **我的** | 资料与目标推算、记忆管理、数据概览、模型状态 |
 
@@ -25,6 +26,18 @@
 | 历史月历 | 动作库 | 对话 / 语音 |
 | --- | --- | --- |
 | ![历史](docs/shots/17-history-calendar.png) | ![动作库](docs/shots/07-library.png) | ![对话](docs/shots/20-chat-voice.png) |
+
+### 3D 人体（底部导航正中间）
+
+拖动旋转，点哪块肌肉就出哪块肌肉的动作；也可以点下面的肌肉名切换。
+
+| 3D 人体 | 点肌肉 → 动作弹层 | 转到背面 |
+| --- | --- | --- |
+| ![人体](docs/shots/22-body-3d.png) | ![肌肉动作](docs/shots/23-body-sheet.png) | ![背面](docs/shots/24-body-back.png) |
+
+- 程序化建模（three.js，无需下载模型文件），正面 6 块 + 背面 9 块肌肉独立高亮
+- 肌肉 → 数据集 `target` / `body_part` 的映射在 `lib/muscles.ts`
+- 自动旋转可暂停，支持惯性拖动、缩放
 
 ---
 
@@ -87,6 +100,7 @@ AI_MODEL=gpt-4o-mini
 ```
 app/
   page.tsx                 → /train
+  body/page.tsx            3D 人体（点肌肉看动作）
   train/page.tsx           今日训练清单 + 今日概况
   train/[id]/page.tsx      训练执行（计时 / 休息 / 记录）
   stats/page.tsx           统计（周月季年）
@@ -95,6 +109,7 @@ app/
   exercises/...            动作库 + 详情
   chat/page.tsx            对话（语音输入 + 播报）
   me/page.tsx              资料 / 记忆 / 数据
+  api/exercises            按肌肉取动作（供 3D 人体用）
   api/plan                 今日清单增删改
   api/session, /session/set 训练会话与组记录
   api/chat, /meals, /memory, /today, /uploads, /gif
@@ -105,9 +120,10 @@ lib/
   core/enrich.ts           食物名+克数 → 营养
   memory.ts                记忆读写 + 规则抽取
   exercise.ts              动作查询
+  muscles.ts               肌肉 → 数据集筛选条件映射
   exercise-label.ts        部位 / 器械 / 肌肉中文标签
   period.ts                周月季年区间、月历
-components/                BottomNav / TrainingRunner / TodayPlan / ...
+components/                BodyExplorer(three.js) / TrainingRunner / TodayPlan / BottomNav / ...
 ```
 
 ### 数据表
@@ -133,6 +149,7 @@ node scripts/shot.mjs            # 对话主流程截图（00–06）
 node scripts/shot-library.mjs    # 动作库截图（07–10）
 node scripts/shot-training.mjs   # 训练全链路截图（11–21）
 
+node scripts/shot-body.mjs             # 3D 人体截图（22–24）
 node scripts/translate-exercises.mjs   # 重新生成动作中文名（改词典后跑）
 ```
 

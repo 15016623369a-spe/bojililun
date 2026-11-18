@@ -76,12 +76,13 @@ export function exerciseCount(): number {
 export interface ListOpts {
   bodyPart?: string;
   equipment?: string;
+  target?: string;
   q?: string;
   limit?: number;
   offset?: number;
 }
 
-function buildWhere(o: { bodyPart?: string; equipment?: string; q?: string }) {
+function buildWhere(o: { bodyPart?: string; equipment?: string; target?: string; q?: string }) {
   const where: string[] = [];
   const args: string[] = [];
   if (o.bodyPart) {
@@ -91,6 +92,10 @@ function buildWhere(o: { bodyPart?: string; equipment?: string; q?: string }) {
   if (o.equipment) {
     where.push('equipment = ?');
     args.push(o.equipment);
+  }
+  if (o.target) {
+    where.push('target = ?');
+    args.push(o.target);
   }
   if (o.q) {
     where.push('(name LIKE ? OR zh_name LIKE ? OR target LIKE ?)');
@@ -114,7 +119,7 @@ function dbAll(sql: string, args: Array<string | number>): ExerciseRow[] {
   return getDb().prepare(sql).all(...args) as unknown as ExerciseRow[];
 }
 
-export function countExercises(o: { bodyPart?: string; equipment?: string; q?: string }): number {
+export function countExercises(o: { bodyPart?: string; equipment?: string; target?: string; q?: string }): number {
   const { where, args } = buildWhere(o);
   const sql = `SELECT COUNT(*) AS c FROM exercise ${where.length ? 'WHERE ' + where.join(' AND ') : ''}`;
   return (getDb().prepare(sql).get(...args) as { c: number }).c;
