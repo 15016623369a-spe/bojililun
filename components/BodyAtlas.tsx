@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
-import { MUSCLES, REGIONS, groupForMeshName, muscleById, type MuscleId } from '@/lib/muscles';
+import { groupForMeshName, muscleById, type MuscleId } from '@/lib/muscles';
 import { EQUIPMENT_LABEL, TARGET_LABEL, imageUrl } from '@/lib/exercise-label';
 import AddToPlanButton from './AddToPlanButton';
 
@@ -44,7 +44,6 @@ export default function BodyAtlas() {
   const [autoRotate, setAutoRotate] = useState(true);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState('');
-  const [counts, setCounts] = useState<Record<string, number>>({});
   const [data, setData] = useState<ApiResult | null>(null);
   const [loadingList, setLoadingList] = useState(false);
 
@@ -267,20 +266,6 @@ export default function BodyAtlas() {
     }
   }, [selected, hovered, loading]);
 
-  /* ------------------------------ 计数 & 动作 ------------------------------ */
-  useEffect(() => {
-    let cancelled = false;
-    fetch('/api/exercises?limit=1', { cache: 'no-store' })
-      .then((r) => r.json())
-      .then((d: ApiResult) => {
-        if (!cancelled && d.counts) setCounts(d.counts);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   useEffect(() => {
     if (!selected) {
       setData(null);
@@ -311,6 +296,12 @@ export default function BodyAtlas() {
     setAutoRotate(api.controls.autoRotate);
   }, []);
 
+  // 支持 /body?muscle=chest_upper 直接打开某块肌肉
+  useEffect(() => {
+    const m = new URLSearchParams(window.location.search).get('muscle');
+    if (m && muscleById(m)) setSelected(m as MuscleId);
+  }, []);
+
   const selectedDef = selected ? muscleById(selected) : null;
 
   return (
@@ -321,7 +312,7 @@ export default function BodyAtlas() {
           {failed && (
             <div className="body-fallback">
               <p>{failed}</p>
-              <p className="hint">下面的肌肉列表仍然可以点，动作数据照常可用。</p>
+              <p className="hint">换个新版 Chrome / Safari 试试；也可以去动作库按部位浏览。</p>
             </div>
           )}
           {!failed && (
@@ -340,31 +331,6 @@ export default function BodyAtlas() {
           )}
         </div>
 
-        <div className="muscle-regions">
-          {REGIONS.map((region) => {
-            const list = MUSCLES.filter((m) => m.region === region);
-            if (!list.length) return null;
-            return (
-              <div className="region-row" key={region}>
-                <span className="region-label">{region}</span>
-                <div className="region-chips">
-                  {list.map((m) => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      className={`muscle-chip ${selected === m.id ? 'on' : ''}`}
-                      onClick={() => setSelected((cur) => (cur === m.id ? null : m.id))}
-                    >
-                      {m.label}
-                      <em>{counts[m.id] ?? ''}</em>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        <p className="body-tip">胸 / 肩已细分到肌束 · 数据来自 Z-Anatomy 解剖模型</p>
       </div>
 
       {selected && (

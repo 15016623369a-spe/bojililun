@@ -31,8 +31,9 @@ await page.waitForFunction(() => !document.querySelector('.body-loading'), null,
 await page.waitForTimeout(2500);
 await shot(page, '22-body-3d');
 
-// 点「上胸」打开动作弹层
-await page.click('.muscle-chip:has-text("上胸")');
+// 直接打开上胸的动作弹层（深链）
+await page.goto(`${BASE}/body?muscle=chest_upper`, { waitUntil: 'networkidle' });
+await page.waitForFunction(() => !document.querySelector('.body-loading'), null, { timeout: 60000 });
 await page.waitForTimeout(1800);
 await shot(page, '23-body-sheet');
 
