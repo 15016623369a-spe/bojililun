@@ -1,5 +1,8 @@
 # FitCheck · 会说话、会记计划的健身 Agent
 
+[![版本](https://img.shields.io/github/v/tag/15016623369a-spe/bojililun?label=version&color=3ddc97)](https://github.com/15016623369a-spe/bojililun/releases)
+[![License: code MIT / assets CC BY-SA](https://img.shields.io/badge/license-code%20MIT%20%7C%20assets%20CC%20BY--SA%204.0-blue)](NOTICE.md)
+
 一句话：**用嘴说今天练什么，它给你排计划；训练时一组一组点，自动计时和组间休息；练完自动进档案，统计和历史都在这。** 吃饭拍张照就完事。
 
 当前是 Phase 1：**五模块网页版**（训练 / 统计 / 动作 / 历史 / 我的）+ 语音对话 + 完整训练记录链路。不需要任何 API Key 就能跑，食物识别默认走演示模式。
@@ -185,3 +188,9 @@ node scripts/translate-exercises.mjs   # 重新生成动作中文名（改词典
 3. **休息推荐**：按动作类型（复合/孤立）和组间目标心率给推荐值，而不是固定 90s
 4. **微信客服适配层**：`core` 已与 channel 解耦，只差验签解密 + 消息收发
 5. **睡眠录入 + 周报**
+
+---
+
+## 版本
+
+当前版本 **v0.1.0**（2026-11-18），完整变更见 [CHANGELOG.md](CHANGELOG.md)，发布记录见 [Releases](https://github.com/15016623369a-spe/bojililun/releases)。
