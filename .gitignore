@@ -1,0 +1,7 @@
+node_modules/
+.next/
+data/fitness.db*
+data/uploads/
+.env
+*.log
+data/gifs/
