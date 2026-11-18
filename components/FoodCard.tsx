@@ -107,7 +107,7 @@ export default function FoodCard({
           </button>
         </div>
       ) : (
-        <p className="note" style={{ borderColor: 'var(--line)', background: 'rgba(61,220,151,.06)', color: 'var(--accent)' }}>
+        <p className="note" style={{ borderColor: 'var(--line)', background: 'var(--sage)', color: 'var(--accent)' }}>
           ✓ 已记入今日
         </p>
       )}

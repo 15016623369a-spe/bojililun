@@ -4,8 +4,11 @@ import { DatabaseSync } from 'node:sqlite';
 import { FOODS } from './foods';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
-const DB_PATH = path.join(DATA_DIR, 'fitness.db');
+const DB_PATH = path.resolve(process.env.FITCHECK_DB_PATH || path.join(DATA_DIR, 'fitness.db'));
 export const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
+
+// Increment when the schema or column migrations change. Next.js keeps globalThis across hot reloads.
+const SCHEMA_REVISION = 1;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS profile (
@@ -106,6 +109,18 @@ CREATE TABLE IF NOT EXISTS session (
   ended_at TEXT,
   note TEXT
 );
+CREATE TABLE IF NOT EXISTS journal_entry (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  request_id TEXT UNIQUE,
+  date TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('meal', 'training')),
+  title TEXT NOT NULL,
+  detail TEXT NOT NULL,
+  source_text TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_journal_entry_date ON journal_entry(date);
+
 CREATE INDEX IF NOT EXISTS idx_session_date ON session(date);
 
 CREATE TABLE IF NOT EXISTS session_set (
@@ -174,6 +189,11 @@ function loadZhMap(): Map<string, string> {
 }
 
 function ensureColumns(db: DatabaseSync) {
+  const sessionColumns = db.prepare('PRAGMA table_info(session)').all();
+  if (!sessionColumns.some((column) => column.name === 'plan_json')) {
+    db.exec('ALTER TABLE session ADD COLUMN plan_json TEXT');
+  }
+
   const cols = db.prepare('PRAGMA table_info(exercise)').all() as unknown as Array<{ name: string }>;
   if (!cols.some((c) => c.name === 'zh_name')) {
     db.exec("ALTER TABLE exercise ADD COLUMN zh_name TEXT NOT NULL DEFAULT ''");
@@ -241,28 +261,54 @@ function seedExercises(db: DatabaseSync) {
   }
 }
 
-function init(): DatabaseSync {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-  const db = new DatabaseSync(DB_PATH);
+function initialize(db: DatabaseSync): void {
+  db.exec('PRAGMA busy_timeout = 5000');
   try {
     db.exec('PRAGMA journal_mode = WAL');
   } catch {
     /* 内存/只读文件系统上可能不支持，忽略 */
   }
-  db.exec(SCHEMA);
-  ensureColumns(db);
+
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    db.exec(SCHEMA);
+    ensureColumns(db);
+    db.exec('COMMIT');
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
+
   seedFoods(db);
   seedExercises(db);
   backfillZhNames(db);
-  return db;
 }
 
-const g = globalThis as unknown as { __fitDb?: DatabaseSync };
+const g = globalThis as unknown as {
+  __fitDb?: DatabaseSync;
+  __fitDbSchema?: { database: DatabaseSync; revision: number; path: string };
+};
 
 export function getDb(): DatabaseSync {
-  if (!g.__fitDb) g.__fitDb = init();
-  return g.__fitDb;
+  const cached = g.__fitDbSchema;
+  if (cached && cached.database === g.__fitDb && cached.path === DB_PATH && cached.revision === SCHEMA_REVISION) {
+    return cached.database;
+  }
+
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  const existing = g.__fitDb?.location?.() === DB_PATH ? g.__fitDb : undefined;
+  const db = existing ?? new DatabaseSync(DB_PATH);
+  try {
+    initialize(db);
+  } catch (error) {
+    if (!existing) db.close();
+    throw error;
+  }
+
+  g.__fitDb = db;
+  g.__fitDbSchema = { database: db, revision: SCHEMA_REVISION, path: DB_PATH };
+  return db;
 }
 
 export { DB_PATH };

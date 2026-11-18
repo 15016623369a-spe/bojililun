@@ -9,6 +9,15 @@ export const PERIOD_LABEL: Record<Period, string> = {
   year: '本年',
 };
 
+/** 日期链接使用四位年份和有效的公历日期。 */
+export function validDate(date?: string): date is string {
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+  const year = Number(date.slice(0, 4));
+  if (year < 1000 || year > 9998) return false;
+  const value = new Date(date + 'T00:00:00Z');
+  return !Number.isNaN(value.getTime()) && value.toISOString().slice(0, 10) === date;
+}
+
 function parseDay(d: string): Date {
   const [y, m, day] = d.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, day));

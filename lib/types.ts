@@ -134,6 +134,7 @@ export interface SessionRow {
   date: string;
   started_at: string;
   ended_at: string | null;
+  plan_json: string | null;
   note: string | null;
 }
 

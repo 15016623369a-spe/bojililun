@@ -1,0 +1,355 @@
+[
+  {
+    "id": "chest_upper",
+    "label": "上胸",
+    "group": "chest_upper",
+    "deep": false
+  },
+  {
+    "id": "chest_middle",
+    "label": "中胸",
+    "group": "chest_mid",
+    "deep": false
+  },
+  {
+    "id": "chest_lower",
+    "label": "下胸",
+    "group": "chest_lower",
+    "deep": false
+  },
+  {
+    "id": "deltoid_anterior",
+    "label": "三角肌前束",
+    "group": "delt_front",
+    "deep": false
+  },
+  {
+    "id": "deltoid_lateral",
+    "label": "三角肌中束",
+    "group": "delt_side",
+    "deep": false
+  },
+  {
+    "id": "deltoid_posterior",
+    "label": "三角肌后束",
+    "group": "delt_rear",
+    "deep": false
+  },
+  {
+    "id": "trapezius_upper",
+    "label": "上斜方肌",
+    "group": "traps",
+    "deep": false,
+    "exerciseIds": [
+      "0095",
+      "0406",
+      "1018",
+      "0220"
+    ]
+  },
+  {
+    "id": "trapezius_middle",
+    "label": "中斜方肌",
+    "group": "traps",
+    "deep": false,
+    "exerciseIds": [
+      "0329",
+      "0180",
+      "0861",
+      "0993"
+    ]
+  },
+  {
+    "id": "trapezius_lower",
+    "label": "下斜方肌",
+    "group": "traps",
+    "deep": false,
+    "exerciseIds": [
+      "1017",
+      "3541"
+    ]
+  },
+  {
+    "id": "infraspinatus",
+    "label": "冈下肌",
+    "group": "upperback",
+    "deep": false,
+    "exerciseIds": [
+      "0235",
+      "0864"
+    ]
+  },
+  {
+    "id": "teres_minor",
+    "label": "小圆肌",
+    "group": "upperback",
+    "deep": false,
+    "exerciseIds": [
+      "0235",
+      "0864"
+    ]
+  },
+  {
+    "id": "teres_major",
+    "label": "大圆肌",
+    "group": "lats",
+    "deep": false,
+    "exerciseIds": [
+      "0238",
+      "0237"
+    ]
+  },
+  {
+    "id": "lats",
+    "label": "背阔肌",
+    "group": "lats",
+    "deep": false
+  },
+  {
+    "id": "spinal_erectors",
+    "label": "竖脊肌",
+    "group": "lowerback",
+    "deep": false
+  },
+  {
+    "id": "rhomboid_minor",
+    "label": "小菱形肌",
+    "group": "upperback",
+    "deep": true,
+    "exerciseIds": [
+      "0180",
+      "0861",
+      "0027"
+    ]
+  },
+  {
+    "id": "rhomboid_major",
+    "label": "大菱形肌",
+    "group": "upperback",
+    "deep": true,
+    "exerciseIds": [
+      "0180",
+      "0861",
+      "0027"
+    ]
+  },
+  {
+    "id": "levator_scapulae",
+    "label": "肩胛提肌",
+    "group": "traps",
+    "deep": true,
+    "exerciseIds": [
+      "0095",
+      "0406"
+    ]
+  },
+  {
+    "id": "supraspinatus",
+    "label": "冈上肌",
+    "group": "delt_side",
+    "deep": true,
+    "exerciseIds": [
+      "0311"
+    ]
+  },
+  {
+    "id": "abs",
+    "label": "腹直肌",
+    "group": "abs",
+    "deep": false
+  },
+  {
+    "id": "obliques",
+    "label": "腹斜肌区",
+    "group": "obliques",
+    "deep": false
+  },
+  {
+    "id": "serratus_anterior",
+    "label": "前锯肌",
+    "group": "serratus",
+    "deep": false,
+    "exerciseIds": [
+      "3021",
+      "3011"
+    ]
+  },
+  {
+    "id": "biceps",
+    "label": "肱二头肌",
+    "group": "biceps",
+    "deep": false
+  },
+  {
+    "id": "brachialis",
+    "label": "肱肌区",
+    "group": "biceps",
+    "deep": false,
+    "exerciseIds": [
+      "0313",
+      "0165",
+      "0298"
+    ]
+  },
+  {
+    "id": "triceps",
+    "label": "肱三头肌",
+    "group": "triceps",
+    "deep": false
+  },
+  {
+    "id": "brachioradialis",
+    "label": "肱桡肌",
+    "group": "forearms",
+    "deep": false,
+    "exerciseIds": [
+      "0313",
+      "0165",
+      "0298"
+    ]
+  },
+  {
+    "id": "forearm_flexors",
+    "label": "前臂屈肌群",
+    "group": "forearms",
+    "deep": false,
+    "exerciseIds": [
+      "0247",
+      "0125"
+    ]
+  },
+  {
+    "id": "forearm_extensors",
+    "label": "前臂伸肌群",
+    "group": "forearms",
+    "deep": false,
+    "exerciseIds": [
+      "0210"
+    ]
+  },
+  {
+    "id": "gluteus_medius",
+    "label": "臀中肌区",
+    "group": "glutes",
+    "deep": false,
+    "exerciseIds": [
+      "0597",
+      "3006",
+      "0710"
+    ]
+  },
+  {
+    "id": "gluteus_maximus",
+    "label": "臀大肌",
+    "group": "glutes",
+    "deep": false,
+    "exerciseIds": [
+      "1409",
+      "3236",
+      "0043"
+    ]
+  },
+  {
+    "id": "rectus_femoris",
+    "label": "股直肌",
+    "group": "quads",
+    "deep": false,
+    "exerciseIds": [
+      "0585",
+      "0739"
+    ]
+  },
+  {
+    "id": "vastus_lateralis",
+    "label": "股外侧肌",
+    "group": "quads",
+    "deep": false,
+    "exerciseIds": [
+      "0739",
+      "0585",
+      "0043"
+    ]
+  },
+  {
+    "id": "vastus_medialis",
+    "label": "股内侧肌",
+    "group": "quads",
+    "deep": false,
+    "exerciseIds": [
+      "0585",
+      "0739",
+      "0043"
+    ]
+  },
+  {
+    "id": "adductors",
+    "label": "大腿内收肌群",
+    "group": "adductors",
+    "deep": false
+  },
+  {
+    "id": "hamstrings_lateral",
+    "label": "股二头肌",
+    "group": "hamstrings",
+    "deep": false,
+    "exerciseIds": [
+      "0586",
+      "0599",
+      "0116"
+    ]
+  },
+  {
+    "id": "hamstrings_medial",
+    "label": "半腱肌与半膜肌",
+    "group": "hamstrings",
+    "deep": false,
+    "exerciseIds": [
+      "0599",
+      "0586",
+      "0116"
+    ]
+  },
+  {
+    "id": "tibialis_anterior",
+    "label": "胫骨前肌",
+    "group": "calves",
+    "deep": false,
+    "exerciseIds": [
+      "1000",
+      "0763"
+    ]
+  },
+  {
+    "id": "gastrocnemius_medial",
+    "label": "腓肠肌内侧头",
+    "group": "calves",
+    "deep": false,
+    "exerciseIds": [
+      "1373",
+      "0108",
+      "1375"
+    ]
+  },
+  {
+    "id": "gastrocnemius_lateral",
+    "label": "腓肠肌外侧头",
+    "group": "calves",
+    "deep": false,
+    "exerciseIds": [
+      "1373",
+      "0108",
+      "1375"
+    ]
+  },
+  {
+    "id": "soleus",
+    "label": "比目鱼肌区",
+    "group": "calves",
+    "deep": false,
+    "exerciseIds": [
+      "0088",
+      "1379",
+      "0400"
+    ]
+  }
+]

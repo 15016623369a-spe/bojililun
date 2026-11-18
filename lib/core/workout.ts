@@ -57,10 +57,10 @@ export function addPlanItem(
     ex.body_part,
     ex.target,
     ex.equipment,
-    opts.sets ?? 4,
-    opts.reps ?? 10,
-    opts.weight ?? 0,
-    opts.restSec ?? 90,
+    Math.round(clamp(opts.sets, 1, 20, 4)),
+    Math.round(clamp(opts.reps, 1, 100, 10)),
+    clamp(opts.weight, 0, 1000, 0),
+    Math.round(clamp(opts.restSec, 0, 600, 90)),
     pos,
     nowIso(),
   );
@@ -69,16 +69,17 @@ export function addPlanItem(
   );
 }
 
+function clamp(value: unknown, min: number, max: number, fallback: number): number {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.min(max, Math.max(min, number)) : fallback;
+}
+
 export function updatePlanItem(
   id: number,
   patch: { sets?: number; reps?: number; weight?: number; restSec?: number; done?: number },
 ): void {
   const cur = getDb().prepare('SELECT * FROM plan_item WHERE id = ?').get(id) as PlanItem | undefined;
   if (!cur) return;
-  const clamp = (v: unknown, min: number, max: number, fb: number) => {
-    const n = Number(v);
-    return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fb;
-  };
   getDb()
     .prepare('UPDATE plan_item SET sets = ?, reps = ?, weight = ?, rest_sec = ?, done = ? WHERE id = ?')
     .run(
@@ -101,14 +102,47 @@ export function clearPlan(date = todayStr()): void {
 
 /* ------------------------------ 训练会话 ------------------------------ */
 
-export function startSession(note?: string): SessionRow {
+export function activeTraining(): SessionRow | null {
+  const row = getDb()
+    .prepare('SELECT * FROM session WHERE ended_at IS NULL AND plan_json IS NOT NULL ORDER BY id DESC LIMIT 1')
+    .get() as SessionRow | undefined;
+  return row ? plain(row) : null;
+}
+
+export function sessionPlan(session: SessionRow): PlanItem[] {
+  return session.plan_json ? JSON.parse(session.plan_json) as PlanItem[] : getPlan(session.date);
+}
+
+export function startSession(note?: string, firstPlanItemId?: number, guided = false): SessionRow {
   const db = getDb();
-  db.prepare('INSERT INTO session (date, started_at, note) VALUES (?, ?, ?)').run(
-    todayStr(),
-    nowIso(),
-    note ?? null,
-  );
-  return plain(db.prepare('SELECT * FROM session ORDER BY id DESC LIMIT 1').get() as unknown as SessionRow);
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const active = guided ? activeTraining() : null;
+    if (active) {
+      db.exec('COMMIT');
+      return active;
+    }
+
+    const date = todayStr();
+    let queue: PlanItem[] | null = null;
+    if (guided) {
+      const pending = getPlan(date).filter((item) => !item.done);
+      const first = pending.find((item) => item.id === firstPlanItemId);
+      if (firstPlanItemId !== undefined && !first) throw new Error('这个动作已完成或已从清单移除');
+      queue = first ? [first, ...pending.filter((item) => item.id !== first.id)] : pending;
+      if (!queue.length) throw new Error('请先在计划中加入待练动作');
+    }
+
+    const { lastInsertRowid } = db.prepare(
+      'INSERT INTO session (date, started_at, note, plan_json) VALUES (?, ?, ?, ?)',
+    ).run(date, nowIso(), note ?? null, queue && JSON.stringify(queue));
+    const session = getSession(Number(lastInsertRowid))!;
+    db.exec('COMMIT');
+    return session;
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
 }
 
 export function getSession(id: number): SessionRow | null {
@@ -157,7 +191,7 @@ export function markPlanDone(planItemId: number): void {
 }
 
 export function finishSession(id: number): void {
-  getDb().prepare('UPDATE session SET ended_at = ? WHERE id = ?').run(nowIso(), id);
+  getDb().prepare('UPDATE session SET ended_at = ? WHERE id = ? AND ended_at IS NULL').run(nowIso(), id);
 }
 
 export function getSessionSets(sessionId: number): SetRow[] {
@@ -166,6 +200,48 @@ export function getSessionSets(sessionId: number): SetRow[] {
       .prepare('SELECT * FROM session_set WHERE session_id = ? ORDER BY id ASC')
       .all(sessionId) as unknown as SetRow[],
   );
+}
+
+export function saveGuidedSet(
+  sessionId: number,
+  data: { planItemId: number; setIndex: number; weight: number; reps: number; durationSec: number; restSec: number },
+): { ended: boolean; sets: SetRow[] } {
+  const db = getDb();
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const session = getSession(sessionId);
+    if (!session?.plan_json) throw new Error('训练不存在');
+    const plan = sessionPlan(session);
+    const sets = getSessionSets(sessionId);
+    const alreadySaved = sets.some((set) => set.plan_item_id === data.planItemId && set.set_index === data.setIndex);
+    if (!alreadySaved) {
+      if (session.ended_at) throw new Error('训练已经结束');
+      const completed = new Map<number, number>();
+      for (const set of sets) {
+        if (set.plan_item_id !== null) completed.set(set.plan_item_id, (completed.get(set.plan_item_id) ?? 0) + 1);
+      }
+      const item = plan.find((entry) => (completed.get(entry.id) ?? 0) < entry.sets);
+      if (item?.id !== data.planItemId || data.setIndex !== (completed.get(item.id) ?? 0) + 1) {
+        throw new Error('训练进度已更新，请刷新后继续');
+      }
+      addSet(sessionId, {
+        ...data,
+        exerciseId: item.exercise_id,
+        exerciseName: item.name,
+        bodyPart: item.body_part,
+        target: item.target,
+      });
+      completed.set(item.id, data.setIndex);
+      if (data.setIndex === item.sets) markPlanDone(item.id);
+      if (plan.every((entry) => (completed.get(entry.id) ?? 0) >= entry.sets)) finishSession(sessionId);
+    }
+    const result = { ended: Boolean(getSession(sessionId)?.ended_at), sets: getSessionSets(sessionId) };
+    db.exec('COMMIT');
+    return result;
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
 }
 
 /* ------------------------------ 统计 ------------------------------ */

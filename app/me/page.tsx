@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import BottomNav from '@/components/BottomNav';
+import JournalShell from '@/components/JournalShell';
 import ProfileEditor from '@/components/ProfileEditor';
 import MemoryManager from '@/components/MemoryManager';
 import { ACTIVITY, GOAL } from '@/lib/nutrition';
@@ -21,15 +21,8 @@ export default function MePage() {
   const totalSets = (db.prepare('SELECT COUNT(*) AS c FROM session_set').get() as { c: number }).c;
 
   return (
-    <div className="page">
-      <header className="page-hdr">
-        <div>
-          <h1>我的</h1>
-          <p>资料、目标与记忆</p>
-        </div>
-      </header>
-
-      <div className="page-body">
+    <JournalShell active="review" title="我的" back={{ href: "/history", label: "回顾" }}>
+      <div className="journal-utility">
         <ProfileEditor
           profile={
             profile
@@ -126,7 +119,6 @@ export default function MePage() {
         </section>
       </div>
 
-      <BottomNav active="me" />
-    </div>
+    </JournalShell>
   );
 }

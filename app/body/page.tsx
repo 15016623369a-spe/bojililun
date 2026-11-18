@@ -1,25 +1,16 @@
 import Link from 'next/link';
-import BottomNav from '@/components/BottomNav';
+import JournalShell from '@/components/JournalShell';
 import BodyAtlas from '@/components/BodyAtlas';
 
-export const metadata = { title: '人体 · FitCheck' };
+export const metadata = { title: '计划 · FitCheck' };
+export const dynamic = 'force-dynamic';
 
 export default function BodyPage() {
-  return (
-    <div className="page">
-      <header className="page-hdr">
-        <div>
-          <h1>人体</h1>
-          <p>真实解剖模型 · 胸肩细分到肌束</p>
-        </div>
-        <Link className="chip-btn" href="/exercises">
-          全部动作
-        </Link>
-      </header>
-      <div className="page-body">
-        <BodyAtlas />
-      </div>
-      <BottomNav active="body" />
+  return <JournalShell active="plan" title="计划" subtitle="点选肌肉，为今天安排动作。">
+    <BodyAtlas />
+    <div className="journal-links">
+      <Link href="/exercises">全部动作</Link>
+      <Link href="/train">编辑今日计划</Link>
     </div>
-  );
+  </JournalShell>;
 }

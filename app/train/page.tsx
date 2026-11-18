@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import BottomNav from '@/components/BottomNav';
+import JournalShell from '@/components/JournalShell';
 import TodayPlan from '@/components/TodayPlan';
 import { dayLabel } from '@/lib/period';
 import { MEAL_LABEL } from '@/lib/date';
@@ -23,18 +23,9 @@ export default function TrainPage() {
   const targetProtein = snap.profile?.target_protein ?? 0;
 
   return (
-    <div className="page">
-      <header className="page-hdr">
-        <div>
-          <h1>训练</h1>
-          <p>{dayLabel(today)}</p>
-        </div>
-        <Link className="chip-btn" href="/exercises">
-          动作库
-        </Link>
-      </header>
-
-      <div className="page-body">
+    <JournalShell active="plan" title="编辑今日计划" subtitle={dayLabel(today)} back={{ href: "/body", label: "计划" }}>
+      <div className="journal-utility">
+        <div className="journal-links"><Link href="/exercises">动作库</Link></div>
         {!snap.profile && (
           <Link href="/me" className="banner warn">
             先完善个人资料，才能计算热量目标和训练建议 →
@@ -120,7 +111,6 @@ export default function TrainPage() {
         )}
       </div>
 
-      <BottomNav active="train" />
-    </div>
+    </JournalShell>
   );
 }

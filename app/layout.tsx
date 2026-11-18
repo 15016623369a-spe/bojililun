@@ -1,16 +1,16 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import './journal.css';
 
 export const metadata: Metadata = {
-  title: 'FitCheck · 拍照打卡',
-  description: '拍一张照片记录饮食，自动换算热量与剩余额度，并基于你的记忆给训练建议。',
+  title: 'FitCheck · 健身记录',
+  description: '用语音记下饮食和训练，回顾自己的记录。',
 };
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  themeColor: '#0a0d12',
+  themeColor: '#f9f7f2',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

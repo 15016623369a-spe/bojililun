@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import BottomNav from '@/components/BottomNav';
+import JournalShell from '@/components/JournalShell';
 import { BODY_LABEL } from '@/lib/exercise-label';
 import { PERIOD_LABEL, addDays, periodRange, type Period } from '@/lib/period';
 import { exerciseStats, muscleStats, todayStr, trendStats, volumeStats } from '@/lib/core/workout';
@@ -78,17 +78,8 @@ export default async function StatsPage({ searchParams }: { searchParams: SP }) 
   const empty = cur.sessions === 0;
 
   return (
-    <div className="page">
-      <header className="page-hdr">
-        <div>
-          <h1>统计</h1>
-          <p>
-            {r.start} — {r.end}
-          </p>
-        </div>
-      </header>
-
-      <div className="page-body">
+    <JournalShell active="review" title="训练统计" subtitle={r.start + " — " + r.end} back={{ href: "/history", label: "回顾" }}>
+      <div className="journal-utility">
         <div className="seg-tabs">
           {PERIODS.map((p) => (
             <Link key={p} href={`/stats?period=${p}`} className={`seg-tab ${period === p ? 'on' : ''}`}>
@@ -201,8 +192,7 @@ export default async function StatsPage({ searchParams }: { searchParams: SP }) 
         )}
       </div>
 
-      <BottomNav active="stats" />
-    </div>
+    </JournalShell>
   );
 }
 

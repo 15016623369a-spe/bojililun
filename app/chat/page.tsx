@@ -371,10 +371,10 @@ export default function Page() {
       <header className="hdr">
         <div className="hdr-top">
           <div className="brand">
-            <Link className="chat-back" href="/train" aria-label="返回">
+            <Link className="chat-back" href="/" aria-label="返回记录">
               ‹
             </Link>
-            对话
+            拍照记录
           </div>
           <div className="hdr-actions">
             <button

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import JournalShell from '@/components/JournalShell';
 import {
   BODY_LABEL,
   BODY_ORDER,
@@ -73,22 +74,9 @@ export default async function ExercisesPage({ searchParams }: { searchParams: SP
   ].filter((c) => c.key === 'all' || c.count > 0);
 
   return (
-    <div className="lib">
-      <header className="lib-hdr">
-        <Link className="lib-back" href="/" aria-label="返回对话">
-          ←
-        </Link>
-        <div>
-          <div className="lib-title">动作库</div>
-          <div className="lib-sub">
-            {body === 'all' ? '全部部位' : BODY_LABEL[body] ?? body}
-            {q ? ` · 搜索「${q}」` : ''} · {total.toLocaleString('en-US')} 个动作
-          </div>
-        </div>
-      </header>
-
+    <JournalShell active="plan" title="动作库" subtitle={`${total.toLocaleString('en-US')} 个动作`} back={{ href: '/body', label: '计划' }}>
       <div className="lib-body">
-        <nav className="rail">
+        <nav className="rail" aria-label="筛选训练部位">
           <Link className={`rail-item ${body === 'all' ? 'on' : ''}`} href={href({ body: 'all' })}>
             <span>全部</span>
             <em>{[...bodyCounts.values()].reduce((a, b) => a + b, 0)}</em>
@@ -101,7 +89,7 @@ export default async function ExercisesPage({ searchParams }: { searchParams: SP
           ))}
         </nav>
 
-        <main className="lib-main">
+        <div className="lib-main">
           <form className="lib-search" action="/exercises" method="get">
             {body !== 'all' && <input type="hidden" name="body" value={body} />}
             {equip !== 'all' && <input type="hidden" name="equip" value={equip} />}
@@ -135,7 +123,6 @@ export default async function ExercisesPage({ searchParams }: { searchParams: SP
                       <div className="ex-thumb">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={imageUrl(x.image)} alt={x.name} loading="lazy" />
-                        <span className="ex-badge">讲解</span>
                       </div>
                       <div className="ex-name">{x.zh_name || x.name}</div>
                       <div className="ex-meta">
@@ -160,9 +147,8 @@ export default async function ExercisesPage({ searchParams }: { searchParams: SP
               </Link>
             </div>
           )}
-          {!hasMore && items.length > 0 && <p className="lib-end">— 到底了 —</p>}
-        </main>
+        </div>
       </div>
-    </div>
+    </JournalShell>
   );
 }

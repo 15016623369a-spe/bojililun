@@ -9,7 +9,8 @@
   - 需保留署名：Z-Anatomy（https://www.z-anatomy.com/）与 hpfrei（https://github.com/hpfrei/body-anatomy-3d-viewer）
   - 若分发修改后的模型，需以相同许可（CC BY-SA 4.0）分发
   - 本项目的业务代码（训练记录、饮食、统计等）与模型资产相互独立；CC BY-SA 只覆盖模型资产本身
-- 如不希望引入该许可，可删除 `public/models/body.glb`，`/body` 页会提示加载失败，但肌肉列表与动作筛选仍可用
+- 回顾页的正背面图层（`public/models/review-front.png`、`public/models/review-back.png`）由同一模型正交投影生成，调整了光照并编码训练部位，同样采用 CC BY-SA 4.0。
+- 如需移除这些模型资产，删除 `public/models/body.glb` 和两张回顾图层。动作列表、筛选和训练记录仍可查看。
 
 ## 动作数据与媒体
 
@@ -40,3 +41,7 @@
 
 - 图表、统计、训练记录均由本项目自身代码生成
 - 微信接入相关说明见 README
+
+## 计划页运动人体模型
+
+`public/models/athletes/` 包含以 MakeHuman CC0 人体及塑形资产制作的 FitCheck 男女模型。两款模型共享 39 个训练选区。原始资产许可随模型提供于 `public/models/athletes/LICENSE.md`。

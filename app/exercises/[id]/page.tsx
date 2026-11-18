@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import JournalShell from '@/components/JournalShell';
 import { notFound } from 'next/navigation';
 import AddToPlanButton from '@/components/AddToPlanButton';
 import ExerciseMedia from '@/components/ExerciseMedia';
@@ -41,24 +42,9 @@ export default async function ExerciseDetailPage({ params }: { params: Promise<{
   })();
 
   return (
-    <div className="lib">
-      <header className="lib-hdr">
-        <Link className="lib-back" href="/exercises" aria-label="返回动作库">
-          ←
-        </Link>
-        <div>
-          <div className="lib-title">动作详情</div>
-          <div className="lib-sub">
-            {EQUIPMENT_LABEL[ex.equipment] ?? ex.equipment} · {BODY_LABEL[ex.body_part] ?? ex.body_part}
-          </div>
-        </div>
-      </header>
-
-      <main className="detail">
-        <ExerciseMedia id={ex.id} image={imageUrl(ex.image)} name={ex.name} />
-
-        <h1 className="detail-name">{displayZh || ex.name}</h1>
-        {displayZh && <p className="detail-en">{ex.name}</p>}
+    <JournalShell active="plan" title={displayZh || ex.name} subtitle={displayZh !== ex.name ? ex.name : undefined} back={{ href: '/exercises', label: '动作库' }}>
+      <div className="detail">
+        <ExerciseMedia id={ex.id} image={ex.image ? imageUrl(ex.image) : undefined} name={displayZh || ex.name} hasAnimation={Boolean(ex.gif_url)} />
 
         <div className="detail-cta">
           <AddToPlanButton exerciseId={ex.id} variant="full" />
@@ -120,7 +106,7 @@ export default async function ExerciseDetailPage({ params }: { params: Promise<{
           ，仅限按其条款使用。
         </p>
 
-      </main>
-    </div>
+      </div>
+    </JournalShell>
   );
 }

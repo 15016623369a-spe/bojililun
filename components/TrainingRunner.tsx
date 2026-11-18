@@ -2,333 +2,172 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { PlanItem, SessionRow } from '@/lib/types';
-import { EQUIPMENT_LABEL, TARGET_LABEL } from '@/lib/exercise-label';
+import { useEffect, useRef, useState } from 'react';
+import type { PlanItem, SessionRow, SetRow } from '@/lib/types';
+import ExerciseMedia from './ExerciseMedia';
+import JournalIcon from './JournalIcon';
 
-type Phase = 'idle' | 'working' | 'resting' | 'finished';
-
-interface DoneSet {
-  exercise: string;
-  setNo: number;
-  weight: number;
-  reps: number;
-  duration: number;
+function clock(seconds: number) {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
-function mmss(sec: number): string {
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
-  return `${m}:${String(s).padStart(2, '0')}`;
+function progress(plan: PlanItem[], sets: SetRow[]) {
+  for (const [index, item] of plan.entries()) {
+    const completed = sets.filter((set) => set.plan_item_id === item.id).length;
+    if (completed < item.sets) return { item, index, number: completed + 1 };
+  }
+  return null;
 }
 
-const REST_CHOICES = [60, 90, 120, 180];
-
-export default function TrainingRunner({
-  session,
-  plan,
-  today,
-}: {
+export default function TrainingRunner({ session, plan, initialSets, demonstrations }: {
   session: SessionRow;
   plan: PlanItem[];
-  today: string;
+  initialSets: SetRow[];
+  demonstrations: Record<string, { image?: string; hasAnimation: boolean }>;
 }) {
   const router = useRouter();
-  const [idx, setIdx] = useState(0);
-  const [setNo, setSetNo] = useState(1);
-  const [phase, setPhase] = useState<Phase>(plan.length ? 'idle' : 'finished');
-  const [elapsed, setElapsed] = useState(0);
-  const [restLeft, setRestLeft] = useState(0);
-  const [restTotal, setRestTotal] = useState(90);
-  const [weight, setWeight] = useState(plan[0]?.weight ?? 0);
-  const [reps, setReps] = useState(plan[0]?.reps ?? 10);
-  const [restSec, setRestSec] = useState(plan[0]?.rest_sec ?? 90);
-  const [done, setDone] = useState<DoneSet[]>([]);
-  const [totalElapsed, setTotalElapsed] = useState(0);
-  const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState('');
-
-  const sessionStart = useRef(Date.now());
-  const setStart = useRef(0);
-  const phaseRef = useRef<Phase>(phase);
-  phaseRef.current = phase;
-
-  const item = plan[idx];
-  const finishedAll = phase === 'finished' || !item;
+  const [sets, setSets] = useState(initialSets);
+  const current = progress(plan, sets);
+  const previous = sets.at(-1);
+  const key = `fitcheck-training:${session.id}:${current?.item.id}:${current?.number}`;
+  const [work, setWork] = useState<{ key: string; started: number } | null>(null);
+  const [now, setNow] = useState<number | null>(null);
+  const [fields, setFields] = useState<{ itemId: number; weight: string; reps: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [ended, setEnded] = useState(Boolean(session.ended_at));
+  const [error, setError] = useState('');
+  const lock = useRef(false);
 
   useEffect(() => {
-    const t = setInterval(() => {
-      setTotalElapsed(Math.floor((Date.now() - sessionStart.current) / 1000));
-      if (phaseRef.current === 'working') {
-        setElapsed(Math.floor((Date.now() - setStart.current) / 1000));
-      }
-    }, 1000);
-    return () => clearInterval(t);
+    setNow(Date.now());
+    const id = window.setInterval(() => setNow(Date.now()), 250);
+    return () => window.clearInterval(id);
   }, []);
 
-  const goNext = useCallback(() => {
-    if (!item) return;
-    if (setNo < item.sets) {
-      setSetNo((n) => n + 1);
-      setPhase('idle');
-      setElapsed(0);
-      return;
-    }
-    if (idx + 1 < plan.length) {
-      const next = plan[idx + 1];
-      setIdx((i) => i + 1);
-      setSetNo(1);
-      setPhase('idle');
-      setElapsed(0);
-      setWeight(next.weight);
-      setReps(next.reps);
-      setRestSec(next.rest_sec);
-      return;
-    }
-    setPhase('finished');
-  }, [idx, item, plan, setNo]);
-
-  // 休息倒计时
   useEffect(() => {
-    if (phase !== 'resting') return;
-    if (restLeft <= 0) {
-      goNext();
-      return;
+    try {
+      const started = Number(sessionStorage.getItem(key));
+      if (started > 0) setWork({ key, started });
+    } catch {
+      // Training still works when browser storage is unavailable.
     }
-    const t = setTimeout(() => setRestLeft((v) => v - 1), 1000);
-    return () => clearTimeout(t);
-  }, [phase, restLeft, goNext]);
+  }, [key]);
 
-  function startSet() {
-    setStart.current = Date.now();
-    setElapsed(0);
-    setPhase('working');
+  const item = current?.item;
+  const demo = item ? demonstrations[item.exercise_id] : undefined;
+  const totalSets = plan.reduce((sum, entry) => sum + entry.sets, 0);
+  const resting = Boolean(previous && work?.key !== key);
+  const startedAt = work?.key === key ? work.started : Date.parse(session.started_at);
+  const restUntil = previous ? Date.parse(previous.created_at) + previous.rest_sec * 1000 : 0;
+  const seconds = now === null ? 0 : resting
+    ? Math.max(0, Math.ceil((restUntil - now) / 1000))
+    : Math.max(0, Math.floor((now - startedAt) / 1000));
+  const weight = item && fields?.itemId === item.id ? fields.weight : String(item?.weight ?? 0);
+  const reps = item && fields?.itemId === item.id ? fields.reps : String(item?.reps ?? 0);
+  const nextAction = current?.number === 1 ? '下一动作' : '下一组';
+
+  function beginNextSet() {
+    const started = Date.now();
+    setWork({ key, started });
+    setNow(started);
+    try { sessionStorage.setItem(key, String(started)); } catch { /* 浏览器存储可用时支持刷新续练 */ }
   }
 
-  async function endSet() {
-    if (!item) return;
-    const duration = Math.max(1, Math.floor((Date.now() - setStart.current) / 1000));
-    const payload = {
-      sessionId: session.id,
-      planItemId: item.id,
-      exerciseId: item.exercise_id,
-      exerciseName: item.name,
-      bodyPart: item.body_part,
-      target: item.target,
-      setIndex: setNo,
-      weight,
-      reps,
-      durationSec: duration,
-      restSec,
-    };
-    setDone((d) => [...d, { exercise: item.name, setNo, weight, reps, duration }]);
-    setPhase('resting');
-    setRestLeft(restSec);
-    setRestTotal(restSec);
+  async function save(finishEarly: boolean) {
+    if (lock.current || (!finishEarly && (!current || resting))) return;
+    lock.current = true;
+    setBusy(true);
+    setError('');
     try {
-      const res = await fetch('/api/session/set', {
-        method: 'POST',
+      const finishing = finishEarly || !current;
+      const response = await fetch(finishing ? '/api/session' : '/api/session/set', {
+        method: finishing ? 'PATCH' : 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(finishing ? { id: session.id } : {
+          sessionId: session.id, planItemId: current.item.id, setIndex: current.number,
+          exerciseId: current.item.exercise_id, exerciseName: current.item.name,
+          bodyPart: current.item.body_part, target: current.item.target,
+          weight: Number(weight), reps: Number(reps),
+          durationSec: Math.max(1, Math.floor((Date.now() - startedAt) / 1000)),
+          restSec: current.item.rest_sec,
+        }),
       });
-      if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        throw new Error(data.error ?? '保存失败');
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || '保存失败，请重试');
+      if (result.sets) setSets(result.sets);
+      try { sessionStorage.removeItem(key); } catch { /* 缓存清理不影响已保存的数据 */ }
+      setNow(Date.now());
+      if (finishing || result.ended) {
+        setEnded(true);
+        router.replace((result.sets?.length ?? sets.length) > 0 ? '/?workout=saved' : '/');
+        router.refresh();
       }
-    } catch (e) {
-      setErr((e as Error).message);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      lock.current = false;
+      setBusy(false);
     }
   }
-
-  async function patchRest(sec: number) {
-    if (!item) return;
-    setRestSec(sec);
-    await fetch('/api/plan', {
-      method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ id: item.id, restSec: sec }),
-    });
-  }
-
-  async function finish() {
-    if (saving) return;
-    setSaving(true);
-    try {
-      await fetch('/api/session', {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ id: session.id }),
-      });
-      router.push(`/history/${today}`);
-    } catch (e) {
-      setErr((e as Error).message);
-      setSaving(false);
-    }
-  }
-
-  if (plan.length === 0) {
-    return (
-      <div className="page">
-        <header className="page-hdr">
-          <div>
-            <h1>开始训练</h1>
-            <p>今天还没有安排动作</p>
-          </div>
-        </header>
-        <div className="page-body">
-          <div className="empty-card">
-            <p>先去动作库挑几个动作加到今日清单。</p>
-            <div className="row-btns">
-              <Link className="btn primary" href="/exercises">
-                去动作库
-              </Link>
-              <Link className="btn" href="/train">
-                回训练页
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const totalSets = plan.reduce((a, x) => a + x.sets, 0);
-  const doneSets = done.length;
-  const ringPct = phase === 'resting' ? (restTotal ? (restTotal - restLeft) / restTotal : 1) : Math.min(1, elapsed / 60);
-  const C = 2 * Math.PI * 62;
 
   return (
-    <div className="runner">
-      <header className="runner-hdr">
-        <Link href="/train" className="lib-back" aria-label="返回">
-          ←
-        </Link>
-        <div>
-          <div className="runner-title">训练中</div>
-          <div className="runner-sub">
-            总用时 {mmss(totalElapsed)} · 完成 {doneSets}/{totalSets} 组
-          </div>
-        </div>
+    <div className={`journal-shell runner-shell${!ended && current ? ' runner-active' : ''}`}>
+      <header className="journal-head runner-top">
+        <Link className="journal-back" href="/body">‹ 计划</Link>
+        <span>完成 {sets.length} / {totalSets} 组</span>
+        {totalSets > 0 && <progress className="runner-progress" max={totalSets} value={Math.min(sets.length, totalSets)} aria-label="训练进度" />}
       </header>
+      <main className="journal-content run-content">
+        {ended ? (
+          <><h1>训练已结束</h1><Link className="journal-primary" href="/">查看记录</Link></>
+        ) : current && item ? (
+          <>
+            <div className="run-title">
+              <p className="journal-kicker">动作 {current.index + 1} / {plan.length}</p>
+              <h1>{item.name}</h1>
+            </div>
 
-      <div className="runner-body">
-        {finishedAll ? (
-          <div className="finish-card">
-            <div className="finish-emoji">💪</div>
-            <h2>练完了</h2>
-            <p>
-              共 {doneSets} 组，总用时 {mmss(totalElapsed)}。
-            </p>
-            <button className="btn primary big" onClick={finish} disabled={saving}>
-              {saving ? '保存中…' : '完成并保存'}
-            </button>
-          </div>
+            <figure className="run-demonstration">
+              <figcaption>{resting ? (current.number === 1 ? '下一动作预览' : '下一组预览') : '动作演示'}</figcaption>
+              <ExerciseMedia id={item.exercise_id} image={demo?.image} name={item.name}
+                hasAnimation={demo?.hasAnimation ?? false} variant="runner" />
+            </figure>
+
+            <div className={`run-clock ${resting ? 'rest' : ''}`}>
+              <div className="run-clock-label">
+                <span>{resting ? (now === null || seconds ? '组间休息' : '休息时间已到') : '本组用时'}</span>
+                <span className="run-set-number">第 {current.number} / {item.sets} 组</span>
+              </div>
+              <strong role="timer">{clock(seconds)}</strong>
+            </div>
+
+            <div className="run-fields">
+              <label>重量 <span>kg</span><input aria-label="重量（kg）" type="number" min="0" step="0.5" inputMode="decimal"
+                value={weight} onChange={(event) => setFields({ itemId: item.id, weight: event.target.value, reps })} /></label>
+              <label>次数 <span>次</span><input aria-label="次数" type="number" min="0" inputMode="numeric"
+                value={reps} onChange={(event) => setFields({ itemId: item.id, reps: event.target.value, weight })} /></label>
+            </div>
+
+            <footer className="runner-actions">
+              {error && <p className="journal-error" role="alert">{error}</p>}
+              {resting ? (
+                <button className="journal-primary" onClick={beginNextSet} disabled={busy}>结束休息，开始{nextAction}</button>
+              ) : (
+                <button className="journal-primary" onClick={() => void save(false)} disabled={busy}>
+                  <JournalIcon name="check" />{busy ? '正在保存…' : '完成本组'}
+                </button>
+              )}
+              <button className="journal-quiet" onClick={() => void save(true)} disabled={busy}>{sets.length ? '结束训练并归档' : '结束训练'}</button>
+            </footer>
+          </>
         ) : (
           <>
-            <div className="runner-progress">
-              <div className="rp-label">
-                动作 {idx + 1}/{plan.length}
-              </div>
-              <div className="rp-bar">
-                <i style={{ width: `${(doneSets / totalSets) * 100}%` }} />
-              </div>
-            </div>
-
-            <div className="ex-now">
-              <div className="ex-now-name">{item.name}</div>
-              <div className="ex-now-meta">
-                {TARGET_LABEL[item.target] ?? (item.target || item.body_part)} ·{' '}
-                {EQUIPMENT_LABEL[item.equipment] ?? item.equipment}
-              </div>
-              <div className="ex-now-plan">
-                计划 {item.sets} 组 × {item.reps} 次 · {item.weight > 0 ? `${item.weight} kg` : '自重'}
-              </div>
-            </div>
-
-            <div className="timer-wrap">
-              <svg className="ring" viewBox="0 0 140 140">
-                <circle cx="70" cy="70" r="62" className="ring-bg" />
-                <circle
-                  cx="70"
-                  cy="70"
-                  r="62"
-                  className={`ring-fg ${phase === 'resting' ? 'rest' : ''}`}
-                  strokeDasharray={C}
-                  strokeDashoffset={C * (1 - ringPct)}
-                />
-              </svg>
-              <div className="timer-text">
-                <b>{phase === 'resting' ? mmss(restLeft) : mmss(elapsed)}</b>
-                <span>
-                  {phase === 'resting' ? '组间休息' : phase === 'working' ? `第 ${setNo} / ${item.sets} 组进行中` : `准备第 ${setNo} / ${item.sets} 组`}
-                </span>
-              </div>
-            </div>
-
-            <div className="set-inputs">
-              <label>
-                <span>重量 kg</span>
-                <input type="number" inputMode="decimal" value={weight} onChange={(e) => setWeight(Number(e.target.value))} />
-              </label>
-              <label>
-                <span>次数</span>
-                <input type="number" inputMode="numeric" value={reps} onChange={(e) => setReps(Number(e.target.value))} />
-              </label>
-            </div>
-
-            {phase === 'idle' && (
-              <button className="btn primary big" onClick={startSet}>
-                开始第 {setNo} 组
-              </button>
-            )}
-            {phase === 'working' && (
-              <button className="btn primary big danger" onClick={endSet}>
-                结束本组
-              </button>
-            )}
-            {phase === 'resting' && (
-              <div className="rest-actions">
-                <button className="btn" onClick={() => goNext()}>
-                  跳过休息
-                </button>
-                <button className="btn" onClick={() => setRestLeft((v) => v + 15)}>
-                  +15s
-                </button>
-              </div>
-            )}
-
-            <div className="rest-setting">
-              <span>组间休息</span>
-              {REST_CHOICES.map((r) => (
-                <button key={r} className={`rest-chip ${restSec === r ? 'on' : ''}`} onClick={() => patchRest(r)}>
-                  {r}s
-                </button>
-              ))}
-            </div>
-
-            <button className="link-btn" onClick={finish} disabled={saving}>
-              结束训练
-            </button>
-
-            {done.length > 0 && (
-              <div className="done-list">
-                <div className="done-title">已完成的组</div>
-                {done.map((d, i) => (
-                  <div className="done-row" key={i}>
-                    <span>
-                      {d.exercise} · 第 {d.setNo} 组
-                    </span>
-                    <em>
-                      {d.weight}kg × {d.reps}
-                    </em>
-                  </div>
-                ))}
-              </div>
-            )}
+            <h1>{sets.length ? '所有动作已完成' : '这节训练没有动作'}</h1>
+            <button className="journal-primary" onClick={() => void save(true)} disabled={busy}>结束训练</button>
+            {error && <p className="journal-error" role="alert">{error}</p>}
           </>
         )}
-        {err && <p className="form-err">{err}</p>}
-      </div>
+      </main>
     </div>
   );
 }

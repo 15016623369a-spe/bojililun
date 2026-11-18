@@ -1,107 +1,48 @@
 import Link from 'next/link';
-import BottomNav from '@/components/BottomNav';
-import { monthDays, shiftMonth } from '@/lib/period';
-import { monthOverview, todayStr } from '@/lib/core/workout';
+import JournalIcon from '@/components/JournalIcon';
+import JournalShell from '@/components/JournalShell';
+import ReviewJournal from '@/components/ReviewJournal';
+import { journalForDate } from '@/lib/core/journal';
+import { todayStr } from '@/lib/core/workout';
+import { addDays, periodRange, shiftMonth, validDate } from '@/lib/period';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const metadata = { title: '回顾 · FitCheck' };
 
-const WEEK = ['一', '二', '三', '四', '五', '六', '日'];
+const periods = [{ key: 'day', label: '日' }, { key: 'week', label: '周' }, { key: 'month', label: '月' }] as const;
 
-export default async function HistoryPage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
-  const sp = await searchParams;
+export default async function HistoryPage({ searchParams }: { searchParams: Promise<{ period?: string; date?: string; month?: string }> }) {
+  const params = await searchParams;
   const today = todayStr();
-  const month = /^\d{4}-\d{2}$/.test(sp.month ?? '') ? (sp.month as string) : today.slice(0, 7);
-  const days = monthDays(month);
-  const overview = monthOverview(month);
-  const [y, m] = month.split('-').map(Number);
-
-  const totalVolume = [...overview.values()].reduce((a, d) => a + d.volume, 0);
-  const totalDays = [...overview.values()].filter((d) => d.sessions > 0).length;
-
-  return (
-    <div className="page">
-      <header className="page-hdr">
-        <div>
-          <h1>历史</h1>
-          <p>
-            本月训练 {totalDays} 天 · 容量 {totalVolume.toLocaleString('en-US')} kg
-          </p>
-        </div>
-      </header>
-
-      <div className="page-body">
-        <div className="month-nav">
-          <Link href={`/history?month=${shiftMonth(month, -1)}`} aria-label="上个月">
-            ‹
-          </Link>
-          <div>
-            {y} 年 {m} 月
-          </div>
-          <Link href={`/history?month=${shiftMonth(month, 1)}`} aria-label="下个月">
-            ›
-          </Link>
-        </div>
-
-        <div className="cal">
-          {WEEK.map((w) => (
-            <div className="cal-hd" key={w}>
-              {w}
-            </div>
-          ))}
-          {Array.from({ length: days[0]?.weekday ?? 0 }).map((_, i) => (
-            <div key={`pad-${i}`} className="cal-cell pad" />
-          ))}
-          {days.map((d) => {
-            const o = overview.get(d.date);
-            const isToday = d.date === today;
-            return (
-              <Link
-                key={d.date}
-                href={`/history/${d.date}`}
-                className={`cal-cell ${isToday ? 'today' : ''} ${o ? 'has' : ''}`}
-              >
-                <span className="cal-day">{d.day}</span>
-                <span className="cal-dots">
-                  {o && o.sessions > 0 && <i className="dot green" />}
-                  {o && o.kcal > 0 && <i className="dot orange" />}
-                </span>
-                {o && o.volume > 0 && <em className="cal-vol">{(o.volume / 1000).toFixed(1)}t</em>}
-              </Link>
-            );
-          })}
-        </div>
-
-        <p className="legend">
-          <i className="dot green" /> 有训练 <i className="dot orange" /> 有饮食记录
-        </p>
-
-        <section className="block">
-          <h2 className="block-title">本月有记录的日子</h2>
-          {overview.size === 0 ? (
-            <p className="hint">这个月还没有记录。</p>
-          ) : (
-            <div className="day-list">
-              {[...overview.values()]
-                .sort((a, b) => (a.date < b.date ? 1 : -1))
-                .slice(0, 8)
-                .map((o) => (
-                  <Link key={o.date} href={`/history/${o.date}`} className="day-row">
-                    <div>
-                      <b>{o.date}</b>
-                      <span>
-                        {o.sessions > 0 ? `${o.sessions} 次训练 · ${o.sets} 组 · ${o.volume.toLocaleString('en-US')} kg` : '只有饮食记录'}
-                      </span>
-                    </div>
-                    <em>{o.kcal > 0 ? `${o.kcal} kcal` : ''}</em>
-                  </Link>
-                ))}
-            </div>
-          )}
-        </section>
-      </div>
-
-      <BottomNav active="history" />
+  const monthDate = /^\d{4}-\d{2}$/.test(params.month ?? '') ? params.month + '-01' : undefined;
+  const anchor = validDate(params.date) ? params.date : validDate(monthDate) ? monthDate : today;
+  const period = params.period === 'day' || params.period === 'week' || params.period === 'month' ? params.period : monthDate ? 'month' : 'week';
+  const { start, end } = period === 'day' ? { start: anchor, end: anchor } : periodRange(period, anchor);
+  const dateLabel = (date: string) => `${Number(date.slice(5, 7))}月${Number(date.slice(8))}日`;
+  const href = (key: string, date: string) => `/history?period=${key}&date=${date}`;
+  const step = (direction: number) => period === 'month'
+    ? shiftMonth(anchor.slice(0, 7), direction) + '-01'
+    : addDays(anchor, direction * (period === 'day' ? 1 : 7));
+  const days = [];
+  for (let date = end; date >= start; date = addDays(date, -1)) {
+    const entries = journalForDate(date);
+    if (entries.length) days.push({ date, entries });
+  }
+  return <JournalShell active="review" title="回顾">
+    <nav className="review-period" aria-label="回顾范围">
+      {periods.map(({ key, label }) => <Link href={href(key, anchor)} key={key} aria-current={key === period ? 'page' : undefined}>{label}</Link>)}
+    </nav>
+    <div className="review-dates">
+      <Link className="journal-icon-button" href={href(period, step(-1))} aria-label="上一段时间">‹</Link>
+      <Link className="review-calendar-link" href={`/history/calendar?date=${anchor}&period=${period}`}
+        aria-label={`打开月历，${start === end ? dateLabel(start) : `${dateLabel(start)}至${dateLabel(end)}`}`}>
+        <JournalIcon name="calendar" />
+        {start === end ? dateLabel(start) : `${dateLabel(start)} — ${dateLabel(end)}`}
+      </Link>
+      <Link className="journal-icon-button" href={href(period, step(1))} aria-label="下一段时间">›</Link>
     </div>
-  );
+    <ReviewJournal key={period + anchor} days={days} period={period} />
+    <div className="journal-links"><Link href="/stats">训练统计</Link><Link href="/me">个人资料</Link></div>
+  </JournalShell>;
 }

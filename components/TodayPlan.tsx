@@ -53,7 +53,7 @@ export default function TodayPlan({
       const res = await fetch('/api/session', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ guided: true }),
       });
       const data = (await res.json()) as { session?: { id: number }; error?: string };
       if (!res.ok || !data.session) throw new Error(data.error ?? '开始训练失败');
