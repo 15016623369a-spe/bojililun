@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import './replica.css';
 
 export const metadata: Metadata = {
-  title: 'FitCheck · 拍照打卡',
-  description: '拍一张照片记录饮食，自动换算热量与剩余额度，并基于你的记忆给训练建议。',
+  title: 'FitCheck · 记录与回顾',
+  description: '按住说话就记下今天练了什么、吃了什么；周／月回顾看练过哪些部位。',
 };
 
 export const viewport: Viewport = {

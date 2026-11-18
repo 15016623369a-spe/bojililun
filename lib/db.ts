@@ -173,11 +173,16 @@ function loadZhMap(): Map<string, string> {
   return map;
 }
 
+function ensureColumn(db: DatabaseSync, table: string, column: string, ddl: string) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as unknown as Array<{ name: string }>;
+  if (!cols.some((c) => c.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
+}
+
 function ensureColumns(db: DatabaseSync) {
-  const cols = db.prepare('PRAGMA table_info(exercise)').all() as unknown as Array<{ name: string }>;
-  if (!cols.some((c) => c.name === 'zh_name')) {
-    db.exec("ALTER TABLE exercise ADD COLUMN zh_name TEXT NOT NULL DEFAULT ''");
-  }
+  ensureColumn(db, 'exercise', 'zh_name', "TEXT NOT NULL DEFAULT ''");
+  // 记录也支持挂一张照片（训练 / 餐食都当“笔记”用）
+  ensureColumn(db, 'session', 'photo_path', 'TEXT');
+  ensureColumn(db, 'meal_log', 'photo_path', 'TEXT');
 }
 
 /** 同步中文名：只更新和 data/exercise-zh.json 不一致的行 */
