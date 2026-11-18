@@ -25,7 +25,7 @@ export default async function ExerciseDetailPage({ params }: { params: Promise<{
   } catch {
     steps = [];
   }
-  const alias = zhAlias(ex.name);
+  const displayZh = ex.zh_name || zhAlias(ex.name);
 
   // 数据集的“整段说明”和“分步要点”内容基本重复，只保留分步
   const norm = (t: string) => t.replace(/[\s。，,、；;：:！!？?\-—–]/g, '');
@@ -57,8 +57,8 @@ export default async function ExerciseDetailPage({ params }: { params: Promise<{
       <main className="detail">
         <ExerciseMedia id={ex.id} image={imageUrl(ex.image)} name={ex.name} />
 
-        <h1 className="detail-name">{alias ?? ex.name}</h1>
-        {alias && <p className="detail-en">{ex.name}</p>}
+        <h1 className="detail-name">{displayZh || ex.name}</h1>
+        {displayZh && <p className="detail-en">{ex.name}</p>}
 
         <div className="detail-cta">
           <AddToPlanButton exerciseId={ex.id} variant="full" />
@@ -102,7 +102,7 @@ export default async function ExerciseDetailPage({ params }: { params: Promise<{
                 <Link key={r.id} className="rel-card" href={`/exercises/${r.id}`}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={imageUrl(r.image)} alt={r.name} loading="lazy" />
-                  <span>{zhAlias(r.name) ?? r.name}</span>
+                  <span>{r.zh_name || zhAlias(r.name) || r.name}</span>
                 </Link>
               ))}
             </div>

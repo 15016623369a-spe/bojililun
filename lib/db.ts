@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS draft (
 CREATE TABLE IF NOT EXISTS exercise (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
+  zh_name TEXT NOT NULL DEFAULT '',
   body_part TEXT NOT NULL,
   equipment TEXT NOT NULL,
   target TEXT NOT NULL DEFAULT '',
@@ -159,6 +160,44 @@ function seedFoods(db: DatabaseSync) {
   }
 }
 
+function loadZhMap(): Map<string, string> {
+  const map = new Map<string, string>();
+  const file = path.join(DATA_DIR, 'exercise-zh.json');
+  if (!fs.existsSync(file)) return map;
+  try {
+    const list = JSON.parse(fs.readFileSync(file, 'utf8')) as Array<{ id: string; zh: string }>;
+    for (const r of list) if (r.id && r.zh) map.set(r.id, r.zh);
+  } catch {
+    /* 文件损坏时退回英文名 */
+  }
+  return map;
+}
+
+function ensureColumns(db: DatabaseSync) {
+  const cols = db.prepare('PRAGMA table_info(exercise)').all() as unknown as Array<{ name: string }>;
+  if (!cols.some((c) => c.name === 'zh_name')) {
+    db.exec("ALTER TABLE exercise ADD COLUMN zh_name TEXT NOT NULL DEFAULT ''");
+  }
+}
+
+/** 同步中文名：只更新和 data/exercise-zh.json 不一致的行 */
+function backfillZhNames(db: DatabaseSync) {
+  const zhMap = loadZhMap();
+  if (!zhMap.size) return;
+  const rows = db.prepare('SELECT id, zh_name FROM exercise').all() as unknown as Array<{ id: string; zh_name: string }>;
+  const diffs = rows.filter((r) => r.zh_name !== (zhMap.get(r.id) ?? ''));
+  if (!diffs.length) return;
+  const stmt = db.prepare('UPDATE exercise SET zh_name = ? WHERE id = ?');
+  db.exec('BEGIN');
+  try {
+    for (const r of diffs) stmt.run(zhMap.get(r.id) ?? '', r.id);
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+}
+
 function seedExercises(db: DatabaseSync) {
   const row = db.prepare('SELECT COUNT(*) AS c FROM exercise').get() as { c: number };
   if (row.c > 0) return;
@@ -168,17 +207,20 @@ function seedExercises(db: DatabaseSync) {
   if (!fs.existsSync(file)) return;
   const list = JSON.parse(fs.readFileSync(file, 'utf8')) as Array<Record<string, unknown>>;
 
+  const zhMap = loadZhMap();
   const stmt = db.prepare(
     `INSERT OR REPLACE INTO exercise
-     (id, name, body_part, equipment, target, muscle_group, secondary_muscles, zh, zh_steps, image, gif_url, media_id, attribution)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     (id, name, zh_name, body_part, equipment, target, muscle_group, secondary_muscles, zh, zh_steps, image, gif_url, media_id, attribution)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   db.exec('BEGIN');
   try {
     for (const x of list) {
+      const id = String(x.id ?? '');
       stmt.run(
-        String(x.id ?? ''),
+        id,
         String(x.name ?? ''),
+        zhMap.get(id) ?? '',
         String(x.body_part ?? ''),
         String(x.equipment ?? ''),
         String(x.target ?? ''),
@@ -209,8 +251,10 @@ function init(): DatabaseSync {
     /* 内存/只读文件系统上可能不支持，忽略 */
   }
   db.exec(SCHEMA);
+  ensureColumns(db);
   seedFoods(db);
   seedExercises(db);
+  backfillZhNames(db);
   return db;
 }
 

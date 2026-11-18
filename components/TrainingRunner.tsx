@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PlanItem, SessionRow } from '@/lib/types';
+import { EQUIPMENT_LABEL, TARGET_LABEL } from '@/lib/exercise-label';
 
 type Phase = 'idle' | 'working' | 'resting' | 'finished';
 
@@ -236,7 +237,8 @@ export default function TrainingRunner({
             <div className="ex-now">
               <div className="ex-now-name">{item.name}</div>
               <div className="ex-now-meta">
-                {item.target || item.body_part} · {item.equipment}
+                {TARGET_LABEL[item.target] ?? (item.target || item.body_part)} ·{' '}
+                {EQUIPMENT_LABEL[item.equipment] ?? item.equipment}
               </div>
               <div className="ex-now-plan">
                 计划 {item.sets} 组 × {item.reps} 次 · {item.weight > 0 ? `${item.weight} kg` : '自重'}

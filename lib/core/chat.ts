@@ -7,6 +7,7 @@ import { enrichItems } from './enrich';
 import { currentMealType, MEAL_LABEL, type MealType } from '../date';
 import { buildMemoryBlock, extractMemoryCandidates, getAlwaysOnMemories, listMemories, searchMemories } from '../memory';
 import { findExercises } from '../exercise';
+import { EQUIPMENT_LABEL, TARGET_LABEL } from '../exercise-label';
 import { addPlanItem, getPlan } from './workout';
 import type { AssistantReply, FoodItem } from '../types';
 import type { RawItem } from '../ai/types';
@@ -108,7 +109,7 @@ function workoutText(bodyPart: string, label: string): string {
   if (!exs.length) return `这个部位我暂时没有动作数据，换个部位试试？`;
 
   const lines = exs.map((e, i) => {
-    return `${i + 1}. ${e.name}（${e.equipment}）\n   目标：${e.target || e.muscle_group}\n   要点：${trimZh(e.zh)}`;
+    return `${i + 1}. ${e.zh_name || e.name}（${EQUIPMENT_LABEL[e.equipment] ?? e.equipment}）\n   目标：${TARGET_LABEL[e.target] ?? (e.target || e.muscle_group)}\n   要点：${trimZh(e.zh)}`;
   });
 
   const parts = [`今天练${label}，给你挑了 ${exs.length} 个动作：`, ...lines, '', '建议 3–4 组 × 8–12 次，组间休息 90 秒；重量按上次完成度微调。'];
@@ -131,7 +132,7 @@ function equipmentText(words: string): string {
   if (!exs.length) return `我暂时没有「${hit[1]}」的动作数据。`;
   return [
     `用${words.replace(/怎么用|如何使用|这是什么|器械|怎么练/g, '') || '这类器械'}可以做的动作：`,
-    ...exs.map((e, i) => `${i + 1}. ${e.name}\n   目标：${e.target}\n   要点：${trimZh(e.zh)}`),
+    ...exs.map((e, i) => `${i + 1}. ${e.zh_name || e.name}\n   目标：${TARGET_LABEL[e.target] ?? e.target}\n   要点：${trimZh(e.zh)}`),
     '',
     '想要完整的使用讲解和替代动作，接上视觉模型后可以直接拍器械识别。',
   ].join('\n');

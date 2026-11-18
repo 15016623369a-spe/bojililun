@@ -137,7 +137,7 @@ export default async function ExercisesPage({ searchParams }: { searchParams: SP
                         <img src={imageUrl(x.image)} alt={x.name} loading="lazy" />
                         <span className="ex-badge">讲解</span>
                       </div>
-                      <div className="ex-name">{x.name}</div>
+                      <div className="ex-name">{x.zh_name || x.name}</div>
                       <div className="ex-meta">
                         {TARGET_LABEL[x.target] ?? x.target}
                         <i>·</i>

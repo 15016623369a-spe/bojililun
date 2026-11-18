@@ -53,7 +53,7 @@ export function addPlanItem(
   ).run(
     date,
     ex.id,
-    ex.name,
+    ex.zh_name || ex.name,
     ex.body_part,
     ex.target,
     ex.equipment,

@@ -132,6 +132,8 @@ node scripts/smoke.mjs           # 饮食/记忆/训练建议 端到端冒烟
 node scripts/shot.mjs            # 对话主流程截图（00–06）
 node scripts/shot-library.mjs    # 动作库截图（07–10）
 node scripts/shot-training.mjs   # 训练全链路截图（11–21）
+
+node scripts/translate-exercises.mjs   # 重新生成动作中文名（改词典后跑）
 ```
 
 `scripts/shot-training.mjs` 会用真实浏览器走完：动作库加动作 → 改重量 → 开始训练 → 开始/结束本组 → 休息倒计时 → 结束训练 → 历史 → 统计 → 我的 → 对话排计划。
@@ -144,7 +146,7 @@ node scripts/shot-training.mjs   # 训练全链路截图（11–21）
   - 使用了元数据字段与 180×180 缩略图（`public/exercises/`，约 11MB）
   - **未打包 GIF**：详情页首次访问由 `/api/gif/[id]` 按需拉取并缓存到 `data/gifs/`，失败自动回落静态图
   - 媒体版权归 [Gym visual](https://gymvisual.com/)，按数据集授权在 180×180 分辨率下使用
-  - **已知限制**：数据集没有中文动作名，界面保留英文原名，常用 60+ 个补了中文叫法（`ZH_ALIAS`）
+  - **中文动作名**：数据集本身只有英文名，`scripts/translate-exercises.mjs` 用「短语优先 + 逐词兜底 + 人工修正表」把 1,324 个动作全部译成中文（覆盖率 100%），结果落在 `data/exercise-zh.json`，启动时同步进数据库 `zh_name` 列；界面以中文名为主，英文原名保留在详情页副标题
 - **食物营养值**：常见食物近似值，仅供演示；正式产品建议接《中国食物成分表》或商业营养库
 
 ---

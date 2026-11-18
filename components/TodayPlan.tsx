@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { PlanItem } from '@/lib/types';
+import { EQUIPMENT_LABEL, TARGET_LABEL } from '@/lib/exercise-label';
 
 const REST_CHOICES = [60, 90, 120, 180];
 
@@ -98,8 +99,8 @@ export default function TodayPlan({
                   {it.done === 1 && <span className="done-tag">已练</span>}
                 </div>
                 <div className="plan-meta">
-                  <span>{it.target || it.body_part}</span>
-                  <span>{it.equipment}</span>
+                  <span>{TARGET_LABEL[it.target] ?? (it.target || it.body_part)}</span>
+                  <span>{EQUIPMENT_LABEL[it.equipment] ?? it.equipment}</span>
                 </div>
                 <div className="plan-fields">
                   <label>

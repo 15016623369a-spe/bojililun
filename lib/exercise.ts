@@ -7,6 +7,7 @@ function plainAll<T extends object>(rows: T[]): T[] {
 export interface ExerciseRow {
   id: string;
   name: string;
+  zh_name: string;
   body_part: string;
   equipment: string;
   target: string;
@@ -92,8 +93,8 @@ function buildWhere(o: { bodyPart?: string; equipment?: string; q?: string }) {
     args.push(o.equipment);
   }
   if (o.q) {
-    where.push('(name LIKE ? OR target LIKE ?)');
-    args.push(`%${o.q}%`, `%${o.q}%`);
+    where.push('(name LIKE ? OR zh_name LIKE ? OR target LIKE ?)');
+    args.push(`%${o.q}%`, `%${o.q}%`, `%${o.q}%`);
   }
   return { where, args };
 }
