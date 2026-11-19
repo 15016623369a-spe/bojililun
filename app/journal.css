@@ -415,6 +415,8 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
 .set-input { display: flex; align-items: center; min-width: 0; height: 38px; padding-right: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
 .set-input:focus-within { border-color: var(--forest); box-shadow: 0 0 0 2px color-mix(in srgb, var(--forest) 12%, transparent); }
 .set-input input { width: 100%; min-width: 0; height: 100%; padding: 0 3px 0 8px; border: 0; outline: 0; background: transparent; color: var(--ink); font: inherit; font-size: 14px; font-variant-numeric: tabular-nums; }
+/* 焦点环由外框的 :focus-within 负责；输入框自己的 outline 会在框内多画一层、还偏出列左缘 */
+.set-input input:focus-visible { outline: 0; }
 .set-input small { flex: none; color: var(--quiet); font-size: 10px; }
 .set-save { min-width: 48px; height: 38px; padding: 0 10px; border: 0; border-radius: 8px; background: var(--forest); color: var(--paper); font-size: 12px; font-weight: 700; cursor: pointer; }
 .set-save:disabled { opacity: .55; cursor: wait; }
