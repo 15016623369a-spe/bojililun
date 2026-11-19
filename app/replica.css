@@ -1345,8 +1345,9 @@ textarea.fc-input {
   min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   margin: 0 -6px;
-  padding: 0 6px 4px;
+  padding: 0 6px 28px;
 }
 
 .fc-dict-back {
@@ -1366,7 +1367,7 @@ textarea.fc-input {
   width: 100%;
 }
 
-.fc-dict-name {
+h3.fc-dict-name {
   margin: 0;
   font-size: 21px;
   font-weight: 650;
@@ -1435,10 +1436,23 @@ textarea.fc-input {
 
 /* 底部主操作：不跟着正文滚动，始终吸在弹窗底部 */
 .fc-dict-actions {
+  position: relative;
   flex: none;
-  margin-top: 10px;
+  margin-top: 6px;
   padding-top: 12px;
   border-top: 1px solid var(--hair);
+}
+
+/* 正文在分隔线上方柔和消失，避免文字被硬切 */
+.fc-dict-actions::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  right: -6px;
+  top: -20px;
+  height: 20px;
+  background: linear-gradient(to bottom, rgba(251, 246, 243, 0), var(--paper) 88%);
+  pointer-events: none;
 }
 
 .fc-dict-actions .fc-btn {
@@ -1454,6 +1468,21 @@ textarea.fc-input {
 .fc-dict-actions .fc-btn.done {
   background: var(--sage);
   color: var(--green);
+}
+
+/* 矮屏让弹窗多占一点高度，保证首屏能看到要点开头 */
+@media (max-height: 720px) {
+  .fc-dict-sheet.detail {
+    max-height: 94dvh;
+  }
+
+  .fc-dict-hero {
+    gap: 12px;
+  }
+
+  .fc-dict-sub {
+    margin: 18px 0 8px;
+  }
 }
 
 .fc-dict-link {
