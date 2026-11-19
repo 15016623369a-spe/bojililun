@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type PointerEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { MuscleId } from '@/lib/muscles';
 
 // The atlas PNGs encode muscle ID in red and the model's shading in green.
@@ -15,6 +15,25 @@ const width = 420;
 const fullHeight = 960;
 const torsoHeight = 535;
 
+// 双指缩放的上下限：1 倍就是原来的整身图，放大后最多看到模型的一小块。
+const MIN_SCALE = 1;
+const MAX_SCALE = 4;
+const TAP_SLOP = 8;
+
+type View = { scale: number; x: number; y: number };
+const RESET: View = { scale: 1, x: 0, y: 0 };
+
+// 放大后只允许在图片范围内平移，避免把身体拖出视野。
+function clampView({ scale, x, y }: View, box: { width: number; height: number }): View {
+  const next = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale));
+  if (next <= 1.001) return RESET;
+  return {
+    scale: next,
+    x: Math.min(0, Math.max(box.width * (1 - next), x)),
+    y: Math.min(0, Math.max(box.height * (1 - next), y)),
+  };
+}
+
 export default function ReviewAnatomy({ side, fullBody, highlighted, selectable, onInspect }: {
   side: 'front' | 'back';
   fullBody: boolean;
@@ -23,10 +42,31 @@ export default function ReviewAnatomy({ side, fullBody, highlighted, selectable,
   onInspect: (muscle: MuscleId) => void;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
+  const frame = useRef<HTMLDivElement>(null);
+  const stage = useRef<HTMLDivElement>(null);
+  const view = useRef<View>(RESET);
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{ distance: number; midX: number; midY: number } | null>(null);
+  const drag = useRef<{ x: number; y: number; from: View } | null>(null);
+  const tap = useRef<{ x: number; y: number; at: number } | null>(null);
+  const moved = useRef(false);
   const [atlas, setAtlas] = useState<{ side: typeof side; pixels: ImageData }>();
   const [failed, setFailed] = useState<typeof side>();
+  const [zoomed, setZoomed] = useState(false);
   const height = fullBody ? fullHeight : torsoHeight;
   const ready = atlas?.side === side;
+
+  // 缩放只改 canvas 的 transform，位图不用重绘，点击坐标靠 rect 反算依然准确。
+  const paint = useCallback((next: View) => {
+    const node = canvas.current;
+    if (!node) return;
+    const sized = clampView(next, { width: node.offsetWidth, height: node.offsetHeight });
+    view.current = sized;
+    node.style.transform = sized.scale === 1
+      ? ''
+      : `translate3d(${sized.x}px, ${sized.y}px, 0) scale(${sized.scale})`;
+    setZoomed(sized.scale > 1.001);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -75,9 +115,140 @@ export default function ReviewAnatomy({ side, fullBody, highlighted, selectable,
     context.putImageData(output, 0, 0);
   }, [atlas, side, height, fullBody, selectedKey]);
 
-  function pick(event: PointerEvent<HTMLCanvasElement>) {
-    if (!ready) return;
-    const rect = event.currentTarget.getBoundingClientRect();
+  // 正背面切换、整身/半身切换后，旧的放大偏移可能越界，重新夹一下。
+  useEffect(() => {
+    paint(view.current);
+  }, [paint, height, fullBody]);
+
+  // 双指按下时阻止页面滚动；单指仍然按 pan-y 正常滚页面。
+  useEffect(() => {
+    const node = frame.current;
+    if (!node) return;
+    const stop = (event: TouchEvent) => {
+      if (event.touches.length > 1) event.preventDefault();
+    };
+    node.addEventListener('touchstart', stop, { passive: false });
+    node.addEventListener('touchmove', stop, { passive: false });
+    return () => {
+      node.removeEventListener('touchstart', stop);
+      node.removeEventListener('touchmove', stop);
+    };
+  }, []);
+
+  // 触控板双指捏合（ctrl + wheel）直接缩放；已经放大时滚轮也用来缩放。
+  useEffect(() => {
+    const node = frame.current;
+    if (!node) return;
+    const onWheel = (event: WheelEvent) => {
+      const current = view.current;
+      if (!event.ctrlKey && current.scale === 1) return;
+      event.preventDefault();
+      const box = stage.current?.getBoundingClientRect();
+      if (!box) return;
+      const scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, current.scale * Math.exp(-event.deltaY * 0.0025)));
+      if (scale === current.scale) return;
+      const anchorX = (event.clientX - box.left - current.x) / current.scale;
+      const anchorY = (event.clientY - box.top - current.y) / current.scale;
+      paint({
+        scale,
+        x: event.clientX - box.left - anchorX * scale,
+        y: event.clientY - box.top - anchorY * scale,
+      });
+    };
+    node.addEventListener('wheel', onWheel, { passive: false });
+    return () => node.removeEventListener('wheel', onWheel);
+  }, [paint]);
+
+  // 手势挂在外层整行上：模型只有 254px 宽，两根手指不一定都落在 canvas 上。
+  function down(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    if ((event.target as HTMLElement).closest('button')) return;
+    const node = event.currentTarget;
+    if (canvas.current) canvas.current.style.transition = '';
+    node.setPointerCapture(event.pointerId);
+    pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (pointers.current.size === 1) {
+      moved.current = false;
+      tap.current = { x: event.clientX, y: event.clientY, at: performance.now() };
+      drag.current = view.current.scale > 1 ? { x: event.clientX, y: event.clientY, from: view.current } : null;
+      return;
+    }
+    moved.current = true;
+    drag.current = null;
+    const [a, b] = [...pointers.current.values()];
+    pinch.current = {
+      distance: Math.hypot(a.x - b.x, a.y - b.y) || 1,
+      midX: (a.x + b.x) / 2,
+      midY: (a.y + b.y) / 2,
+    };
+  }
+
+  function move(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!pointers.current.has(event.pointerId)) return;
+    pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    // 位移基准是未缩放的模型框，后面所有换算都以它为准。
+    const box = stage.current?.getBoundingClientRect();
+    if (!box) return;
+
+    if (pinch.current && pointers.current.size >= 2) {
+      const [a, b] = [...pointers.current.values()];
+      const distance = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+      const midX = (a.x + b.x) / 2;
+      const midY = (a.y + b.y) / 2;
+      const current = view.current;
+      const scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, current.scale * distance / pinch.current.distance));
+      // 捏合中心下的那一点保持不动，缩放才跟手。
+      const anchorX = (pinch.current.midX - box.left - current.x) / current.scale;
+      const anchorY = (pinch.current.midY - box.top - current.y) / current.scale;
+      paint({ scale, x: midX - box.left - anchorX * scale, y: midY - box.top - anchorY * scale });
+      pinch.current = { distance, midX, midY };
+      return;
+    }
+
+    if (pointers.current.size === 1 && drag.current) {
+      const dx = event.clientX - drag.current.x;
+      const dy = event.clientY - drag.current.y;
+      if (Math.hypot(dx, dy) > TAP_SLOP) moved.current = true;
+      paint({ ...drag.current.from, x: drag.current.from.x + dx, y: drag.current.from.y + dy });
+    }
+  }
+
+  function up(event: ReactPointerEvent<HTMLDivElement>) {
+    const released = tap.current;
+    pointers.current.delete(event.pointerId);
+    if (pointers.current.size < 2) pinch.current = null;
+    if (pointers.current.size === 1) {
+      // 捏合后留下一根手指，接着滑就是平移，不要跳一下。
+      const [only] = [...pointers.current.values()];
+      drag.current = view.current.scale > 1 ? { x: only.x, y: only.y, from: view.current } : null;
+      return;
+    }
+    drag.current = null;
+    tap.current = null;
+    if (released && !moved.current && performance.now() - released.at < 800) pick(event);
+  }
+
+  function cancel(event: ReactPointerEvent<HTMLDivElement>) {
+    pointers.current.delete(event.pointerId);
+    if (pointers.current.size < 2) pinch.current = null;
+    if (pointers.current.size === 0) {
+      drag.current = null;
+      tap.current = null;
+    }
+  }
+
+  function reset() {
+    const node = canvas.current;
+    if (!node) return;
+    node.style.transition = 'transform 180ms ease-out';
+    paint(RESET);
+    window.setTimeout(() => { node.style.transition = ''; }, 200);
+  }
+
+  function pick(event: ReactPointerEvent<HTMLDivElement>) {
+    const node = canvas.current;
+    if (!ready || !node) return;
+    const rect = node.getBoundingClientRect();
     const x = Math.floor((event.clientX - rect.left) * width / rect.width);
     const y = Math.floor((event.clientY - rect.top) * height / rect.height);
     if (x < 0 || x >= width || y < 0 || y >= height) return;
@@ -89,10 +260,14 @@ export default function ReviewAnatomy({ side, fullBody, highlighted, selectable,
     }
   }
 
-  return <div className={`review-anatomy ${fullBody ? 'full' : ''}`}>
-    <canvas ref={canvas} width={width} height={height} data-ready={ready}
-      role="img" aria-label={side === 'back' ? '背面训练部位人体图' : '正面训练部位人体图'}
-      onPointerUp={pick} />
-    {!ready && <span className="review-anatomy-loading" role="status">{failed === side ? '人体图暂时无法载入' : '正在加载人体图…'}</span>}
+  return <div className={`review-anatomy${fullBody ? ' full' : ''}${zoomed ? ' zoomed' : ''}`} ref={frame}
+    onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={cancel}>
+    <div className="review-anatomy-stage" ref={stage}>
+      <canvas ref={canvas} width={width} height={height} data-ready={ready}
+        role="img"
+        aria-label={`${side === 'back' ? '背面' : '正面'}训练部位人体图，可双指放大查看`} />
+      {zoomed && <button type="button" className="review-zoom-reset" onClick={reset}>复位</button>}
+      {!ready && <span className="review-anatomy-loading" role="status">{failed === side ? '人体图暂时无法载入' : '正在加载人体图…'}</span>}
+    </div>
   </div>;
 }

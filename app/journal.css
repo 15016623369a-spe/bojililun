@@ -235,18 +235,49 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
   position: relative;
   display: grid;
   justify-items: center;
-  width: min(100%, 254px);
+  width: 100%;
   margin: 0 auto;
+  touch-action: pan-y;
 }
-.review-anatomy.full { width: min(100%, 152px); }
+.review-anatomy-stage {
+  position: relative;
+  width: min(100%, 254px);
+  overflow: hidden;
+}
+.review-anatomy.full .review-anatomy-stage { width: min(100%, 152px); }
 .review-anatomy canvas {
   display: block;
   width: 100%;
   height: auto;
   cursor: crosshair;
   touch-action: pan-y;
+  transform-origin: 0 0;
+  will-change: transform;
 }
 .review-anatomy canvas[data-ready=false] { visibility: hidden; }
+/* 放大后模型自己吃掉手势：单指平移、双指继续缩放，页面滚动交给周围留白 */
+.review-anatomy.zoomed { touch-action: none; }
+.review-anatomy.zoomed canvas { cursor: grab; }
+.review-anatomy.zoomed canvas:active { cursor: grabbing; }
+.review-zoom-reset {
+  position: absolute;
+  right: 3px;
+  bottom: 4px;
+  z-index: 1;
+  min-height: 34px;
+  padding: 4px 12px;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  background: var(--paper);
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  color: var(--forest);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
 .review-anatomy-loading {
   position: absolute;
   inset: 0;
