@@ -223,7 +223,7 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
         const headBox = new THREE.Box3();
         // 手指、手掌、面部肌群：这些细碎网格在浅色纸感界面里只会添乱
         const HANDS =
-          /(finger|thumb|palm|wrist|thenar|hypothenar|pollicis|digiti|of hand|digitorum|tendon|aponeurosis|retinaculum|membrane|septum|fascia|interosseous|nipple|areola|skin|subcutaneous|bursa|palmaris|plantaris)/i;
+          /(finger|thumb|palm|wrist|thenar|hypothenar|pollicis|digiti|of hand|digitorum|tendon|aponeurosis|retinaculum|membrane|septum|fascia|interosseous|nipple|areola|skin|subcutaneous|bursa|palmaris|plantaris|carpi|neck)/i;
 
         root.traverse((obj) => {
           if (!(obj instanceof THREE.Mesh)) return;
@@ -270,13 +270,133 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
         wrapper.add(root);
         scene.add(wrapper);
 
-        // 头顶换成哑光石膏球（尺寸按身高比例，稳），抹掉眼窝/颧骨的解剖恐怖谷
+        const H = size.y;
+        const skinMat = new THREE.MeshStandardMaterial({
+          color: 0xdcd2c7,
+          roughness: 0.95,
+          metalness: 0.02,
+          side: THREE.DoubleSide,
+        });
+
+        // ---- 手：腕部以下全收掉（指骨/肌腱在解剖模型里是碎丝），补一颗圆润的腕端 ----
+        const sideInfo = (ids: string[]) => {
+          const out = new Map<number, { minY: number; x: number; z: number; n: number }>();
+          const tmp = new THREE.Box3();
+          for (const m of meshes) {
+            if (!ids.includes(String(m.userData.groupId))) continue;
+            tmp.setFromObject(m);
+            const c = tmp.getCenter(new THREE.Vector3());
+            const side = c.x >= 0 ? 1 : -1;
+            const cur = out.get(side);
+            if (!cur || c.y < cur.minY) out.set(side, { minY: c.y, x: c.x, z: c.z, n: 1 });
+            else if (cur) cur.n += 1;
+          }
+          return out;
+        };
+
+        // 手臂外侧的细杆（肌腱/血管残丝）在缩略尺寸下只会变成毛刺
+        {
+          const tmp = new THREE.Box3();
+          for (const m of meshes) {
+            tmp.setFromObject(m);
+            const cx = (tmp.min.x + tmp.max.x) / 2;
+            const sx = tmp.max.x - tmp.min.x;
+            const sz = tmp.max.z - tmp.min.z;
+            if (Math.abs(cx) > H * 0.06 && Math.max(sx, sz) < H * 0.03 && (tmp.max.y - tmp.min.y) > H * 0.05) {
+              m.visible = false;
+            }
+          }
+        }
+
+        const wrists = sideInfo(['forearms']);
+        const ankle = sideInfo(['calves', 'quads', 'hamstrings', 'adductors']);
+        // 只收掉整体位于阈值以下的小件（手指/脚趾/肌腱丝），不动前臂和小腿本身
+        const hideEntirelyBelow = (limit: number, minX: number) => {
+          const tmp = new THREE.Box3();
+          for (const m of meshes) {
+            tmp.setFromObject(m);
+            const cx = (tmp.min.x + tmp.max.x) / 2;
+            if (tmp.max.y < limit && Math.abs(cx) > minX) m.visible = false;
+          }
+        };
+
+        // 按左右两侧取「手臂 / 腿」的最低可见点，先把该点以下的碎丝收掉，再补一只手/脚
+        const limbEnds = (ids: string[]) => {
+          const tmp = new THREE.Box3();
+          const out = new Map<number, { y: number; x: number; z: number }>();
+          for (const m of meshes) {
+            if (!m.visible || !ids.includes(String(m.userData.groupId))) continue;
+            tmp.setFromObject(m);
+            const cx = (tmp.min.x + tmp.max.x) / 2;
+            const sign = cx >= 0 ? 1 : -1;
+            const cur = out.get(sign);
+            if (!cur || tmp.min.y < cur.y) {
+              out.set(sign, { y: tmp.min.y, x: cx, z: (tmp.min.z + tmp.max.z) / 2 });
+            }
+          }
+          return out;
+        };
+
+        const armEnds = limbEnds(['forearms', 'biceps', 'triceps']);
+        const legEnds = limbEnds(['calves', 'quads', 'hamstrings', 'adductors']);
+        const cutBelow = (limit: number, minX: number) => {
+          const tmp = new THREE.Box3();
+          for (const m of meshes) {
+            if (!m.visible) continue;
+            tmp.setFromObject(m);
+            const cx = (tmp.min.x + tmp.max.x) / 2;
+            if (tmp.min.y < limit && Math.abs(cx) > minX) m.visible = false;
+          }
+        };
+        const armCut = Math.min(...[...armEnds.values()].map((v) => v.y));
+        cutBelow(armCut + H * 0.012, H * 0.07);
+        const armEnds2 = limbEnds(['forearms', 'biceps', 'triceps']);
+
+        for (const [, p2] of armEnds2) {
+          const mitt = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 18), skinMat);
+          mitt.position.set(p2.x, p2.y + H * 0.028 - center.y, p2.z);
+          mitt.scale.set(H * 0.022, H * 0.04, H * 0.023);
+          scene.add(mitt);
+        }
+
+        const legCut = Math.min(...[...legEnds.values()].map((v) => v.y));
+        cutBelow(legCut + H * 0.02, H * 0.015);
+        const legEnds2 = limbEnds(['calves', 'quads', 'hamstrings', 'adductors']);
+
+        for (const [, p2] of legEnds2) {
+          const foot = new THREE.Mesh(new THREE.SphereGeometry(1, 28, 20), skinMat);
+          foot.position.set(p2.x, p2.y + H * 0.016 - center.y, p2.z + size.z * 0.022);
+          foot.scale.set(H * 0.030, H * 0.017, H * 0.070);
+          scene.add(foot);
+        }
+
+        // ---- 头：下颌略收的石膏头像 + 一小段颈，避免「气球头悬空」 ----
         if (!headBox.isEmpty()) {
-          const headMat = new THREE.MeshStandardMaterial({ color: 0xe5dbd0, roughness: 0.97, metalness: 0.01 });
-          const head = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 28), headMat);
-          head.position.set(0, box.max.y - size.y * 0.072 - center.y, -size.z * 0.012);
-          head.scale.set(size.y * 0.054, size.y * 0.066, size.y * 0.058);
+          const headCY = box.max.y - H * 0.070;
+          const headScale = new THREE.Vector3(H * 0.050, H * 0.064, H * 0.056);
+          const headGeo = new THREE.SphereGeometry(1, 48, 32);
+          const hp = headGeo.attributes.position;
+          for (let i = 0; i < hp.count; i++) {
+            const y = hp.getY(i);
+            if (y < 0) {
+              const t = Math.min(1, -y);
+              const f = 1 - 0.42 * Math.pow(t, 1.4);
+              hp.setX(i, hp.getX(i) * f);
+              hp.setZ(i, hp.getZ(i) * (1.0 - 0.16 * t) + 0.06 * t);
+            }
+          }
+          headGeo.computeVertexNormals();
+          const head = new THREE.Mesh(headGeo, skinMat);
+          head.position.set(0, headCY - center.y, -size.z * 0.008);
+          head.scale.copy(headScale);
           scene.add(head);
+
+          const neckTop = headCY - headScale.y * 0.72;
+          const neckBottom = box.max.y - H * 0.150;
+          const neckH = Math.max(H * 0.02, neckTop - neckBottom);
+          const neck = new THREE.Mesh(new THREE.CylinderGeometry(H * 0.028, H * 0.034, neckH, 28), skinMat);
+          neck.position.set(0, (neckTop + neckBottom) / 2 - center.y, -size.z * 0.006);
+          scene.add(neck);
         }
 
         // 全身取景：头顶到脚踝都在一屏里
