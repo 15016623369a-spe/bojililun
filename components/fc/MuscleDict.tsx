@@ -109,6 +109,7 @@ export default function MuscleDict({ heat }: { heat: HeatItem[] }) {
   const [hovered, setHovered] = useState<MuscleId | null>(null);
   const [selected, setSelected] = useState<MuscleId | null>(null);
   const [hinted, setHinted] = useState(false);
+  const [spin, setSpin] = useState(false);
 
   const [data, setData] = useState<DictResult | null>(null);
   const [busyList, setBusyList] = useState(false);
@@ -318,6 +319,7 @@ export default function MuscleDict({ heat }: { heat: HeatItem[] }) {
           if (id) {
             setSelected(id);
             setHinted(true);
+            setSpin(false);
           }
         });
         renderer.domElement.addEventListener('pointermove', (e) => {
@@ -458,6 +460,13 @@ export default function MuscleDict({ heat }: { heat: HeatItem[] }) {
       else m.material = api.base;
     }
   }, [heatKey, heat, selected, hovered, loading]);
+
+  /* 自转开关 */
+  useEffect(() => {
+    const api = apiRef.current;
+    if (!api) return;
+    api.controls.autoRotate = spin;
+  }, [spin, loading]);
 
   /* 正 / 背面：回到全身视角 */
   useEffect(() => {
@@ -632,6 +641,9 @@ export default function MuscleDict({ heat }: { heat: HeatItem[] }) {
               </button>
               <button type="button" className={side === 'back' ? 'on' : ''} onClick={() => setSide('back')}>
                 背面
+              </button>
+              <button type="button" className={spin ? 'on' : ''} onClick={() => setSpin((v) => !v)}>
+                自转
               </button>
             </div>
           </>
