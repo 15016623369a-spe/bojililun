@@ -992,7 +992,10 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
             <feColorMatrix
               type="matrix"
               values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  -20 -20 -20 0 60"
+              result="keyed"
             />
+            {/* 用原图 alpha 收边，避免元素边界被滤镜算成黑线 */}
+            <feComposite in="keyed" in2="SourceAlpha" operator="in" />
           </filter>
         </defs>
       </svg>
@@ -1032,7 +1035,9 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
       {selected && (
         <div className="fc-mask dict" onClick={() => setSelected(null)}>
           <div
-            className={active ? 'fc-sheet fc-dict-sheet detail' : 'fc-sheet fc-dict-sheet'}
+            className={
+              active ? 'fc-sheet fc-dict-sheet fc-dict-detail' : 'fc-sheet fc-dict-sheet'
+            }
             onClick={(e) => e.stopPropagation()}
           >
             {active ? (

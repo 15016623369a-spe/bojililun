@@ -1229,7 +1229,7 @@ textarea.fc-input {
 }
 
 /* 动作详情：竖向结构，正文在弹窗内部滚动，底部按钮常驻 */
-.fc-dict-sheet.detail {
+.fc-dict-sheet.fc-dict-detail {
   max-height: 88dvh;
 }
 
@@ -1487,7 +1487,7 @@ h3.fc-dict-name {
 
 /* 矮屏让弹窗多占一点高度，保证首屏能看到要点开头 */
 @media (max-height: 720px) {
-  .fc-dict-sheet.detail {
+  .fc-dict-sheet.fc-dict-detail {
     max-height: 94dvh;
   }
 
