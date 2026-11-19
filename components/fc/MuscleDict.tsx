@@ -233,16 +233,23 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
           const ud = obj.userData as Record<string, unknown>;
           // ecorche 用 layer 分骨、深层肌、浅层肌；默认只留浅层
           const layer = String(ud.layer ?? '');
-          if (layer !== SHOW_LAYER) {
-            obj.visible = false;
-            return;
-          }
           const name = String(ud.name ?? obj.name ?? '');
           const mb = new THREE.Box3().setFromObject(obj);
           const cy = mb.getCenter(new THREE.Vector3()).y;
 
+          // 头部保留原模型的解剖头：颅骨、牙、眼球 + 面部肌，不可点选
           if (cy > headCut) {
             headBox.union(mb);
+            const keepHead = layer === SHOW_LAYER || layer === 'skeleton';
+            obj.visible = keepHead;
+            if (keepHead) {
+              obj.userData.groupId = null;
+              obj.material = dim;
+            }
+            return;
+          }
+
+          if (layer !== SHOW_LAYER) {
             obj.visible = false;
             return;
           }
@@ -271,15 +278,6 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
         root.position.sub(center);
         wrapper.add(root);
         scene.add(wrapper);
-
-        // 头顶换成哑光石膏球（尺寸按身高比例，稳），抹掉眼窝/颧骨的解剖恐怖谷
-        if (!headBox.isEmpty()) {
-          const headMat = new THREE.MeshStandardMaterial({ color: 0xe5dbd0, roughness: 0.97, metalness: 0.01 });
-          const head = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 28), headMat);
-          head.position.set(0, box.max.y - size.y * 0.072 - center.y, -size.z * 0.012);
-          head.scale.set(size.y * 0.054, size.y * 0.066, size.y * 0.058);
-          scene.add(head);
-        }
 
         // 全身取景：头顶到脚踝都在一屏里
         const visibleH = size.y * 0.99;
