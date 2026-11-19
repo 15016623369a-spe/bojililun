@@ -42,6 +42,12 @@
 - 图表、统计、训练记录均由本项目自身代码生成
 - 微信接入相关说明见 README
 
+## 计划页矢量人体图（lib/body-map.json）
+
+- 由 `public/models/review-front.png` / `review-back.png` 逐肌肉描摹成 SVG 路径（`scripts/trace-body-map.mjs`），
+  与上面的 Z-Anatomy 模型同源，同样遵循 **CC BY-SA 4.0**，署名保留在应用内的动作数据说明处
+- 路径坐标基于 420×960 的图集，按肌肉 ID 一一切片，点击时按 ID 直接命中
+
 ## 计划页运动人体模型
 
 `public/models/athletes/` 包含以 MakeHuman CC0 人体及塑形资产制作的 FitCheck 男女模型。两款模型共享 39 个训练选区。原始资产许可随模型提供于 `public/models/athletes/LICENSE.md`。

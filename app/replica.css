@@ -1718,3 +1718,53 @@ textarea.fc-input {
 .fc.plan-embed .fc-dict-hintline {
   margin-top: 2px;
 }
+
+/* SVG 人体图（从 2D 图集描出来的矢量版） */
+.fc-map {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 -10px;
+}
+
+.fc-map-tabs {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(251, 246, 243, 0.86);
+}
+
+.fc-map-tabs button {
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 13px;
+  color: var(--muted-2);
+}
+
+.fc-map-tabs button.on {
+  background: var(--green);
+  color: #fdfaf6;
+}
+
+.fc-map-svg {
+  height: clamp(360px, calc(100dvh - 372px), 620px);
+  width: auto;
+  max-width: 100%;
+}
+
+.fc-map-muscle {
+  cursor: pointer;
+  transition: fill 0.15s ease;
+}
+
+.fc-map-hint {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--muted-2);
+  text-align: center;
+}
