@@ -1,11 +1,12 @@
 import { notFound } from 'next/navigation';
+import EntryTable from '@/components/EntryTable';
 import ExerciseRecord from '@/components/ExerciseRecord';
 import JournalIcon from '@/components/JournalIcon';
 import JournalShell from '@/components/JournalShell';
 import JournalTimeline from '@/components/JournalTimeline';
 import { DEFAULT_TZ, humanDate, MEAL_LABEL } from '@/lib/date';
 import { validDate } from '@/lib/period';
-import { journalForDate } from '@/lib/core/journal';
+import { journalForDate, mealLogPayload } from '@/lib/core/journal';
 import { hasRecordedData } from '@/lib/journal';
 import { daySessions, getPlan, sessionTotals } from '@/lib/core/workout';
 import { mealsOn } from '@/lib/core/meals';
@@ -89,7 +90,7 @@ export default async function DayPage({ params, searchParams }: {
         {meals.map((meal) => (
           <div className="day-meal" key={meal.id}>
             <strong>{MEAL_LABEL[meal.meal_type]} <small>{meal.kcal} kcal</small></strong>
-            <p>{meal.items.map((item) => `${item.name} ${item.grams} g`).join('、')}</p>
+            <EntryTable payload={mealLogPayload(meal)} />
           </div>
         ))}
         {quickMeals.length > 0 && <JournalTimeline entries={quickMeals} compact />}

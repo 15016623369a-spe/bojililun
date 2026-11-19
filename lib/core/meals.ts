@@ -168,6 +168,32 @@ export function deleteMeal(id: number): void {
   getDb().prepare('DELETE FROM meal_log WHERE id = ?').run(id);
 }
 
+/** 修改某一餐某行食物的克数：回写 items_json 并按每 100g 营养值重算整餐热量 */
+export function updateMealGrams(id: number, index: number, grams: number): { grams: number; kcal: number; protein: number } {
+  const db = getDb();
+  const row = db.prepare('SELECT * FROM meal_log WHERE id = ?').get(id) as
+    | { items_json: string } | undefined;
+  if (!row) throw new Error('记录不存在');
+  const items = JSON.parse(row.items_json) as FoodItem[];
+  const item = items[index];
+  if (!item) throw new Error('记录不存在');
+  const value = Number(grams);
+  if (!Number.isFinite(value) || value < 1 || value > 2000) throw new Error('分量需在 1–2000 g 之间');
+  item.grams = Math.round(value);
+  const perItem = items.map((it) => macrosFor(it.grams, {
+    kcal: it.kcal_100g, protein: it.protein_100g, carb: it.carb_100g, fat: it.fat_100g,
+  }));
+  const total = perItem.reduce((acc, m) => ({
+    kcal: acc.kcal + m.kcal,
+    protein: Math.round((acc.protein + m.protein) * 10) / 10,
+    carb: Math.round((acc.carb + m.carb) * 10) / 10,
+    fat: Math.round((acc.fat + m.fat) * 10) / 10,
+  }), { ...EMPTY_MACROS });
+  db.prepare('UPDATE meal_log SET items_json = ?, kcal = ?, protein = ?, carb = ?, fat = ? WHERE id = ?')
+    .run(JSON.stringify(items), total.kcal, total.protein, total.carb, total.fat, id);
+  return { grams: item.grams, kcal: total.kcal, protein: total.protein };
+}
+
 export function todaySnapshot(): TodayPayload {
   cleanupDrafts();
   const db = getDb();

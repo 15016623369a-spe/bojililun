@@ -14,13 +14,18 @@ export interface TrainingExerciseRow {
   duration?: string;
 }
 
+/** 饮食分量的编辑来源：语音记录改 payload，拍照/对话餐改 meal_log 克数 */
+export type MealItemSource =
+  | { kind: 'quick'; quickId: number; index: number }
+  | { kind: 'meal'; mealId: number; index: number };
+
 /** 语音记录的结构化 JSON：前端只渲染这份 payload，不展示原话 */
 export interface QuickPayload {
   kind: 'meal' | 'training' | 'sleep' | 'note';
   planned?: boolean;
   regions?: string[];
   exercises?: TrainingExerciseRow[];
-  items?: Array<{ name: string; amount: string; meal?: string; planned?: boolean }>;
+  items?: Array<{ name: string; amount: string; meal?: string; planned?: boolean; grams?: number; src?: MealItemSource }>;
   mealType?: string;
   sleep?: { duration?: string; bedtime?: string; wake?: string; quality?: string };
   summary?: string;

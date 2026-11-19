@@ -7,7 +7,7 @@ import { MUSCLES, muscleMatchesExercise, type MuscleId, type Region } from '../m
 import { addDays } from '../period';
 import { parseQuickPayload } from '../quick-parse';
 import { fixSpeechText } from '../speech-fix';
-import type { PlanItem, SessionRow } from '../types';
+import type { MealRecord, PlanItem, SessionRow } from '../types';
 import { mealsOn } from './meals';
 import { daySessions, getPlan, nowIso, todayStr, type SessionDetail } from './workout';
 
@@ -300,12 +300,46 @@ function payloadOf(row: QuickRow): QuickPayload {
 }
 
 function serializeQuick(row: QuickRow): JournalEntry {
+  const payload = payloadOf(row);
+  // 饮食分量可编辑：为每行食物带上回写来源（语音记录 id + 行号）
+  if (payload.kind === 'meal' && payload.items?.length) {
+    payload.items = payload.items.map((item, index) => ({ ...item, src: { kind: 'quick', quickId: row.id, index } }));
+  }
   return {
     id: `quick-${row.id}`, quickId: row.id, date: row.date, kind: row.kind, title: row.title,
     detail: row.detail, source: row.source_text,
     muscles: row.kind === 'training' ? mentionedMuscles(row.detail) : [],
-    payload: payloadOf(row),
+    payload,
   };
+}
+
+/** 拍照/对话确认餐的标准化 payload：分量以克数呈现，编辑回写 meal_log 并重算热量 */
+export function mealLogPayload(meal: MealRecord): QuickPayload {
+  return {
+    kind: 'meal',
+    mealType: MEAL_LABEL[meal.meal_type],
+    items: meal.items.map((item, index) => ({
+      name: item.name,
+      amount: `${item.grams} g`,
+      grams: item.grams,
+      src: { kind: 'meal', mealId: meal.id, index },
+    })),
+  };
+}
+
+/** 修改语音饮食记录某一行食物的分量（标准化 payload，不改原话） */
+export function updateQuickMealAmount(quickId: number, index: number, amount: string): string {
+  const db = getDb();
+  const row = db.prepare('SELECT * FROM journal_entry WHERE id = ?').get(quickId) as QuickRow | undefined;
+  if (!row || row.kind !== 'meal') throw new Error('记录不存在');
+  const value = amount.trim();
+  if (!value || value.length > 30) throw new Error('分量不能为空，且不超过 30 个字');
+  const payload = payloadOf(row);
+  const item = payload.items?.[index];
+  if (!item) throw new Error('记录不存在');
+  item.amount = value;
+  db.prepare('UPDATE journal_entry SET payload_json = ? WHERE id = ?').run(JSON.stringify(payload), quickId);
+  return value;
 }
 
 export function writeQuickEntry(raw: string, requestId: string, id?: number, resolution?: 'actual', replacementExerciseId?: string) {
@@ -404,7 +438,7 @@ export function journalForDate(date: string): JournalEntry[] {
       id: `meal-${meal.id}`, date, kind: 'meal', title: MEAL_LABEL[meal.meal_type],
       detail: meal.items.map((item) => `${item.name} ${item.grams} g`).join('、'),
       meta: meal.kcal > 0 ? `约 ${meal.kcal} kcal` : undefined,
-      payload: { kind: 'meal', mealType: MEAL_LABEL[meal.meal_type], items: meal.items.map((item) => ({ name: item.name, amount: `${item.grams} g` })) },
+      payload: mealLogPayload(meal),
     } });
   }
   for (const { session, sets, groups } of daySessions(date)) {
