@@ -1885,3 +1885,15 @@ h3.fc-dict-name {
   background: var(--green);
   color: #fdfaf6;
 }
+
+.fc-plan-view .fc-plan-sep {
+  align-self: center;
+  padding: 0 2px;
+  color: var(--hair);
+  font-size: 12px;
+}
+
+.fc-plan-view button.on.fc-plan-sep {
+  background: none;
+  color: var(--hair);
+}

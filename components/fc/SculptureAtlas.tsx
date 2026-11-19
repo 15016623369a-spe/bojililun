@@ -46,12 +46,21 @@ function muscleAt(x: number, y: number, z: number, front: boolean): MuscleId | n
   return 'calves';
 }
 
-export default function SculptureAtlas({ heat: _heat }: { heat: HeatItem[] }) {
+export default function SculptureAtlas({
+  heat: _heat,
+  back: backProp,
+  hideTabs = false,
+}: {
+  heat: HeatItem[];
+  back?: boolean;
+  hideTabs?: boolean;
+}) {
   const mountRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<MuscleId | null>(null);
   const [error, setError] = useState('');
-  const [back, setBack] = useState(false);
+  const [backState, setBack] = useState(false);
   const [spinning, setSpinning] = useState(false);
+  const back = backProp ?? backState;
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -158,11 +167,13 @@ export default function SculptureAtlas({ heat: _heat }: { heat: HeatItem[] }) {
 
   return <>
     <div className="fc-dict-body" ref={mountRef}>
-      <div className="fc-dict-tabs">
-        <button type="button" className={!back ? 'on' : ''} onClick={() => { setBack(false); }}>正面</button>
-        <button type="button" className={back ? 'on' : ''} onClick={() => { setBack(true); }}>背面</button>
-        <button type="button" className={spinning ? 'on' : ''} onClick={() => setSpinning((v) => !v)}>自转</button>
-      </div>
+      {!hideTabs && (
+        <div className="fc-dict-tabs">
+          <button type="button" className={!back ? 'on' : ''} onClick={() => { setBack(false); }}>正面</button>
+          <button type="button" className={back ? 'on' : ''} onClick={() => { setBack(true); }}>背面</button>
+          <button type="button" className={spinning ? 'on' : ''} onClick={() => setSpinning((v) => !v)}>自转</button>
+        </div>
+      )}
       {error && <div className="fc-loading">{error}</div>}
     </div>
     <p className="fc-dict-hintline">拖动旋转 · 点击肌肉查看对应训练动作</p>

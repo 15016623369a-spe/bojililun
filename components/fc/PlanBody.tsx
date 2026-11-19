@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import MuscleDict, { type HeatItem } from './MuscleDict';
+import SculptureAtlas from './SculptureAtlas';
+import type { HeatItem } from './MuscleDict';
 import BodyMap from './BodyMap';
 
 export default function PlanBody({ heat }: { heat: HeatItem[] }) {
   const [view, setView] = useState<'3d' | 'flat'>('3d');
+  const [back, setBack] = useState(false);
 
   return (
     <div className="fc-plan-stage">
@@ -16,11 +18,22 @@ export default function PlanBody({ heat }: { heat: HeatItem[] }) {
         <button type="button" className={view === 'flat' ? 'on' : ''} onClick={() => setView('flat')}>
           平面
         </button>
+        {view === '3d' && (
+          <>
+            <span className="fc-plan-sep" aria-hidden>·</span>
+            <button type="button" className={!back ? 'on' : ''} onClick={() => setBack(false)}>
+              正面
+            </button>
+            <button type="button" className={back ? 'on' : ''} onClick={() => setBack(true)}>
+              背面
+            </button>
+          </>
+        )}
       </div>
 
       {view === '3d' ? (
         <div className="fc plan-embed">
-          <MuscleDict heat={heat} showControls={false} />
+          <SculptureAtlas heat={heat} back={back} hideTabs />
         </div>
       ) : (
         <BodyMap heat={heat} />
