@@ -34,8 +34,6 @@ export interface QuickPayload {
 export interface JournalEntry {
   id: string;
   quickId?: number;
-  /** 记录时间（ISO）：饮食时间线按它排序，界面不直接展示 */
-  createdAt?: string;
   kind: 'meal' | 'training' | 'sleep' | 'note';
   date: string;
   title: string;

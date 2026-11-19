@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import EntryTable from '@/components/EntryTable';
 import ExerciseRecord from '@/components/ExerciseRecord';
 import JournalIcon from '@/components/JournalIcon';
 import JournalShell from '@/components/JournalShell';
@@ -6,7 +7,7 @@ import JournalTimeline from '@/components/JournalTimeline';
 import { DEFAULT_TZ, humanDate, MEAL_LABEL } from '@/lib/date';
 import { validDate } from '@/lib/period';
 import { journalForDate, mealLogPayload } from '@/lib/core/journal';
-import { hasRecordedData } from '@/lib/journal';
+import { hasRecordedData, type QuickPayload } from '@/lib/journal';
 import { daySessions, getPlan, sessionTotals } from '@/lib/core/workout';
 import { mealsOn } from '@/lib/core/meals';
 
@@ -51,23 +52,24 @@ export default async function DayPage({ params, searchParams }: {
   const duration = sessions.length === 0 && quickWorkouts.length > 0 ? '—'
     : sessions.some(({ session }) => session.ended_at) && totals.durationMin === 0 ? '<1' : totals.durationMin;
 
-  // 饮食：拍照/对话餐与语音记录进入同一条时间线，早餐/午餐/晚餐同级；
+  // 饮食：全天合成一张标准表格，餐次作为一列——所有食物共用同一套列宽，上下自然对齐；
   // 分量平时是纯文本，点一下才进入输入态，保存后回到纯文本。
-  const mealTimeline = [
-    ...quickMeals.map((entry) => ({ at: entry.createdAt ?? '', entry })),
-    ...meals.map((meal) => ({
-      at: meal.created_at,
-      entry: {
-        id: `meal-${meal.id}`,
-        date,
-        kind: 'meal' as const,
-        title: MEAL_LABEL[meal.meal_type],
-        detail: meal.items.map((item) => `${item.name} ${item.grams} g`).join('、'),
-        meta: meal.kcal > 0 ? `约 ${meal.kcal} kcal` : undefined,
-        payload: mealLogPayload(meal),
-      },
-    })),
-  ].sort((a, b) => a.at.localeCompare(b.at)).map(({ entry }) => entry);
+  const mealRank = (label?: string) => ['早餐', '午餐', '晚餐', '加餐'].indexOf(label ?? '');
+  const mealItems: NonNullable<QuickPayload['items']> = [
+    ...quickMeals.flatMap((entry) => (entry.payload?.items ?? []).map((item) => ({
+      ...item,
+      meal: item.meal ?? entry.payload?.mealType ?? entry.title,
+      planned: item.planned ?? entry.payload?.planned,
+    }))),
+    ...meals.flatMap((meal) => (mealLogPayload(meal).items ?? []).map((item) => ({
+      ...item,
+      meal: MEAL_LABEL[meal.meal_type],
+    }))),
+  ];
+  mealItems.sort((a, b) => (mealRank(a.meal) + 1 || 99) - (mealRank(b.meal) + 1 || 99));
+  // 只有一餐时不重复餐次列
+  const mealLabels = new Set(mealItems.map((item) => item.meal));
+  const mealTable = mealLabels.size > 1 ? mealItems : mealItems.map(({ meal: _meal, ...item }) => item);
 
   return (
     <JournalShell active="review" title={humanDate(date)} subtitle={date.slice(0, 4) + ' 年'}
@@ -104,7 +106,7 @@ export default async function DayPage({ params, searchParams }: {
           {meals.length > 0 && <span>{calories} kcal · 蛋白质 {protein} g</span>}
         </h2>
         {meals.length === 0 && quickMeals.length === 0 && <p className="hint">这天没有饮食记录。</p>}
-        {mealTimeline.length > 0 && <JournalTimeline entries={mealTimeline} compact />}
+        {mealTable.length > 0 && <EntryTable payload={{ kind: 'meal', items: mealTable }} />}
       </section>
 
       {quickSleep.length > 0 && <section className="day-panel">
