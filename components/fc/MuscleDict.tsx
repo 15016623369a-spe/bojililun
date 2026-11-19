@@ -978,6 +978,25 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
 
   return (
     <>
+      {/* 动图白底键控：把接近纯白的像素变透明，让小人直接浮在毛玻璃上 */}
+      <svg className="fc-gif-defs" aria-hidden="true" focusable="false">
+        <defs>
+          <filter
+            id="fc-gif-key"
+            colorInterpolationFilters="sRGB"
+            x="0"
+            y="0"
+            width="100%"
+            height="100%"
+          >
+            <feColorMatrix
+              type="matrix"
+              values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  -20 -20 -20 0 60"
+            />
+          </filter>
+        </defs>
+      </svg>
+
       <div className="fc-dict-body" ref={mountRef}>
         {loading && !failed && <div className="fc-loading">加载人体模型…</div>}
         {failed && <div className="fc-loading">{failed}</div>}
