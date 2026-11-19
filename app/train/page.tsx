@@ -4,6 +4,8 @@ import TodayPlan from '@/components/TodayPlan';
 import { dayLabel } from '@/lib/period';
 import { MEAL_LABEL } from '@/lib/date';
 import { daySessions, getPlan, sessionTotals, todayStr } from '@/lib/core/workout';
+import { journalForDate } from '@/lib/core/journal';
+import { hasRecordedData } from '@/lib/journal';
 import { todaySnapshot } from '@/lib/core/meals';
 
 export const runtime = 'nodejs';
@@ -14,6 +16,11 @@ export default function TrainPage() {
   const plan = getPlan(today);
   const snap = todaySnapshot();
   const details = daySessions(today);
+  const quickWorkouts = journalForDate(today).filter((entry) => entry.quickId !== undefined && entry.kind === 'training');
+  // 有详细训练时，纯名称提及不列入「今天已练」；仅语音的日子保留记录入口
+  const listedQuickWorkouts = details.length > 0
+    ? quickWorkouts.filter((entry) => (entry.payload?.exercises ?? []).some(hasRecordedData))
+    : quickWorkouts;
   const totals = sessionTotals(details);
   const activeSession = details.find((d) => !d.session.ended_at)?.session ?? null;
 
@@ -25,7 +32,7 @@ export default function TrainPage() {
   return (
     <JournalShell active="plan" title="编辑今日计划" subtitle={dayLabel(today)} back={{ href: "/body", label: "计划" }}>
       <div className="journal-utility">
-        <div className="journal-links"><Link href="/exercises">动作库</Link></div>
+        <div className="journal-links"><Link href="/exercises">动作库</Link><Link href="/stats">训练统计</Link></div>
         {!snap.profile && (
           <Link href="/me" className="banner warn">
             先完善个人资料，才能计算热量目标和训练建议 →
@@ -59,7 +66,7 @@ export default function TrainPage() {
 
         <TodayPlan initialItems={plan} activeSession={activeSession ? activeSession.id : null} />
 
-        {details.length > 0 && (
+        {(details.length > 0 || quickWorkouts.length > 0) && (
           <section className="block">
             <h2 className="block-title">今天已练</h2>
             <div className="today-summary">
@@ -72,7 +79,7 @@ export default function TrainPage() {
                 <span>组</span>
               </div>
               <div>
-                <b>{totals.durationMin}</b>
+                <b>{details.length > 0 ? totals.durationMin : '—'}</b>
                 <span>分钟</span>
               </div>
             </div>
@@ -84,6 +91,16 @@ export default function TrainPage() {
                       {d.groups.length} 个动作 · {d.sets.length} 组
                     </b>
                     <p>{d.groups.map((g) => g.exercise_name).join('、')}</p>
+                  </div>
+                  <span className="arrow">›</span>
+                </Link>
+              ))}
+              {listedQuickWorkouts.map((entry) => (
+                <Link key={entry.id} href={`/history/${today}`} className="meal-row">
+                  <div>
+                    <b>语音训练记录</b>
+                    <p>{(entry.payload?.exercises ?? []).map((exercise) => exercise.name).join('、')
+                      || entry.payload?.summary || entry.title}</p>
                   </div>
                   <span className="arrow">›</span>
                 </Link>

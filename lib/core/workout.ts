@@ -1,6 +1,8 @@
 import { getDb } from '../db';
 import { todayKey } from '../date';
 import type { ExerciseRow } from '../exercise';
+import { mentionedMuscles } from '../journal';
+import type { MuscleId } from '../muscles';
 import type {
   ExerciseStat,
   MuscleStat,
@@ -202,9 +204,29 @@ export function getSessionSets(sessionId: number): SetRow[] {
   );
 }
 
+/** 历史记录只允许修正这一组的重量和次数，统计会基于新值重新计算。 */
+export function updateSessionSet(id: number, patch: { weight?: number; reps?: number }): SetRow {
+  const db = getDb();
+  const current = db.prepare('SELECT * FROM session_set WHERE id = ?').get(id) as SetRow | undefined;
+  if (!current) throw new Error('训练组不存在');
+  const weight = patch.weight === undefined ? current.weight : clamp(patch.weight, 0, 1000, current.weight);
+  const reps = patch.reps === undefined ? current.reps : Math.round(clamp(patch.reps, 1, 1000, current.reps));
+  db.prepare('UPDATE session_set SET weight = ?, reps = ? WHERE id = ?').run(weight, reps, id);
+  return plain(db.prepare('SELECT * FROM session_set WHERE id = ?').get(id) as unknown as SetRow);
+}
+
 export function saveGuidedSet(
   sessionId: number,
-  data: { planItemId: number; setIndex: number; weight: number; reps: number; durationSec: number; restSec: number },
+  data: {
+    planItemId: number;
+    setIndex: number;
+    weight: number;
+    reps: number;
+    durationSec: number;
+    restSec: number;
+    previousSetId?: number;
+    previousRestSec?: number;
+  },
 ): { ended: boolean; sets: SetRow[] } {
   const db = getDb();
   db.exec('BEGIN IMMEDIATE');
@@ -223,6 +245,11 @@ export function saveGuidedSet(
       const item = plan.find((entry) => (completed.get(entry.id) ?? 0) < entry.sets);
       if (item?.id !== data.planItemId || data.setIndex !== (completed.get(item.id) ?? 0) + 1) {
         throw new Error('训练进度已更新，请刷新后继续');
+      }
+      const previous = sets.at(-1);
+      if (previous && data.previousSetId === previous.id && data.previousRestSec !== undefined) {
+        db.prepare('UPDATE session_set SET actual_rest_sec = ? WHERE id = ? AND session_id = ?')
+          .run(Math.round(clamp(data.previousRestSec, 0, 86400, 0)), previous.id, sessionId);
       }
       addSet(sessionId, {
         ...data,
@@ -258,33 +285,70 @@ export function volumeStats(start: string, end: string): VolumeStats {
 
   const se = db
     .prepare(
-      `SELECT COUNT(*) AS sessions, COUNT(DISTINCT date) AS days,
+      `SELECT COUNT(*) AS sessions,
               COALESCE(SUM(CASE WHEN ended_at IS NOT NULL
                 THEN (julianday(ended_at) - julianday(started_at)) * 24 * 60 ELSE 0 END), 0) AS minutes
        FROM session WHERE date BETWEEN ? AND ?`,
     )
-    .get(start, end) as { sessions: number; days: number; minutes: number };
+    .get(start, end) as { sessions: number; minutes: number };
+  const quick = db
+    .prepare("SELECT COUNT(*) AS sessions FROM journal_entry WHERE kind = 'training' AND merged_session_id IS NULL AND date NOT IN (SELECT date FROM session) AND date BETWEEN ? AND ?")
+    .get(start, end) as { sessions: number };
+  const days = db
+    .prepare(
+      `SELECT COUNT(*) AS count FROM (
+         SELECT date FROM session WHERE date BETWEEN ? AND ?
+         UNION
+         SELECT date FROM journal_entry WHERE kind = 'training' AND date BETWEEN ? AND ?
+       )`,
+    )
+    .get(start, end, start, end) as { count: number };
 
   return {
     sets: row.sets,
     volume: Math.round(row.volume),
-    sessions: se.sessions,
-    days: se.days,
+    sessions: se.sessions + quick.sessions,
+    quickSessions: quick.sessions,
+    days: days.count,
     durationMin: Math.round(se.minutes),
   };
 }
 
+const QUICK_BODY_PART: Record<MuscleId, string> = {
+  chest_upper: 'chest', chest_mid: 'chest', chest_lower: 'chest', serratus: 'chest',
+  abs: 'waist', obliques: 'waist',
+  delt_front: 'shoulders', delt_side: 'shoulders', delt_rear: 'shoulders',
+  biceps: 'upper arms', triceps: 'upper arms', forearms: 'lower arms',
+  traps: 'back', lats: 'back', upperback: 'back', lowerback: 'back',
+  glutes: 'upper legs', quads: 'upper legs', hamstrings: 'upper legs', adductors: 'upper legs',
+  calves: 'lower legs', neck: 'neck',
+};
+
 export function muscleStats(start: string, end: string): MuscleStat[] {
-  return getDb()
+  const db = getDb();
+  const rows = db
     .prepare(
       `SELECT s.body_part AS body_part,
               COALESCE(SUM(s.weight * s.reps), 0) AS volume,
               COUNT(*) AS sets
        FROM session_set s JOIN session se ON se.id = s.session_id
        WHERE se.date BETWEEN ? AND ?
-       GROUP BY s.body_part ORDER BY volume DESC`,
+       GROUP BY s.body_part`,
     )
-    .all(start, end) as unknown as MuscleStat[];
+    .all(start, end) as unknown as Array<Omit<MuscleStat, 'records'>>;
+  const merged = new Map(rows.map((row) => [row.body_part, { ...row, records: 0 }]));
+  const quick = db
+    .prepare("SELECT detail FROM journal_entry WHERE kind = 'training' AND merged_session_id IS NULL AND date NOT IN (SELECT date FROM session) AND date BETWEEN ? AND ?")
+    .all(start, end) as unknown as Array<{ detail: string }>;
+  for (const entry of quick) {
+    const bodyParts = new Set(mentionedMuscles(entry.detail).map((muscle) => QUICK_BODY_PART[muscle]));
+    for (const bodyPart of bodyParts) {
+      const stat = merged.get(bodyPart) ?? { body_part: bodyPart, volume: 0, sets: 0, records: 0 };
+      stat.records += 1;
+      merged.set(bodyPart, stat);
+    }
+  }
+  return [...merged.values()].sort((a, b) => b.volume - a.volume || b.records - a.records);
 }
 
 export function exerciseStats(start: string, end: string, limit = 6): ExerciseStat[] {
@@ -399,5 +463,5 @@ export function sessionTotals(details: SessionDetail[]): VolumeStats {
       return a + (new Date(d.session.ended_at).getTime() - new Date(d.session.started_at).getTime()) / 60000;
     }, 0),
   );
-  return { sets, volume, sessions: details.length, days, durationMin };
+  return { sets, volume, sessions: details.length, quickSessions: 0, days, durationMin };
 }

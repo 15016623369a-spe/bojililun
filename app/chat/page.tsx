@@ -228,6 +228,10 @@ export default function Page() {
 
   function startVoice() {
     if (typeof window === 'undefined') return;
+    if (!window.isSecureContext) {
+      setErr('语音输入需要 HTTPS 环境：当前是 HTTP，浏览器不会开放麦克风。手机请改用 https:// 地址访问（服务端运行 npm run dev:https），或在电脑浏览器打开 localhost。');
+      return;
+    }
     const w = window as unknown as {
       SpeechRecognition?: new () => any;
       webkitSpeechRecognition?: new () => any;
@@ -254,7 +258,12 @@ export default function Page() {
     };
     rec.onerror = (e: any) => {
       setListening(false);
-      if (e.error !== 'aborted' && e.error !== 'no-speech') setErr(`语音识别出错：${e.error}`);
+      if (e.error === 'aborted' || e.error === 'no-speech') return;
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+        setErr('麦克风没授权：点浏览器地址栏左侧的图标，把麦克风设为「允许」后重试。iPhone 还需在 设置 → Safari → 麦克风 选「允许」；安卓在 设置 → 应用 → 浏览器 → 权限 里开麦克风。');
+        return;
+      }
+      setErr(`语音识别出错：${e.error}`);
     };
     rec.onend = () => {
       setListening(false);
@@ -265,8 +274,12 @@ export default function Page() {
       }
     };
     recRef.current = rec;
-    rec.start();
-    setListening(true);
+    try {
+      rec.start();
+      setListening(true);
+    } catch {
+      setErr('语音启动失败，请重试；还不行就直接打字。');
+    }
   }
 
   function stopVoice() {

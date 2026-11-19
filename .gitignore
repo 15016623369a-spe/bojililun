@@ -1,5 +1,6 @@
 node_modules/
 .next/
+certificates/
 data/fitness.db*
 data/uploads/
 .env

@@ -150,7 +150,10 @@ export interface SetRow {
   weight: number;
   reps: number;
   duration_sec: number;
+  /** 本组结束后的计划休息时间，用于训练中的倒计时 */
   rest_sec: number;
+  /** 本组结束后到下一组开始前的实际休息；旧记录或最后一组可能未记录 */
+  actual_rest_sec: number | null;
   created_at: string;
 }
 
@@ -158,6 +161,8 @@ export interface VolumeStats {
   sets: number;
   volume: number;
   sessions: number;
+  /** 只有文字、没有逐组明细的训练记录数，已包含在 sessions 中 */
+  quickSessions: number;
   days: number;
   durationMin: number;
 }
@@ -166,6 +171,8 @@ export interface MuscleStat {
   body_part: string;
   volume: number;
   sets: number;
+  /** 该部位的语音/文字训练记录数，不换算为容量或组数 */
+  records: number;
 }
 
 export interface ExerciseStat {

@@ -6,7 +6,7 @@ import { getProvider } from '../ai';
 import { enrichItems } from './enrich';
 import { currentMealType, MEAL_LABEL, type MealType } from '../date';
 import { buildMemoryBlock, extractMemoryCandidates, getAlwaysOnMemories, listMemories, searchMemories } from '../memory';
-import { findExercises } from '../exercise';
+import { findExercises, type ExerciseRow } from '../exercise';
 import { EQUIPMENT_LABEL, TARGET_LABEL } from '../exercise-label';
 import { addPlanItem, getPlan } from './workout';
 import type { AssistantReply, FoodItem } from '../types';
@@ -100,13 +100,80 @@ function equipmentsFromMemory(mems: Array<{ kind: string; content: string }>): s
   return [...found];
 }
 
+/* ---------------------------- 约束 → 动作安全过滤 ---------------------------- */
+
+/**
+ * 确定性安全规则：伤病/禁忌类记忆 → 高风险动作关键词。
+ * 匹配动作英文名 + 中文名；宁可保守排除，也不给伤病用户排危险动作。
+ * 例如「左肩有伤 / 不能做过顶推举」会排除推举、抓举、挺举、颈后、直立划船等过顶/肩部高压动作。
+ */
+const CONSTRAINT_RULES: Array<{ trigger: RegExp; exclude: RegExp; label: string }> = [
+  {
+    trigger: /肩|过顶|过头|overhead/i,
+    exclude:
+      /overhead|shoulder press|military|snatch|jerk|push press|thruster|upright row|behind.*neck|arnold|\bclean\b|above.*head|过顶|过头|上方头|颈后|推举|抓举|挺举|借力推|高翻|翻站|直立划船|阿诺德/i,
+    label: '过顶/肩部高压类动作',
+  },
+  {
+    trigger: /膝/,
+    exclude: /jump|plyo|sprint|跳|爆发|冲刺/i,
+    label: '跳跃冲击类动作',
+  },
+  {
+    trigger: /腰|下背|腰椎/,
+    exclude: /deadlift|good morning|sit-?up|硬拉|早安式|仰卧起坐/i,
+    label: '下背高压类动作',
+  },
+  {
+    trigger: /肘/,
+    exclude: /skull|tricep.*extension|臂屈伸/i,
+    label: '肘部高压类动作',
+  },
+  {
+    trigger: /腕/,
+    exclude: /wrist|curl|腕|弯举/i,
+    label: '腕部高压类动作',
+  },
+];
+
+type MemoryLike = Array<{ kind: string; content: string }>;
+
+function constraintRulesFor(mems: MemoryLike) {
+  return CONSTRAINT_RULES.filter((r) =>
+    mems.some((m) => m.kind === 'constraint' && r.trigger.test(m.content)),
+  );
+}
+
+function filterByConstraints(exs: ExerciseRow[], rules: typeof CONSTRAINT_RULES): ExerciseRow[] {
+  if (!rules.length) return exs;
+  return exs.filter((e) => {
+    const text = `${e.name} ${e.zh_name}`;
+    return !rules.some((r) => r.exclude.test(text));
+  });
+}
+
+/** 有约束时扩大候选池，过滤后仍尽量凑够 4 个动作 */
+function pickSafeExercises(bodyPart: string, equipments: string[], rules: typeof CONSTRAINT_RULES, want: number) {
+  const pool = findExercises({
+    bodyPart,
+    equipments: equipments.length ? equipments : undefined,
+    limit: rules.length ? want * 6 : want,
+  });
+  return filterByConstraints(pool, rules).slice(0, want);
+}
+
 function workoutText(bodyPart: string, label: string): string {
   const mems = listMemories();
   const equipMem = mems.find((m) => m.kind === 'equipment');
   const equipments = equipmentsFromMemory(mems);
-  const exs = findExercises({ bodyPart, equipments: equipments.length ? equipments : undefined, limit: 4 });
+  const rules = constraintRulesFor(mems);
+  const exs = pickSafeExercises(bodyPart, equipments, rules, 4);
 
-  if (!exs.length) return `这个部位我暂时没有动作数据，换个部位试试？`;
+  if (!exs.length) {
+    return rules.length
+      ? `按你的伤病/禁忌限制筛完，这个部位暂时没有安全的动作了。建议先咨询医生或康复师，或换个部位试试。`
+      : `这个部位我暂时没有动作数据，换个部位试试？`;
+  }
 
   const lines = exs.map((e, i) => {
     return `${i + 1}. ${e.zh_name || e.name}（${EQUIPMENT_LABEL[e.equipment] ?? e.equipment}）\n   目标：${TARGET_LABEL[e.target] ?? (e.target || e.muscle_group)}\n   要点：${trimZh(e.zh)}`;
@@ -116,7 +183,9 @@ function workoutText(bodyPart: string, label: string): string {
 
   if (equipMem && equipments.length) parts.push(`（已按你的器械条件筛选：${equipMem.content}）`);
   const constraints = mems.filter((m) => m.kind === 'constraint');
-  if (constraints.length) {
+  if (rules.length) {
+    parts.push(`🛡️ 已按你的限制避开${rules.map((r) => r.label).join('、')}（${constraints.map((c) => c.content).join('；')}）。`);
+  } else if (constraints.length) {
     parts.push(`⚠️ 注意你记录的限制：${constraints.map((c) => c.content).join('；')}——有冲突的动作请直接跳过。`);
   }
 
@@ -147,14 +216,17 @@ function tryPlanWrite(text: string): string | null {
 
   const mems = listMemories();
   const equipments = equipmentsFromMemory(mems);
+  const rules = constraintRulesFor(mems);
   const existing = new Set(getPlan().map((p) => p.exercise_id));
-  const exs = findExercises({
-    bodyPart: hit[1],
-    equipments: equipments.length ? equipments : undefined,
-    limit: 8,
-  }).filter((e) => !existing.has(e.id)).slice(0, 4);
+  const exs = pickSafeExercises(hit[1], equipments, rules, 8)
+    .filter((e) => !existing.has(e.id))
+    .slice(0, 4);
 
-  if (!exs.length) return `今天已经排过${hit[2]}的动作了，去「训练」页看看。`;
+  if (!exs.length) {
+    return rules.length && getPlan().length === 0
+      ? `按你的伤病/禁忌限制筛完，${hit[2]}暂时没有能安全加进清单的动作了。建议先咨询医生或康复师。`
+      : `今天已经排过${hit[2]}的动作了，去「训练」页看看。`;
+  }
 
   const added = exs.map((e) => addPlanItem(e, { sets: 4, reps: 10, restSec: 90 }));
   const lines = added.map((p, i) => `${i + 1}. ${p.name} · 4 组 × 10 次 · 休息 ${p.rest_sec}s`);
@@ -166,7 +238,11 @@ function tryPlanWrite(text: string): string | null {
   ];
   if (equipments.length) tips.push(`（已按你的器械条件筛选）`);
   const constraints = mems.filter((m) => m.kind === 'constraint');
-  if (constraints.length) tips.push(`⚠️ 记得你的限制：${constraints.map((c) => c.content).join('；')}`);
+  if (rules.length) {
+    tips.push(`🛡️ 已按你的限制避开${rules.map((r) => r.label).join('、')}（${constraints.map((c) => c.content).join('；')}）。`);
+  } else if (constraints.length) {
+    tips.push(`⚠️ 记得你的限制：${constraints.map((c) => c.content).join('；')}`);
+  }
   return tips.join('\n');
 }
 

@@ -90,6 +90,9 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
           weight: Number(weight), reps: Number(reps),
           durationSec: Math.max(1, Math.floor((Date.now() - startedAt) / 1000)),
           restSec: current.item.rest_sec,
+          // 上一组的 created_at 是完成时间；本次开始时间减去它就是实际组间休息。
+          previousSetId: previous?.id,
+          previousRestSec: previous ? Math.max(0, Math.round((startedAt - Date.parse(previous.created_at)) / 1000)) : undefined,
         }),
       });
       const result = await response.json();

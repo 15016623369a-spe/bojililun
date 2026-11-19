@@ -6,14 +6,13 @@
 import { chromium } from 'playwright-core';
 import fs from 'node:fs';
 import path from 'node:path';
+import { resolveChromiumShell } from './browser-path.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:3001';
 const OUT = path.resolve('docs/shots');
 fs.mkdirSync(OUT, { recursive: true });
 
-const shell = path.resolve(
-  '../.playwright/chromium_headless_shell-1255/chrome-headless-shell-mac-arm64/chrome-headless-shell',
-);
+const shell = resolveChromiumShell();
 
 const shot = (page, name) => page.screenshot({ path: path.join(OUT, `${name}.png`) });
 

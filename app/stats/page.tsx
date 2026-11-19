@@ -76,6 +76,7 @@ export default async function StatsPage({ searchParams }: { searchParams: SP }) 
 
   const delta = (a: number, b: number) => (b > 0 ? Math.round(((a - b) / b) * 100) : null);
   const empty = cur.sessions === 0;
+  const hasTimedSessions = cur.sessions > cur.quickSessions;
 
   return (
     <JournalShell active="review" title="训练统计" subtitle={r.start + " — " + r.end} back={{ href: "/history", label: "回顾" }}>
@@ -106,9 +107,9 @@ export default async function StatsPage({ searchParams }: { searchParams: SP }) 
           <div className="metric-card">
             <span>训练时长</span>
             <b>
-              {cur.sessions > 0 && cur.durationMin === 0 ? '<1' : cur.durationMin} <em>分钟</em>
+              {hasTimedSessions ? (cur.durationMin === 0 ? '<1' : cur.durationMin) : '—'} {hasTimedSessions && <em>分钟</em>}
             </b>
-            <small>{compareText(delta(cur.durationMin, prev.durationMin))}</small>
+            <small>{hasTimedSessions ? compareText(delta(cur.durationMin, prev.durationMin)) : '语音记录未填写时长'}</small>
           </div>
           <div className="metric-card">
             <span>完成组数</span>
@@ -136,7 +137,7 @@ export default async function StatsPage({ searchParams }: { searchParams: SP }) 
             <section className="block">
               <h2 className="block-title">
                 肌群训练分布
-                <span>按容量</span>
+                <span>容量 / 语音记录</span>
               </h2>
               <div className="muscle-groups">
                 <h3>大肌群</h3>
@@ -208,18 +209,19 @@ function MuscleBar({
   max,
 }: {
   body: string;
-  stat?: { volume: number; sets: number };
+  stat?: { volume: number; sets: number; records: number };
   max: number;
 }) {
   const volume = stat?.volume ?? 0;
+  const records = stat?.records ?? 0;
   return (
-    <div className={`muscle-cell ${volume === 0 ? 'empty' : ''}`}>
+    <div className={`muscle-cell ${volume === 0 && records === 0 ? 'empty' : ''}`}>
       <div className="mc-head">
         <span>{BODY_LABEL[body] ?? body}</span>
-        <em>{volume > 0 ? `${Math.round(volume).toLocaleString('en-US')} kg` : '未训练'}</em>
+        <em>{volume > 0 ? `${Math.round(volume).toLocaleString('en-US')} kg` : records > 0 ? `${records} 次语音记录` : '未训练'}</em>
       </div>
       <div className="bar">
-        <i style={{ width: `${volume ? Math.max(6, (volume / max) * 100) : 0}%` }} />
+        <i style={{ width: `${volume ? Math.max(6, (volume / max) * 100) : records ? 16 : 0}%` }} />
       </div>
     </div>
   );

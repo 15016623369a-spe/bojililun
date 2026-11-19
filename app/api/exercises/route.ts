@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import atlasRegions from '@/lib/athlete-regions.json';
 import { getDb } from '@/lib/db';
+import { EXERCISE_ALIASES } from '@/lib/exercise-words';
 import { MUSCLES, muscleById, muscleMatchesExercise } from '@/lib/muscles';
 
 export const runtime = 'nodejs';
@@ -19,6 +20,7 @@ interface Row {
 export async function GET(req: Request) {
   const sp = new URL(req.url).searchParams;
   const muscleId = sp.get('muscle') ?? '';
+  const query = (sp.get('q') ?? '').trim().toLowerCase();
   const limit = Math.min(100, Math.max(1, Number(sp.get('limit')) || 40));
 
   const db = getDb();
@@ -32,6 +34,10 @@ export async function GET(req: Request) {
   const region = atlasRegions.find((entry) => entry.id === sp.get('region'));
   const def = muscleById(region?.group ?? muscleId);
   const regionalIds = region?.exerciseIds ? new Set(region.exerciseIds) : null;
+  // 口语别名（蝴蝶机夹胸…）映射到动作库标准名，搜索别名也能命中真实动作
+  const aliasTerms = Object.entries(EXERCISE_ALIASES)
+    .filter(([alias]) => query && (alias.includes(query) || query.includes(alias)))
+    .map(([, canonical]) => canonical.toLowerCase());
   let total = 0;
   const items: Row[] = [];
 
@@ -42,7 +48,10 @@ export async function GET(req: Request) {
 
       }
     }
-    if (regionalIds ? regionalIds.has(r.id) : def && muscleMatchesExercise(def, r)) {
+    const matchesQuery = !query || r.name.toLowerCase().includes(query) || r.zh_name.toLowerCase().includes(query) || r.target.toLowerCase().includes(query)
+      || aliasTerms.some((term) => r.zh_name.toLowerCase().includes(term));
+    const matchesScope = regionalIds ? regionalIds.has(r.id) : def ? muscleMatchesExercise(def, r) : !muscleId && !sp.get('region');
+    if (matchesQuery && matchesScope) {
       total++;
       if (items.length < limit) items.push(r);
     }
