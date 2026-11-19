@@ -28,6 +28,10 @@ export default function BodyAtlas({ highlighted, onInspect }: {
   onInspect?: (muscle: MuscleId | null) => void;
 } = {}) {
   const review = highlighted !== undefined;
+  const [model, setModel] = useState<'male' | 'female'>('male');
+  useEffect(() => {
+    if (localStorage.getItem('fitcheck.plan.model') === 'female') setModel('female');
+  }, []);
   const [added, setAdded] = useState('');
   const [config, setConfig] = useState<ExerciseLite | null>(null);
   function closeSelection() {
@@ -87,20 +91,31 @@ export default function BodyAtlas({ highlighted, onInspect }: {
 
   return (
     <>
-      <div className={`body-explorer ${review ? 'review-atlas' : ''}`}>
-        <AthleteViewer selected={selected} highlighted={highlighted} onPick={(id) => {
+      <div className={`body-explorer ${review ? 'review-atlas' : 'plan-atlas'}`}>
+        <AthleteViewer planModel={review ? undefined : model} selected={selected} highlighted={highlighted} onPick={(id) => {
           const group = atlasRegions.find((entry) => entry.id === id)?.group;
           if (review && group) onInspect?.(group as MuscleId);
           else setSelected(id);
         }} />
         {!review && <details className="muscle-fallback">
-          <summary>按部位选择</summary>
+          <summary>视图</summary>
+          <div className="atlas-tools">
+          <fieldset><legend>人体模型</legend>{(['male', 'female'] as const).map((sex) =>
+            <button type="button" key={sex} className="journal-chip" aria-pressed={model === sex} onClick={(event) => {
+              setModel(sex);
+              localStorage.setItem('fitcheck.plan.model', sex);
+              event.currentTarget.closest('details')?.removeAttribute('open');
+            }}>{sex === 'male' ? '男款' : '女款'}</button>)}</fieldset>
+          <details><summary>按部位选择</summary>
           {REGIONS.map((region) => <div className="muscle-options" key={region}>
             <span>{region}</span>
             {[...atlasRegions, { id: 'neck', label: '颈部', group: 'neck' }].filter((muscle) => muscleById(muscle.group)?.region === region).map((muscle) =>
               <button key={muscle.id} className="journal-chip" onClick={() => setSelected(muscle.id)}>{muscle.label}</button>,
             )}
           </div>)}
+          </details>
+          <a href="/train">编辑今日计划</a> · <a href="/exercises">全部动作</a>
+          </div>
         </details>}
       </div>
 
