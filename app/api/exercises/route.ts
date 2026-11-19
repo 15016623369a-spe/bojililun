@@ -14,16 +14,23 @@ interface Row {
   target: string;
   body_part: string;
   image: string;
+  zh?: string;
+  zh_steps?: string;
+  gif_url?: string;
 }
 
 export async function GET(req: Request) {
   const sp = new URL(req.url).searchParams;
   const muscleId = sp.get('muscle') ?? '';
   const limit = Math.min(100, Math.max(1, Number(sp.get('limit')) || 40));
+  // steps=1：字典页要动作要点（数据集里的中文分步说明）
+  const withSteps = sp.get('steps') === '1';
 
   const db = getDb();
   const rows = db
-    .prepare('SELECT id, name, zh_name, equipment, target, body_part, image FROM exercise')
+    .prepare(
+      `SELECT id, name, zh_name, equipment, target, body_part, image${withSteps ? ', zh, zh_steps, gif_url' : ''} FROM exercise`,
+    )
     .all() as unknown as Row[];
 
   const counts: Record<string, number> = {};
@@ -53,13 +60,26 @@ export async function GET(req: Request) {
     muscle: def?.id ?? null,
     label: region?.label ?? def?.label ?? null,
     total,
-    items: items.map((x) => ({
-      id: x.id,
-      name: x.name,
-      zh_name: x.zh_name,
-      equipment: x.equipment,
-      target: x.target,
-      image: x.image,
-    })),
+    items: items.map((x) => {
+      let steps: string[] = [];
+      if (withSteps) {
+        try {
+          const parsed = JSON.parse(x.zh_steps || '[]');
+          if (Array.isArray(parsed)) steps = parsed.map(String);
+        } catch {
+          steps = [];
+        }
+      }
+      return {
+        id: x.id,
+        name: x.name,
+        zh_name: x.zh_name,
+        equipment: x.equipment,
+        target: x.target,
+        image: x.image,
+        steps,
+        desc: withSteps ? (x.zh ?? '') : '',
+      };
+    }),
   });
 }
