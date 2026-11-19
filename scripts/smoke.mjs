@@ -29,6 +29,12 @@ const put = (path, payload) =>
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(payload),
   });
+const patch = (path, payload) =>
+  call(path, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
 
 let failed = 0;
 function check(name, cond, extra = '') {
@@ -128,6 +134,30 @@ async function main() {
   check('今日记录 +1', today.meals.length === mealsBefore + 1, `${mealsBefore} -> ${today.meals.length}`);
   check('记忆随 today 返回', today.memories.length > 0);
   console.log(`     已摄入 ${today.consumed.kcal} kcal，剩余 ${today.remainingKcal} kcal`);
+
+  console.log('\n[9] 饮食分量可编辑（语音记录 + 确认餐）');
+  const voice = await post('/api/journal', { text: '午饭吃了牛肉面', requestId: `smoke-amount-${Date.now()}` });
+  check('语音记录每行带编辑来源', voice.entry?.payload?.items?.[0]?.src?.kind === 'quick', JSON.stringify(voice.entry?.payload?.items));
+  const voiceSaved = await patch('/api/journal', { quickId: voice.entry.quickId, index: 0, amount: '3两' });
+  check('语音分量保存成功', voiceSaved.amount === '3两', JSON.stringify(voiceSaved));
+  const voicePage = await (await fetch(`${BASE}/history/${voice.entry.date}`)).text();
+  check('服务端渲染出新分量', voicePage.includes('3两'));
+  const voiceIndexErr = await patch('/api/journal', { quickId: voice.entry.quickId, index: 9, amount: '3两' }).catch((e) => e);
+  check('越界行号被拒绝', String(voiceIndexErr.message).includes('400'), String(voiceIndexErr.message).slice(0, 80));
+  await call(`/api/journal?id=${voice.entry.quickId}`, { method: 'DELETE' });
+
+  const confirmedMeal = (await call('/api/today')).meals.at(-1);
+  check('有可编辑的确认餐', Boolean(confirmedMeal));
+  if (confirmedMeal) {
+    const kcalBefore = confirmedMeal.kcal;
+    const saved = await patch('/api/meal', { id: confirmedMeal.id, index: 0, grams: 300 });
+    check('确认餐克数保存成功', saved.grams === 300, JSON.stringify(saved));
+    check('热量按每 100g 重算', saved.kcal !== kcalBefore && saved.kcal > 0, `${kcalBefore} -> ${saved.kcal} kcal`);
+    const mealPage = await (await fetch(`${BASE}/history/${confirmedMeal.date}`)).text();
+    check('服务端渲染出 300 g', mealPage.includes('300 g'));
+    const gramsErr = await patch('/api/meal', { id: confirmedMeal.id, index: 0, grams: 5000 }).catch((e) => e);
+    check('超范围克数被拒绝', String(gramsErr.message).includes('400'), String(gramsErr.message).slice(0, 80));
+  }
 
   console.log(failed === 0 ? '\n全部通过 ✅' : `\n有 ${failed} 项失败 ❌`);
   process.exit(failed === 0 ? 0 : 1);

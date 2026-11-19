@@ -22,10 +22,12 @@ export default function MealAmount({ name, amount, grams, src }: {
   const flash = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => () => clearTimeout(flash.current), []);
-  // 服务端刷新后（如整合卡合并/撤销）同步最新值
+  // 服务端刷新后（如整合卡合并/撤销）同步最新值。只跟 props 变化走：
+  // 若把 editing 放进依赖，保存时 setEditing(false) 会先用上一帧的旧 props 覆盖刚刚写入的新值，
+  // 于是 ✓ 会短暂闪在旧数字上，慢网络下会一直停在旧值直到刷新落地。
   useEffect(() => {
-    if (!editing) setValue(numeric ? `${grams} g` : amount);
-  }, [amount, grams, numeric, editing]);
+    setValue(numeric ? `${grams} g` : amount);
+  }, [amount, grams, numeric]);
 
   const source = src;
   if (!source) return <>{value}</>;
@@ -90,12 +92,15 @@ export default function MealAmount({ name, amount, grams, src }: {
   );
 
   return (
-    <button type="button" className={`amount-cell${saved ? ' saved' : ''}`} title="点击修改分量"
-      aria-label={`修改${name}的分量，当前${value}`} onClick={open}>
-      {saved && <span aria-hidden="true">✓ </span>}{value}
-      <svg aria-hidden="true" width="10" height="10" viewBox="0 0 16 16" fill="none">
-        <path d="M11.3 2.3l2.4 2.4L5.4 13H3v-2.4l8.3-8.3z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
-      </svg>
-    </button>
+    <>
+      <button type="button" className={`amount-cell${saved ? ' saved' : ''}`} title="点击修改分量"
+        aria-label={`修改${name}的分量，当前${value}`} onClick={open}>
+        {saved && <span aria-hidden="true">✓ </span>}{value}
+        <svg aria-hidden="true" width="10" height="10" viewBox="0 0 16 16" fill="none">
+          <path d="M11.3 2.3l2.4 2.4L5.4 13H3v-2.4l8.3-8.3z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+        </svg>
+      </button>
+      <span className="amount-status" aria-live="polite">{saved ? '已保存' : ''}</span>
+    </>
   );
 }
