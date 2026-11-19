@@ -63,3 +63,22 @@ export function groupForEcorcheName(name: string): MuscleId | null {
 }
 
 export const SHOW_LAYER = 'superficial muscles';
+
+// 手/脚内部的小肌群：缩略尺寸下只剩一根根肌腱，接真手真脚时整体隐藏
+// 注意不能误伤前臂的 extensor digitorum / abductor pollicis longus
+const EXTREMITY = new RegExp(
+  [
+    'of (left|right) hand',
+    'thenar|hypothenar|opponens',
+    'abductor pollicis brevis|flexor pollicis brevis|adductor pollicis',
+    'of (left|right) foot',
+    'abductor hallucis|flexor hallucis brevis|adductor hallucis|extensor hallucis brevis',
+    'flexor digitorum brevis|extensor digitorum brevis',
+    'flexor retinaculum',
+  ].join('|'),
+  'i',
+);
+
+export function isExtremity(name: string): boolean {
+  return EXTREMITY.test(name);
+}

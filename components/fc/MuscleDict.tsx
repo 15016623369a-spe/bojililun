@@ -9,7 +9,7 @@ import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { EQUIPMENT_LABEL, TARGET_LABEL, imageUrl } from '@/lib/exercise-label';
 import { muscleById, type MuscleId } from '@/lib/muscles';
-import { groupForEcorcheName, SHOW_LAYER } from '@/lib/ecorche';
+import { groupForEcorcheName, isExtremity, SHOW_LAYER } from '@/lib/ecorche';
 
 interface DictItem {
   id: string;
@@ -253,6 +253,11 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
             obj.visible = false;
             return;
           }
+          // 手/脚内部只剩肌腱丝，接真手真脚后整体隐藏
+          if (isExtremity(name)) {
+            obj.visible = false;
+            return;
+          }
           const group = groupForEcorcheName(name);
           if (!group) {
             obj.visible = false;
@@ -278,6 +283,63 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
         root.position.sub(center);
         wrapper.add(root);
         scene.add(wrapper);
+
+        // ---- 手 / 脚：浅层肌在那只剩肌腱丝，按解剖比例在腕、踝处截断，改用 skeleton 层的手骨脚骨 ----
+        {
+          // 实测：桡骨末端 ≈ 51.5% 身高，踝 ≈ 6%（ecorche 实测而非教科书比例）
+          const wristY = box.min.y + size.y * 0.515;
+          const ankleY = box.min.y + size.y * 0.062;
+
+          // 顶点是量化后的整数坐标，必须走 matrixWorld 才能拿到真实米制高度
+          const clipBelow = (ids: string[], cutY: number) => {
+            const v = new THREE.Vector3();
+            for (const m of meshes) {
+              if (!m.visible || !ids.includes(String(m.userData.groupId))) continue;
+              const g = m.geometry as THREE.BufferGeometry;
+              const pos = g.attributes.position;
+              // 非索引几何先补一个顺序索引，否则裁不了
+              let idx = g.index;
+              if (!idx) {
+                const seq = new Uint32Array(pos.count);
+                for (let i = 0; i < pos.count; i++) seq[i] = i;
+                idx = new THREE.BufferAttribute(seq, 1);
+              }
+              const above = new Uint8Array(pos.count);
+              for (let i = 0; i < pos.count; i++) {
+                v.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld);
+                above[i] = v.y > cutY ? 1 : 0;
+              }
+              const keep: number[] = [];
+              for (let t = 0; t < idx.count; t += 3) {
+                const a = idx.getX(t);
+                const b2 = idx.getX(t + 1);
+                const c2 = idx.getX(t + 2);
+                if (above[a] && above[b2] && above[c2]) keep.push(a, b2, c2);
+              }
+              const ng = new THREE.BufferGeometry();
+              for (const k of Object.keys(g.attributes)) ng.setAttribute(k, g.attributes[k]);
+              ng.setIndex(keep);
+              m.geometry = ng;
+            }
+          };
+          clipBelow(['forearms'], wristY);
+          clipBelow(['calves', 'quads', 'hamstrings', 'adductors'], ankleY);
+
+          const bb = new THREE.Box3();
+          root.traverse((obj) => {
+            if (!(obj instanceof THREE.Mesh)) return;
+            const ud = obj.userData as Record<string, unknown>;
+            if (String(ud.layer ?? '') !== 'skeleton') return;
+            bb.setFromObject(obj);
+            const cy = (bb.min.y + bb.max.y) / 2;
+            const hand = cy < wristY + size.y * 0.005 && cy > ankleY;
+            const foot = cy < ankleY + size.y * 0.005;
+            if (!hand && !foot) return;
+            obj.visible = true;
+            obj.userData.groupId = null;
+            obj.material = dim;
+          });
+        }
 
         // 全身取景：头顶到脚踝都在一屏里
         const visibleH = size.y * 0.99;
