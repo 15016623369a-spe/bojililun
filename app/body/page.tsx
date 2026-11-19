@@ -12,7 +12,7 @@ export default function BodyPage() {
   return (
     <JournalShell active="plan" title="计划" subtitle="点选肌肉，为今天安排动作。">
       <div className="fc plan-embed">
-        <MuscleDict heat={heat} />
+        <MuscleDict heat={heat} showControls={false} />
       </div>
       <div className="journal-links">
         <Link href="/exercises">全部动作</Link>

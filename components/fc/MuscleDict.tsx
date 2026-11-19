@@ -97,7 +97,7 @@ function ExerciseGif({
 }
 
 /** 身体页：全屏解剖图 + 点肌肉看标准动作；今天练过的肌肉实时亮着 */
-export default function MuscleDict({ heat }: { heat: HeatItem[] }) {
+export default function MuscleDict({ heat, showControls = true }: { heat: HeatItem[]; showControls?: boolean }) {
   const router = useRouter();
   const mountRef = useRef<HTMLDivElement | null>(null);
   const apiRef = useRef<SceneApi | null>(null);
@@ -482,10 +482,13 @@ export default function MuscleDict({ heat }: { heat: HeatItem[] }) {
     const api = apiRef.current;
     if (!api || loading) return;
 
+    // 用相机当前朝向决定「正面 / 背面」，这样用户拖到哪一面，推近就停在哪一面
+    const sign = api.camera.position.z >= api.controls.target.z ? 1 : -1;
+
     if (!selected) {
       const t = new THREE.Vector3(0, api.focusY, 0);
       api.view.goalTarget = t;
-      api.view.goalPos = new THREE.Vector3(0, api.focusY, side === 'back' ? -api.fitDist : api.fitDist);
+      api.view.goalPos = new THREE.Vector3(0, api.focusY, sign * api.fitDist);
       return;
     }
 
@@ -503,7 +506,7 @@ export default function MuscleDict({ heat }: { heat: HeatItem[] }) {
     const size = box.getSize(new THREE.Vector3());
     const span = Math.max(size.y, size.x * (api.camera.aspect || 0.8), 0.05) * 2.6;
     const dist = span / 2 / Math.tan((api.camera.fov * Math.PI) / 360);
-    const z = side === 'back' ? -dist : dist;
+    const z = sign * dist;
     const target = new THREE.Vector3(c.x, c.y - span * 0.22, c.z);
     api.view.goalTarget = target;
     api.view.goalPos = new THREE.Vector3(target.x, target.y, z);
@@ -635,6 +638,7 @@ export default function MuscleDict({ heat }: { heat: HeatItem[] }) {
         {failed && <div className="fc-loading">{failed}</div>}
         {!failed && (
           <>
+            {showControls && (
             <div className="fc-dict-tabs">
               <button type="button" className={side === 'front' ? 'on' : ''} onClick={() => setSide('front')}>
                 正面
@@ -646,6 +650,7 @@ export default function MuscleDict({ heat }: { heat: HeatItem[] }) {
                 自转
               </button>
             </div>
+            )}
           </>
         )}
       </div>
@@ -657,7 +662,7 @@ export default function MuscleDict({ heat }: { heat: HeatItem[] }) {
             ? `${hoverDef.region}·${hoverDef.label}`
             : !hinted && lit > 0
               ? `今天点亮了 ${lit} 块肌肉 · 点一下看动作`
-              : '点一块肌肉，看它的标准动作'}
+              : '拖动旋转 · 点一块肌肉看动作'}
       </p>
 
       {selected && (
