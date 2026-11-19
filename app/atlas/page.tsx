@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import SculptureAtlas from '@/components/fc/SculptureAtlas';
+import MuscleDict from '@/components/fc/MuscleDict';
 import TabBar from '@/components/fc/TabBar';
 import { LeafIcon } from '@/components/fc/icons';
 import { todayMuscles } from '@/lib/log';
@@ -25,7 +25,7 @@ export default function BodyPage() {
           <h1 className="fc-h1">身体</h1>
         </header>
 
-        <SculptureAtlas heat={heat} />
+        <MuscleDict heat={heat} />
       </div>
 
       <div className="fc-dock">
