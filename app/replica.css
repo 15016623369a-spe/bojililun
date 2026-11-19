@@ -1206,6 +1206,11 @@ textarea.fc-input {
   flex-direction: column;
 }
 
+/* 动作详情：竖向结构，正文在弹窗内部滚动，底部按钮常驻 */
+.fc-dict-sheet.detail {
+  max-height: 88dvh;
+}
+
 .fc-dict-head {
   flex: none;
   display: flex;
@@ -1283,10 +1288,16 @@ textarea.fc-input {
 }
 
 .fc-dict-gif.big {
-  width: 148px;
-  height: 148px;
-  border-radius: 14px;
-  box-shadow: inset 0 0 0 1px #eee7e0, 0 6px 18px rgba(17, 81, 51, 0.08);
+  width: min(82%, 340px);
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px #efe8e0, 0 10px 26px rgba(17, 81, 51, 0.1);
+}
+
+.fc-dict-gif.big img {
+  object-fit: contain;
 }
 
 .fc-dict-item-body {
@@ -1326,8 +1337,16 @@ textarea.fc-input {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+}
+
+.fc-dict-detail-body {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -6px;
+  padding: 0 6px 4px;
 }
 
 .fc-dict-back {
@@ -1336,29 +1355,36 @@ textarea.fc-input {
 }
 
 .fc-dict-hero {
-  flex: none;
   display: flex;
-  gap: 14px;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.fc-dict-meta {
+  width: 100%;
 }
 
 .fc-dict-name {
-  font-size: 19px;
+  margin: 0;
+  font-size: 21px;
   font-weight: 650;
   line-height: 1.3;
 }
 
 .fc-dict-en {
-  font-size: 12px;
+  margin: 5px 0 0;
+  font-size: 12.5px;
   color: var(--muted);
-  margin-top: 4px;
   line-height: 1.4;
 }
 
 .fc-dict-chips {
   display: flex;
+  justify-content: center;
   gap: 6px;
-  margin-top: 9px;
+  margin-top: 10px;
   flex-wrap: wrap;
 }
 
@@ -1372,44 +1398,62 @@ textarea.fc-input {
 }
 
 .fc-dict-sub {
-  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-size: 15px;
   font-weight: 650;
-  margin: 16px 0 8px;
+  margin: 24px 0 10px;
+}
+
+.fc-dict-sub::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--hair);
 }
 
 .fc-dict-steps {
-  flex: 1 1 auto;
-  min-height: 0;
   margin: 0;
-  padding-left: 18px;
+  padding-left: 20px;
   display: grid;
-  gap: 7px;
-  font-size: 14px;
-  line-height: 1.55;
+  gap: 9px;
+  font-size: 14.5px;
+  line-height: 1.6;
   color: var(--ink-2);
-  max-height: 34dvh;
-  overflow-y: auto;
 }
 
 .fc-dict-steps li {
   list-style: decimal;
+  padding-left: 2px;
 }
 
+.fc-dict-steps li::marker {
+  color: var(--green);
+  font-weight: 600;
+}
+
+/* 底部主操作：不跟着正文滚动，始终吸在弹窗底部 */
 .fc-dict-actions {
   flex: none;
-  display: flex;
-  gap: 10px;
-  margin-top: 18px;
+  margin-top: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--hair);
 }
 
 .fc-dict-actions .fc-btn {
-  flex: 1;
-  height: 48px;
+  width: 100%;
+  height: 50px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 15.5px;
+  font-size: 16px;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.fc-dict-actions .fc-btn.done {
+  background: var(--sage);
+  color: var(--green);
 }
 
 .fc-dict-link {

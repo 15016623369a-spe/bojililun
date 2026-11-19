@@ -392,6 +392,49 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
           const ecoWrists = anchorOf(['forearms'], wristY);
           const ecoAnkles = anchorOf(['calves', 'quads', 'hamstrings', 'adductors'], ankleY);
 
+          // 末端收细：离断口越近收得越多，避免断面比手/脚还粗
+          const taperEnd = (
+            ids: string[],
+            cutY: number,
+            span: number,
+            centers: Map<number, { x: number; z: number }>,
+            amount: number,
+          ) => {
+            const v = new THREE.Vector3();
+            const mi = new THREE.Matrix4();
+            for (const m of meshes) {
+              if (!m.visible || !ids.includes(String(m.userData.groupId))) continue;
+              const g = m.geometry as THREE.BufferGeometry;
+              const pos = g.attributes.position;
+              const mw = m.matrixWorld.clone();
+              mi.copy(mw).invert();
+              const arr = new Float32Array(pos.count * 3);
+              for (let i = 0; i < pos.count; i++) {
+                v.fromBufferAttribute(pos, i).applyMatrix4(mw);
+                const c = centers.get(v.x >= 0 ? 1 : -1);
+                if (c && v.y < cutY + span) {
+                  const t = Math.min(1, Math.max(0, (cutY + span - v.y) / span));
+                  const f = 1 - amount * t;
+                  v.x = c.x + (v.x - c.x) * f;
+                  v.z = c.z + (v.z - c.z) * f;
+                }
+                v.applyMatrix4(mi);
+                arr[i * 3] = v.x;
+                arr[i * 3 + 1] = v.y;
+                arr[i * 3 + 2] = v.z;
+              }
+              const ng = new THREE.BufferGeometry();
+              for (const key of Object.keys(g.attributes)) {
+                if (key === 'position') ng.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+                else ng.setAttribute(key, g.attributes[key]);
+              }
+              ng.setIndex(g.index);
+              m.geometry = ng;
+            }
+          };
+          taperEnd(['forearms'], wristY + size.y * 0.035, size.y * 0.05, ecoWrists, 0.42);
+          taperEnd(['calves', 'quads', 'hamstrings', 'adductors'], ankleY, size.y * 0.05, ecoAnkles, 0.42);
+
           const plaster = new THREE.MeshStandardMaterial({
             color: 0xf3ede4,
             roughness: 0.86,
@@ -455,7 +498,8 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
                   filter(P[c2 * 3], P[c2 * 3 + 1], P[c2 * 3 + 2]),
               );
               const geo = new THREE.BufferGeometry();
-              geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+              const own = new Float32Array(P);
+              geo.setAttribute('position', new THREE.BufferAttribute(own, 3));
               geo.setIndex(keepTris.flat());
               geo.computeVertexNormals();
               const lo = new THREE.Vector3(Infinity, Infinity, Infinity);
@@ -476,18 +520,39 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
                 used.add(b2);
                 used.add(c2);
               }
-              return { geo, lo, hi, tri: keepTris.length, used: [...used] };
+              return { geo, own, lo, hi, tri: keepTris.length, used: [...used] };
             };
 
             const k = size.y / porcHeight; // 全身等比缩放
 
+            // 把某个高度附近的顶点向 (cx, cz) 收拢，消除空心套筒边缘
+            const pinchRim = (
+              part: { own: Float32Array; used: number[]; geo: THREE.BufferGeometry },
+              yRef: number,
+              cx: number,
+              cz: number,
+              span: number,
+              factor: number,
+            ) => {
+              for (const i of part.used) {
+                const y = part.own[i * 3 + 1];
+                if (Math.abs(y - yRef) > span) continue;
+                part.own[i * 3] = cx + (part.own[i * 3] - cx) * factor;
+                part.own[i * 3 + 2] = cz + (part.own[i * 3 + 2] - cz) * factor;
+              }
+              part.geo.attributes.position.needsUpdate = true;
+              part.geo.computeVertexNormals();
+            };
+
             // ---- 头 + 颈 ----
-            const HEAD_CUT = 1.50;
+            const HEAD_CUT = 1.42;
             const head = build((x, y) => y > HEAD_CUT && Math.abs(x) < 0.13);
             const headMesh = new THREE.Mesh(head.geo, plaster);
             headMesh.scale.setScalar(k);
             // 让平的切面埋到颈根以下 3cm，避免断层
-            headMesh.position.set(0, neckY - size.y * 0.03 - head.lo.y * k, -size.z * 0.004);
+            headMesh.position.set(0, neckY - size.y * 0.062 - head.lo.y * k, -size.z * 0.004);
+            // 颈根切口往里收成塞子，封住锁骨上方的空洞
+            pinchRim(head, head.lo.y, 0, -size.z * 0.004, 0.075, 0.82);
             parts.add(headMesh);
 
             // ---- 手 ----
@@ -497,7 +562,7 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
               if (!hand.tri) continue;
               const m = new THREE.Mesh(hand.geo, plaster);
               // 手比按身高算的略大一点，腕口才能包住前臂断口
-              const kHand = k * 1.16;
+              const kHand = k * 1.02;
               m.scale.setScalar(kHand);
               // 用这块手自身顶部开口环的中心去对腕心
               let sx = 0;
@@ -511,7 +576,9 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
               }
               const cx = n ? sx / n : 0;
               const cz = n ? sz / n : 0;
-              m.position.set(w.x - cx * kHand, wristY + size.y * 0.06 - hand.hi.y * kHand, w.z - cz * kHand);
+              m.position.set(w.x - cx * kHand, wristY + size.y * 0.062 - hand.hi.y * kHand, w.z - cz * kHand);
+              // 腕口向轴心收拢，贴住前臂
+              pinchRim(hand, hand.hi.y, cx, cz, 0.04, 0.74);
               parts.add(m);
 
 
@@ -559,7 +626,8 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
               }
               const cx = n ? sx / n : 0;
               const cz = n ? sz / n : 0;
-              m.position.set(a.x - cx * k, ankleY + size.y * 0.026 - foot.hi.y * k, a.z - cz * k);
+              m.position.set(a.x - cx * k, ankleY + size.y * 0.03 - foot.hi.y * k, a.z - cz * k);
+              pinchRim(foot, foot.hi.y, cx, cz, 0.035, 0.64);
               parts.add(m);
             }
 
@@ -884,27 +952,6 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
       });
   }, [data, filter]);
 
-  const markDone = useCallback(
-    async (it: DictItem) => {
-      setState((prev) => ({ ...prev, [it.id]: 'busy' }));
-      try {
-        const res = await fetch('/api/log', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ text: `练了${it.zh_name || it.name}` }),
-        });
-        if (!res.ok) throw new Error('记录失败');
-        setState((prev) => ({ ...prev, [it.id]: 'done' }));
-        setToast('已记入今天，肌肉点亮了');
-        router.refresh();
-      } catch {
-        setState((prev) => ({ ...prev, [it.id]: 'err' }));
-        setToast('没记上，再试一次');
-      }
-    },
-    [router],
-  );
-
   const addToPlan = useCallback(async (it: DictItem) => {
     setState((prev) => ({ ...prev, [`plan-${it.id}`]: 'busy' }));
     try {
@@ -915,13 +962,15 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
       });
       if (!res.ok) throw new Error('加入失败');
       setState((prev) => ({ ...prev, [`plan-${it.id}`]: 'done' }));
-      setToast('已加入今日训练清单');
+      setToast('已加入今日训练');
       router.refresh();
     } catch {
       setState((prev) => ({ ...prev, [`plan-${it.id}`]: 'err' }));
       setToast('加入失败');
     }
   }, [router]);
+
+  const planState = active ? state[`plan-${active.id}`] : undefined;
 
   const def = selected ? muscleById(selected) : null;
   const hoverDef = hovered ? muscleById(hovered) : null;
@@ -963,7 +1012,10 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
 
       {selected && (
         <div className="fc-mask dict" onClick={() => setSelected(null)}>
-          <div className="fc-sheet fc-dict-sheet" onClick={(e) => e.stopPropagation()}>
+          <div
+            className={active ? 'fc-sheet fc-dict-sheet detail' : 'fc-sheet fc-dict-sheet'}
+            onClick={(e) => e.stopPropagation()}
+          >
             {active ? (
               <>
                 <div className="fc-dict-detail-top">
@@ -974,50 +1026,54 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
                     关闭
                   </button>
                 </div>
-                <div className="fc-dict-hero">
-                  <ExerciseGif id={active.id} image={active.image} alt={active.zh_name || active.name} big />
-                  <div>
-                    <div className="fc-dict-name">{active.zh_name || active.name}</div>
-                    <div className="fc-dict-en">{active.name}</div>
-                    <div className="fc-dict-chips">
-                      <span>{EQUIPMENT_LABEL[active.equipment] ?? active.equipment}</span>
-                      <span>{TARGET_LABEL[active.target] ?? active.target}</span>
+
+                <div className="fc-dict-detail-body">
+                  <div className="fc-dict-hero">
+                    <ExerciseGif
+                      id={active.id}
+                      image={active.image}
+                      alt={active.zh_name || active.name}
+                      big
+                    />
+                    <div className="fc-dict-meta">
+                      <h3 className="fc-dict-name">{active.zh_name || active.name}</h3>
+                      <p className="fc-dict-en">{active.name}</p>
+                      <div className="fc-dict-chips">
+                        <span>{EQUIPMENT_LABEL[active.equipment] ?? active.equipment}</span>
+                        <span>{TARGET_LABEL[active.target] ?? active.target}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <h4 className="fc-dict-sub">要点</h4>
-                {active.steps.length > 0 ? (
-                  <ol className="fc-dict-steps">
-                    {active.steps.map((s, i) => (
-                      <li key={i}>{s}</li>
-                    ))}
-                  </ol>
-                ) : (
-                  <p className="fc-note">这个动作暂时没有分步说明。</p>
-                )}
+                  <h4 className="fc-dict-sub">动作要点 / 步骤</h4>
+                  {active.steps.length > 0 ? (
+                    <ol className="fc-dict-steps">
+                      {active.steps.map((s, i) => (
+                        <li key={i}>{s}</li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <p className="fc-note">这个动作暂时没有分步说明。</p>
+                  )}
+                </div>
 
                 <div className="fc-dict-actions">
                   <button
                     type="button"
-                    className="fc-btn primary"
-                    onClick={() => void markDone(active)}
-                    disabled={state[active.id] === 'busy'}
-                  >
-                    {state[active.id] === 'done' ? '✓ 已记入今天' : state[active.id] === 'busy' ? '记录中…' : '✓ 记入今天'}
-                  </button>
-                  <button
-                    type="button"
-                    className="fc-btn ghost"
+                    className={planState === 'done' ? 'fc-btn primary done' : 'fc-btn primary'}
                     onClick={() => void addToPlan(active)}
-                    disabled={state[`plan-${active.id}`] === 'busy'}
+                    disabled={planState === 'busy' || planState === 'done'}
+                    aria-live="polite"
                   >
-                    {state[`plan-${active.id}`] === 'done' ? '✓ 已在清单' : '+ 加入训练'}
+                    {planState === 'done'
+                      ? '✓ 已加入今日训练'
+                      : planState === 'busy'
+                        ? '加入中…'
+                        : planState === 'err'
+                          ? '加入失败 · 再试一次'
+                          : '+ 加入训练安排'}
                   </button>
                 </div>
-                <p className="fc-dict-src">
-                  <a href={`/exercises/${active.id}`}>看完整详情与步骤 →</a>
-                </p>
               </>
             ) : (
               <>
