@@ -307,7 +307,7 @@ function serializeQuick(row: QuickRow): JournalEntry {
   }
   return {
     id: `quick-${row.id}`, quickId: row.id, date: row.date, kind: row.kind, title: row.title,
-    detail: row.detail, source: row.source_text,
+    detail: row.detail, source: row.source_text, createdAt: row.created_at,
     muscles: row.kind === 'training' ? mentionedMuscles(row.detail) : [],
     payload,
   };

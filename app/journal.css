@@ -385,7 +385,7 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
   gap: 4px 10px;
   font-size: 14px;
 }
-.day-exercise-name > span, .day-plan small, .day-meal small { color: var(--quiet); font-size: 12px; font-weight: 500; }
+.day-exercise-name > span, .day-plan small { color: var(--quiet); font-size: 12px; font-weight: 500; }
 .day-exercise-toggle {
   display: grid;
   gap: 2px;
@@ -427,8 +427,6 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
 .day-plan { padding: 0; margin: 0; list-style: none; }
 .day-plan li { padding: 8px 0; }
 .day-plan li + li { border-top: 1px solid var(--line); }
-.day-meal { margin-bottom: 10px; }
-.day-meal .entry-table-wrap { margin-top: 4px; }
 
 /* Secondary screens share the same layout and palette. */
 .journal-utility { display: grid; gap: 16px; }
@@ -756,18 +754,13 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
 .entry-table-link:hover .entry-table td:first-child { color: var(--forest); }
 .entry-food-link { color: inherit; text-decoration: none; }
 .entry-food-link:hover { color: var(--forest); text-decoration: underline; text-underline-offset: 3px; }
-/* 饮食分量：与训练每组编辑同款的内联输入＋保存 */
+/* 饮食分量：平时就是纯文本，点一下才进入输入态，保存后回到纯文本 */
 .amount-cell {
-  display: inline-flex; align-items: center; gap: 5px; padding: 2px 7px; margin: -2px 0;
-  border: 1px dashed color-mix(in srgb, var(--quiet) 45%, transparent); border-radius: 7px;
-  background: transparent; color: inherit; font: inherit; font-size: 12.5px; cursor: pointer;
+  display: inline-block; padding: 0; margin: 0; border: 0; background: none;
+  color: inherit; font: inherit; line-height: inherit; cursor: pointer; text-align: left;
 }
-.amount-cell svg { flex: none; opacity: .5; }
-.amount-cell:hover, .amount-cell:focus-visible {
-  border-color: var(--forest); background: var(--paper); color: var(--forest);
-}
-.amount-cell:hover svg, .amount-cell:focus-visible svg { opacity: 1; }
-.amount-cell.saved { border-style: solid; border-color: var(--forest); color: var(--forest); font-weight: 700; }
+.amount-cell:hover, .amount-cell:focus-visible { color: var(--forest); text-decoration: underline; text-underline-offset: 3px; }
+.amount-cell.saved { color: var(--forest); }
 .amount-edit { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .amount-edit .set-input { flex: none; width: 7em; height: 32px; }
 .amount-edit .set-save { height: 32px; min-width: 44px; }

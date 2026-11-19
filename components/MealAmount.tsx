@@ -96,9 +96,6 @@ export default function MealAmount({ name, amount, grams, src }: {
       <button type="button" className={`amount-cell${saved ? ' saved' : ''}`} title="点击修改分量"
         aria-label={`修改${name}的分量，当前${value}`} onClick={open}>
         {saved && <span aria-hidden="true">✓ </span>}{value}
-        <svg aria-hidden="true" width="10" height="10" viewBox="0 0 16 16" fill="none">
-          <path d="M11.3 2.3l2.4 2.4L5.4 13H3v-2.4l8.3-8.3z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
-        </svg>
       </button>
       <span className="amount-status" aria-live="polite">{saved ? '已保存' : ''}</span>
     </>

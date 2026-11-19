@@ -1,5 +1,4 @@
 import { notFound } from 'next/navigation';
-import EntryTable from '@/components/EntryTable';
 import ExerciseRecord from '@/components/ExerciseRecord';
 import JournalIcon from '@/components/JournalIcon';
 import JournalShell from '@/components/JournalShell';
@@ -52,6 +51,24 @@ export default async function DayPage({ params, searchParams }: {
   const duration = sessions.length === 0 && quickWorkouts.length > 0 ? '—'
     : sessions.some(({ session }) => session.ended_at) && totals.durationMin === 0 ? '<1' : totals.durationMin;
 
+  // 饮食：拍照/对话餐与语音记录进入同一条时间线，早餐/午餐/晚餐同级；
+  // 分量平时是纯文本，点一下才进入输入态，保存后回到纯文本。
+  const mealTimeline = [
+    ...quickMeals.map((entry) => ({ at: entry.createdAt ?? '', entry })),
+    ...meals.map((meal) => ({
+      at: meal.created_at,
+      entry: {
+        id: `meal-${meal.id}`,
+        date,
+        kind: 'meal' as const,
+        title: MEAL_LABEL[meal.meal_type],
+        detail: meal.items.map((item) => `${item.name} ${item.grams} g`).join('、'),
+        meta: meal.kcal > 0 ? `约 ${meal.kcal} kcal` : undefined,
+        payload: mealLogPayload(meal),
+      },
+    })),
+  ].sort((a, b) => a.at.localeCompare(b.at)).map(({ entry }) => entry);
+
   return (
     <JournalShell active="review" title={humanDate(date)} subtitle={date.slice(0, 4) + ' 年'}
       back={back}>
@@ -87,13 +104,7 @@ export default async function DayPage({ params, searchParams }: {
           {meals.length > 0 && <span>{calories} kcal · 蛋白质 {protein} g</span>}
         </h2>
         {meals.length === 0 && quickMeals.length === 0 && <p className="hint">这天没有饮食记录。</p>}
-        {meals.map((meal) => (
-          <div className="day-meal" key={meal.id}>
-            <strong>{MEAL_LABEL[meal.meal_type]} <small>{meal.kcal} kcal</small></strong>
-            <EntryTable payload={mealLogPayload(meal)} />
-          </div>
-        ))}
-        {quickMeals.length > 0 && <JournalTimeline entries={quickMeals} compact />}
+        {mealTimeline.length > 0 && <JournalTimeline entries={mealTimeline} compact />}
       </section>
 
       {quickSleep.length > 0 && <section className="day-panel">
