@@ -1,0 +1,311 @@
+{
+  "format": "uint8, one byte per original vertex; no header",
+  "vertexCount": 154471,
+  "triangleCount": 292756,
+  "backgroundValue": 254,
+  "unassignedValue": 255,
+  "unassignedVertices": 0,
+  "model": "public/models/sculpture/fitcheck-sculpture-tripo-v1.glb",
+  "modelSha256": "35e266184c204bf01ea675fdc5098b3cd3d942dcf82f9191d849415de214cf2e",
+  "metadataSha256": "209eca956801bcdab97a6033cab537fc274dbdd8a2ec49b98e1d6b63629b711c",
+  "binarySha256": "ace207522af5cfcf7a9b8085eeb7b49d68b4c00e57f1f98ee39b1b8e2712fcb5",
+  "meshOrder": [
+    {
+      "node": 0,
+      "mesh": 0,
+      "primitive": 0,
+      "positionAccessor": 1,
+      "vertexOffset": 0,
+      "vertexCount": 154471
+    }
+  ],
+  "sculptureOrder": [
+    "neck",
+    "traps",
+    "chest_upper",
+    "chest_mid",
+    "chest_lower",
+    "delt_front",
+    "delt_side",
+    "delt_rear",
+    "biceps",
+    "triceps",
+    "forearms",
+    "abs",
+    "obliques",
+    "serratus",
+    "upperback",
+    "lats",
+    "lowerback",
+    "glutes",
+    "quads",
+    "hamstrings",
+    "adductors",
+    "calves"
+  ],
+  "palette": [
+    {
+      "canonicalId": "chest_mid",
+      "byteValue": 3,
+      "color": "#FF0000",
+      "linkedIds": [
+        "chest_upper",
+        "chest_mid",
+        "chest_lower"
+      ],
+      "vertexCount": 6065
+    },
+    {
+      "canonicalId": "delt_side",
+      "byteValue": 6,
+      "color": "#0000FF",
+      "linkedIds": [
+        "delt_front",
+        "delt_side",
+        "delt_rear"
+      ],
+      "vertexCount": 6994
+    },
+    {
+      "canonicalId": "abs",
+      "byteValue": 11,
+      "color": "#FFFF00",
+      "linkedIds": [
+        "abs"
+      ],
+      "vertexCount": 4271
+    },
+    {
+      "canonicalId": "obliques",
+      "byteValue": 12,
+      "color": "#00FFFF",
+      "linkedIds": [
+        "obliques"
+      ],
+      "vertexCount": 5012
+    },
+    {
+      "canonicalId": "biceps",
+      "byteValue": 8,
+      "color": "#FF00FF",
+      "linkedIds": [
+        "biceps"
+      ],
+      "vertexCount": 4743
+    },
+    {
+      "canonicalId": "triceps",
+      "byteValue": 9,
+      "color": "#FF8000",
+      "linkedIds": [
+        "triceps"
+      ],
+      "vertexCount": 4160
+    },
+    {
+      "canonicalId": "forearms",
+      "byteValue": 10,
+      "color": "#8000FF",
+      "linkedIds": [
+        "forearms"
+      ],
+      "vertexCount": 10226
+    },
+    {
+      "canonicalId": "lats",
+      "byteValue": 15,
+      "color": "#00FF00",
+      "linkedIds": [
+        "lats"
+      ],
+      "vertexCount": 7773
+    },
+    {
+      "canonicalId": "upperback",
+      "byteValue": 14,
+      "color": "#008080",
+      "linkedIds": [
+        "traps",
+        "upperback"
+      ],
+      "vertexCount": 7085
+    },
+    {
+      "canonicalId": "lowerback",
+      "byteValue": 16,
+      "color": "#804000",
+      "linkedIds": [
+        "lowerback"
+      ],
+      "vertexCount": 2610
+    },
+    {
+      "canonicalId": "glutes",
+      "byteValue": 17,
+      "color": "#FF0080",
+      "linkedIds": [
+        "glutes"
+      ],
+      "vertexCount": 9421
+    },
+    {
+      "canonicalId": "quads",
+      "byteValue": 18,
+      "color": "#80FF00",
+      "linkedIds": [
+        "quads"
+      ],
+      "vertexCount": 9598
+    },
+    {
+      "canonicalId": "hamstrings",
+      "byteValue": 19,
+      "color": "#0080FF",
+      "linkedIds": [
+        "hamstrings"
+      ],
+      "vertexCount": 5752
+    },
+    {
+      "canonicalId": "calves",
+      "byteValue": 21,
+      "color": "#800000",
+      "linkedIds": [
+        "calves"
+      ],
+      "vertexCount": 16069
+    }
+  ],
+  "fineToCanonical": {
+    "chest_upper": "chest_mid",
+    "chest_mid": "chest_mid",
+    "chest_lower": "chest_mid",
+    "delt_front": "delt_side",
+    "delt_side": "delt_side",
+    "delt_rear": "delt_side",
+    "abs": "abs",
+    "obliques": "obliques",
+    "biceps": "biceps",
+    "triceps": "triceps",
+    "forearms": "forearms",
+    "lats": "lats",
+    "traps": "upperback",
+    "upperback": "upperback",
+    "lowerback": "lowerback",
+    "glutes": "glutes",
+    "quads": "quads",
+    "hamstrings": "hamstrings",
+    "calves": "calves"
+  },
+  "unmappedFineIds": [
+    "neck",
+    "serratus",
+    "adductors"
+  ],
+  "views": {
+    "front": {
+      "width": 1024,
+      "height": 1536,
+      "sha256": "6faef43c6cd932d458e2a224f798aaef588575e8105dfe624e1439bb88167876",
+      "visibleVertices": 59868,
+      "directlyColoredVertices": 36195,
+      "edgeRecoveryCandidates": 1593,
+      "colorPixels": 243392,
+      "colorOutsideSilhouette": 4331,
+      "colorOutsideSilhouettePercent": 1.779,
+      "outsideSilhouetteDistanceP95": 3.0
+    },
+    "back": {
+      "width": 1024,
+      "height": 1536,
+      "sha256": "3d667e3531ca581bbbce080700ac90e8855b95e6a4ff7da36e312328e440ec7b",
+      "visibleVertices": 55784,
+      "directlyColoredVertices": 42132,
+      "edgeRecoveryCandidates": 1514,
+      "colorPixels": 294983,
+      "colorOutsideSilhouette": 5652,
+      "colorOutsideSilhouettePercent": 1.916,
+      "outsideSilhouetteDistanceP95": 4.123105625617661
+    },
+    "left": {
+      "width": 1024,
+      "height": 1536,
+      "sha256": "a76c1e34fb8456a1910a48f21e70545fe1f1a9bdd4220fbf937d89b9f6350ba0",
+      "visibleVertices": 33966,
+      "directlyColoredVertices": 20433,
+      "edgeRecoveryCandidates": 1212,
+      "colorPixels": 147448,
+      "colorOutsideSilhouette": 3413,
+      "colorOutsideSilhouettePercent": 2.315,
+      "outsideSilhouetteDistanceP95": 4.0
+    },
+    "right": {
+      "width": 1024,
+      "height": 1536,
+      "sha256": "40d5d1412797921caff797ab670fb32e2417bee80599db729e9d190ef5428185",
+      "visibleVertices": 33468,
+      "directlyColoredVertices": 20211,
+      "edgeRecoveryCandidates": 1017,
+      "colorPixels": 150281,
+      "colorOutsideSilhouette": 4051,
+      "colorOutsideSilhouettePercent": 2.696,
+      "outsideSilhouetteDistanceP95": 5.0990195135927845
+    }
+  },
+  "symmetry": {
+    "anatomicalPlane": "native local Z = bounding-box midpoint",
+    "localPlaneZ": 0.00012677907943725586,
+    "worldTransform": [
+      [
+        0.999841570854187,
+        0.0,
+        0.01779833622276783,
+        0.0
+      ],
+      [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      [
+        -0.01779833622276783,
+        0.0,
+        0.999841570854187,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "method": "union of every nearest mirrored vertex pair plus UV seam welds; votes and smoothing on quotient mesh",
+    "mirroredVertexChecks": 154471,
+    "mirroredVertexMismatches": 0,
+    "groupCount": 50618,
+    "maximumGroupSize": 51,
+    "mirrorDistanceP95": 0.001762929220422203,
+    "mirrorDistanceMax": 0.011158761355914539
+  },
+  "fill": {
+    "method": "multi-source shortest mesh-edge distance",
+    "filledVertices": 17999,
+    "maxDistance": 0.019362331618775652
+  },
+  "smoothing": {
+    "rounds": 2,
+    "changedGroupsPerRound": [
+      631,
+      110
+    ],
+    "backgroundLocked": true
+  },
+  "backgroundConsensus": "Only deep interior white (> 6 px at 1024-wide) can override color, at > 1.35x total normal-weighted color evidence. Silhouette/region edge white never votes.",
+  "backgroundVertices": 54692,
+  "inputCleanup": "Near white RGB > 240, plus achromatic outline ink with max(RGB)-min(RGB) < 64, is background; all remaining pixels use nearest RGB palette color",
+  "explicitGuard": "Head / upper neck: normalized native Y > 0.855 and abs(native Z-centerZ)/height < 0.065",
+  "glutesOnShorts": true,
+  "pageIntegration": false
+}
