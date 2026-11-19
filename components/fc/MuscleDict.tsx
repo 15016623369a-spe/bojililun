@@ -6,8 +6,10 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { EQUIPMENT_LABEL, TARGET_LABEL, imageUrl } from '@/lib/exercise-label';
-import { groupForMeshName, muscleById, type MuscleId } from '@/lib/muscles';
+import { muscleById, type MuscleId } from '@/lib/muscles';
+import { groupForEcorcheName, SHOW_LAYER } from '@/lib/ecorche';
 
 interface DictItem {
   id: string;
@@ -165,7 +167,8 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
     controls.autoRotate = false;
 
     const base = new THREE.MeshStandardMaterial({
-      color: 0xdcd2c7,
+      color: 0xffffff,
+      vertexColors: true,
       roughness: 0.8,
       metalness: 0.02,
       side: THREE.DoubleSide,
@@ -175,6 +178,7 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
     });
     const dim = new THREE.MeshStandardMaterial({
       color: 0xd8cec2,
+      vertexColors: true,
       roughness: 0.94,
       metalness: 0.01,
       side: THREE.DoubleSide,
@@ -184,7 +188,8 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
     });
     const hover = new THREE.MeshStandardMaterial({
       side: THREE.DoubleSide,
-      color: 0xa6bfa4,
+      color: 0x9fc39c,
+      vertexColors: true,
       roughness: 0.6,
       metalness: 0.03,
       emissive: 0x2f4a35,
@@ -192,7 +197,8 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
     });
     const sel = new THREE.MeshStandardMaterial({
       side: THREE.DoubleSide,
-      color: 0x5f8b6a,
+      color: 0x7aa87f,
+      vertexColors: true,
       roughness: 0.5,
       metalness: 0.04,
       emissive: 0x1f3b2a,
@@ -206,12 +212,13 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
     draco.setDecoderPath('/draco/');
     const loader = new GLTFLoader();
     loader.setDRACOLoader(draco);
+    loader.setMeshoptDecoder(MeshoptDecoder);
 
     let disposed = false;
     let raf = 0;
 
     loader.load(
-      '/models/body.glb',
+      '/models/ecorche/ecorche.glb',
       (gltf) => {
         if (disposed) return;
         const root = gltf.scene;
@@ -221,18 +228,16 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
         const center = box.getCenter(new THREE.Vector3());
         const headCut = box.max.y - size.y * 0.132;
         const headBox = new THREE.Box3();
-        // 手指、手掌、面部肌群：这些细碎网格在浅色纸感界面里只会添乱
-        const HANDS =
-          /(finger|thumb|palm|wrist|thenar|hypothenar|pollicis|digiti|of hand|digitorum|tendon|aponeurosis|retinaculum|membrane|septum|fascia|interosseous|nipple|areola|skin|subcutaneous|bursa|palmaris|plantaris)/i;
-
         root.traverse((obj) => {
           if (!(obj instanceof THREE.Mesh)) return;
           const ud = obj.userData as Record<string, unknown>;
-          if (ud.type !== 'muscle') {
+          // ecorche 用 layer 分骨、深层肌、浅层肌；默认只留浅层
+          const layer = String(ud.layer ?? '');
+          if (layer !== SHOW_LAYER) {
             obj.visible = false;
             return;
           }
-          const nameDetail = String(ud.nameDetail ?? ud.name ?? '');
+          const name = String(ud.name ?? obj.name ?? '');
           const mb = new THREE.Box3().setFromObject(obj);
           const cy = mb.getCenter(new THREE.Vector3()).y;
 
@@ -241,23 +246,20 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
             obj.visible = false;
             return;
           }
-          // 细长条（肌腱/血管残片）在全身取景下会变成几根「刺」，一并藏掉
-          const ms = mb.getSize(new THREE.Vector3());
-          const spike = Math.min(ms.x, ms.z) < size.y * 0.012 && Math.max(ms.x, ms.y, ms.z) > size.y * 0.07;
-          if (HANDS.test(nameDetail) || spike) {
+          const group = groupForEcorcheName(name);
+          if (!group) {
             obj.visible = false;
             return;
           }
-
-          const group = groupForMeshName(nameDetail);
-          obj.userData.groupId = group?.id ?? null;
-          obj.material = group ? base : dim;
-          if (group && !groupMats.has(group.id)) {
+          obj.userData.groupId = group;
+          obj.material = base;
+          if (!groupMats.has(group)) {
             groupMats.set(
-              group.id,
+              group,
               new THREE.MeshStandardMaterial({
-                color: 0xdcd2c7,
-                roughness: 0.7,
+                color: 0xffffff,
+                vertexColors: true,
+                roughness: 0.72,
                 metalness: 0.02,
                 side: THREE.DoubleSide,
               }),
