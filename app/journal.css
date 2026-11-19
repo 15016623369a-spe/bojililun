@@ -242,9 +242,21 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
 .review-anatomy-stage {
   position: relative;
   width: min(100%, 254px);
+  /* 取景框还是原来的半身比例，但画布装的是整身图，所以捏小就能看到脚 */
+  aspect-ratio: 420 / 535;
   overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent);
 }
-.review-anatomy.full .review-anatomy-stage { width: min(100%, 152px); }
+.review-anatomy.full .review-anatomy-stage {
+  width: min(100%, 152px);
+  aspect-ratio: 420 / 960;
+}
+.review-anatomy.full .review-anatomy-stage,
+.review-anatomy.zoomed .review-anatomy-stage {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
 .review-anatomy canvas {
   display: block;
   width: 100%;
@@ -255,8 +267,7 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
   will-change: transform;
 }
 .review-anatomy canvas[data-ready=false] { visibility: hidden; }
-/* 放大后模型自己吃掉手势：单指平移、双指继续缩放，页面滚动交给周围留白 */
-.review-anatomy.zoomed { touch-action: none; }
+/* 放大后模型自己吃掉手势（touch-action 由 JS 按是否需要平移来给） */
 .review-anatomy.zoomed canvas { cursor: grab; }
 .review-anatomy.zoomed canvas:active { cursor: grabbing; }
 .review-zoom-reset {

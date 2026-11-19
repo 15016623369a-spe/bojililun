@@ -140,6 +140,8 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
     const width = mount.clientWidth || 380;
     const height = mount.clientHeight || 520;
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.02;
     renderer.setSize(width, height);
     renderer.setClearColor(0x000000, 0);
     mount.appendChild(renderer.domElement);
@@ -147,16 +149,33 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(26, width / height, 0.01, 100);
 
-    scene.add(new THREE.HemisphereLight(0xffffff, 0xcfc5bb, 1.5));
-    const front = new THREE.DirectionalLight(0xffffff, 1.9);
-    front.position.set(-2.4, 3.2, 4.2);
+    // 石膏打光：半球光铺底 + 一盏主光带柔和阴影 + 侧逆光勾边
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    scene.add(new THREE.HemisphereLight(0xfffaf4, 0xcfc4b8, 0.85));
+    const front = new THREE.DirectionalLight(0xfff8ef, 2.3);
+    front.position.set(-2.7, 2.1, 2.6);
+    front.castShadow = true;
+    front.shadow.mapSize.set(2048, 2048);
+    front.shadow.radius = 6;
+    front.shadow.bias = -0.0012;
+    front.shadow.normalBias = 0.02;
+    front.shadow.camera.left = -1.2;
+    front.shadow.camera.right = 1.2;
+    front.shadow.camera.top = 1.4;
+    front.shadow.camera.bottom = -1.2;
+    front.shadow.camera.near = 0.1;
+    front.shadow.camera.far = 12;
     scene.add(front);
-    const back = new THREE.DirectionalLight(0xffffff, 1.9);
-    back.position.set(2.4, 3.2, -4.2);
+    const back = new THREE.DirectionalLight(0xffffff, 0.7);
+    back.position.set(2.2, 2.4, -3.6);
     scene.add(back);
-    const fill = new THREE.DirectionalLight(0xf6ece2, 0.9);
-    fill.position.set(3, -1, 0);
+    const fill = new THREE.DirectionalLight(0xf6ece2, 0.35);
+    fill.position.set(2.6, -0.6, 1.6);
     scene.add(fill);
+    const rim = new THREE.DirectionalLight(0xfff4e8, 0.9);
+    rim.position.set(1.8, 1.2, 2.6);
+    scene.add(rim);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enablePan = false;
@@ -167,9 +186,8 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
     controls.autoRotate = false;
 
     const base = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      vertexColors: true,
-      roughness: 0.8,
+      color: 0xf3ede4,
+      roughness: 0.86,
       metalness: 0.02,
       side: THREE.DoubleSide,
       polygonOffset: true,
@@ -177,9 +195,8 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
       polygonOffsetUnits: 1,
     });
     const dim = new THREE.MeshStandardMaterial({
-      color: 0xd8cec2,
-      vertexColors: true,
-      roughness: 0.94,
+      color: 0xe7e0d6,
+      roughness: 0.9,
       metalness: 0.01,
       side: THREE.DoubleSide,
       polygonOffset: true,
@@ -188,17 +205,15 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
     });
     const hover = new THREE.MeshStandardMaterial({
       side: THREE.DoubleSide,
-      color: 0x9fc39c,
-      vertexColors: true,
-      roughness: 0.6,
-      metalness: 0.03,
-      emissive: 0x2f4a35,
-      emissiveIntensity: 0.25,
+      color: 0x8fae94,
+      roughness: 0.62,
+      metalness: 0.02,
+      emissive: 0x22412c,
+      emissiveIntensity: 0.18,
     });
     const sel = new THREE.MeshStandardMaterial({
       side: THREE.DoubleSide,
-      color: 0x7aa87f,
-      vertexColors: true,
+      color: 0x2f6a45,
       roughness: 0.5,
       metalness: 0.04,
       emissive: 0x1f3b2a,
@@ -265,13 +280,14 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
           }
           obj.userData.groupId = group;
           obj.material = base;
+          obj.castShadow = true;
+          obj.receiveShadow = true;
           if (!groupMats.has(group)) {
             groupMats.set(
               group,
               new THREE.MeshStandardMaterial({
-                color: 0xffffff,
-                vertexColors: true,
-                roughness: 0.72,
+                color: 0xf3ede4,
+                roughness: 0.86,
                 metalness: 0.02,
                 side: THREE.DoubleSide,
               }),
@@ -338,6 +354,8 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
             obj.visible = true;
             obj.userData.groupId = null;
             obj.material = dim;
+            obj.castShadow = true;
+            obj.receiveShadow = true;
           });
         }
 
@@ -602,7 +620,10 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
 
   /* 深链 /atlas?muscle=lats */
   useEffect(() => {
-    const m = new URLSearchParams(window.location.search).get('muscle');
+    const params = new URLSearchParams(window.location.search);
+    const view = params.get('view');
+    if (view === 'front' || view === 'back') setSide(view);
+    const m = params.get('muscle');
     if (m && muscleById(m)) {
       setSelected(m as MuscleId);
       setHinted(true);

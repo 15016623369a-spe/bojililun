@@ -13,24 +13,35 @@ const muscleIds = [
 
 const width = 420;
 const fullHeight = 960;
-const torsoHeight = 535;
 
-// 双指缩放的上下限：1 倍就是原来的整身图，放大后最多看到模型的一小块。
-const MIN_SCALE = 1;
+// 1 倍 = 原来的半身取景；继续捏小能退到整身（含脚），最多放大 4 倍。
 const MAX_SCALE = 4;
+const MIN_MARGIN = 16;
 const TAP_SLOP = 8;
+const EPSILON = 0.001;
 
+type Box = { width: number; height: number };
 type View = { scale: number; x: number; y: number };
 const RESET: View = { scale: 1, x: 0, y: 0 };
 
-// 放大后只允许在图片范围内平移，避免把身体拖出视野。
-function clampView({ scale, x, y }: View, box: { width: number; height: number }): View {
-  const next = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale));
-  if (next <= 1.001) return RESET;
+const isOff = (scale: number) => Math.abs(scale - 1) > EPSILON;
+
+// 最小倍数 = 让整身刚好装进取景框（上下各留一点边），所以捏到头一定看得到脚。
+function scaleRange(box: Box, content: Box) {
+  const fit = Math.min(1, (box.height - MIN_MARGIN) / content.height);
+  return { min: Math.max(0.2, fit), max: MAX_SCALE };
+}
+
+// 比取景框大就只能在图内平移，比取景框小就居中，身体不会被拖出画面。
+function clampView({ scale, x, y }: View, box: Box, content: Box): View {
+  const { min, max } = scaleRange(box, content);
+  const next = Math.min(max, Math.max(min, scale));
+  const roomX = box.width - content.width * next;
+  const roomY = box.height - content.height * next;
   return {
     scale: next,
-    x: Math.min(0, Math.max(box.width * (1 - next), x)),
-    y: Math.min(0, Math.max(box.height * (1 - next), y)),
+    x: roomX >= 0 ? roomX / 2 : Math.min(0, Math.max(roomX, x)),
+    y: roomY >= 0 ? roomY / 2 : Math.min(0, Math.max(roomY, y)),
   };
 }
 
@@ -53,19 +64,30 @@ export default function ReviewAnatomy({ side, fullBody, highlighted, selectable,
   const [atlas, setAtlas] = useState<{ side: typeof side; pixels: ImageData }>();
   const [failed, setFailed] = useState<typeof side>();
   const [zoomed, setZoomed] = useState(false);
-  const height = fullBody ? fullHeight : torsoHeight;
+  const [pannable, setPannable] = useState(false);
   const ready = atlas?.side === side;
 
   // 缩放只改 canvas 的 transform，位图不用重绘，点击坐标靠 rect 反算依然准确。
   const paint = useCallback((next: View) => {
     const node = canvas.current;
-    if (!node) return;
-    const sized = clampView(next, { width: node.offsetWidth, height: node.offsetHeight });
-    view.current = sized;
-    node.style.transform = sized.scale === 1
-      ? ''
-      : `translate3d(${sized.x}px, ${sized.y}px, 0) scale(${sized.scale})`;
-    setZoomed(sized.scale > 1.001);
+    const box = stage.current;
+    if (!node || !box) return;
+    const sized = clampView(
+      next,
+      { width: box.clientWidth, height: box.clientHeight },
+      { width: node.offsetWidth, height: node.offsetHeight },
+    );
+    const shown = isOff(sized.scale) ? sized : RESET;
+    view.current = shown;
+    node.style.transform = isOff(shown.scale)
+      ? `translate3d(${shown.x}px, ${shown.y}px, 0) scale(${shown.scale})`
+      : '';
+    setZoomed(isOff(shown.scale));
+    // 缩小到整身时图比取景框还小，就不用抢手势，页面照常滚动。
+    setPannable(
+      isOff(shown.scale)
+      && (node.offsetWidth * shown.scale > box.clientWidth + 1 || node.offsetHeight * shown.scale > box.clientHeight + 1),
+    );
   }, []);
 
   useEffect(() => {
@@ -95,7 +117,7 @@ export default function ReviewAnatomy({ side, fullBody, highlighted, selectable,
     const context = canvas.current?.getContext('2d');
     if (!context || atlas?.side !== side) return;
     const active = new Set(selectedKey.split(',').filter(Boolean).map(Number));
-    const output = context.createImageData(width, height);
+    const output = context.createImageData(width, fullHeight);
     const source = atlas.pixels.data;
     for (let index = 0; index < output.data.length; index += 4) {
       if (source[index + 3] === 0) continue;
@@ -109,16 +131,15 @@ export default function ReviewAnatomy({ side, fullBody, highlighted, selectable,
         output.data[index + 1] = shade * 0.81 + 39;
         output.data[index + 2] = shade * 0.81 + 35;
       }
-      const fade = !fullBody ? Math.min(1, (height - Math.floor(index / 4 / width)) / 33) : 1;
-      output.data[index + 3] = 255 * fade;
+      output.data[index + 3] = 255;
     }
     context.putImageData(output, 0, 0);
-  }, [atlas, side, height, fullBody, selectedKey]);
+  }, [atlas, side, selectedKey]);
 
-  // 正背面切换、整身/半身切换后，旧的放大偏移可能越界，重新夹一下。
+  // 正背面切换、整身/半身切换后，旧的缩放偏移可能越界，重新夹一下。
   useEffect(() => {
     paint(view.current);
-  }, [paint, height, fullBody]);
+  }, [paint, fullBody]);
 
   // 双指按下时阻止页面滚动；单指仍然按 pan-y 正常滚页面。
   useEffect(() => {
@@ -145,7 +166,8 @@ export default function ReviewAnatomy({ side, fullBody, highlighted, selectable,
       event.preventDefault();
       const box = stage.current?.getBoundingClientRect();
       if (!box) return;
-      const scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, current.scale * Math.exp(-event.deltaY * 0.0025)));
+      const { min, max } = limits();
+      const scale = Math.min(max, Math.max(min, current.scale * Math.exp(-event.deltaY * 0.0025)));
       if (scale === current.scale) return;
       const anchorX = (event.clientX - box.left - current.x) / current.scale;
       const anchorY = (event.clientY - box.top - current.y) / current.scale;
@@ -159,6 +181,24 @@ export default function ReviewAnatomy({ side, fullBody, highlighted, selectable,
     return () => node.removeEventListener('wheel', onWheel);
   }, [paint]);
 
+  function limits() {
+    const node = canvas.current;
+    const box = stage.current;
+    if (!node || !box) return { min: 1, max: MAX_SCALE };
+    return scaleRange(
+      { width: box.clientWidth, height: box.clientHeight },
+      { width: node.offsetWidth, height: node.offsetHeight },
+    );
+  }
+
+  // 图比取景框大才有得平移；缩到整身时让页面自己滚。
+  function canPan(scale: number) {
+    const node = canvas.current;
+    const box = stage.current;
+    if (!node || !box || !isOff(scale)) return false;
+    return node.offsetWidth * scale > box.clientWidth + 1 || node.offsetHeight * scale > box.clientHeight + 1;
+  }
+
   // 手势挂在外层整行上：模型只有 254px 宽，两根手指不一定都落在 canvas 上。
   function down(event: ReactPointerEvent<HTMLDivElement>) {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
@@ -170,7 +210,7 @@ export default function ReviewAnatomy({ side, fullBody, highlighted, selectable,
     if (pointers.current.size === 1) {
       moved.current = false;
       tap.current = { x: event.clientX, y: event.clientY, at: performance.now() };
-      drag.current = view.current.scale > 1 ? { x: event.clientX, y: event.clientY, from: view.current } : null;
+      drag.current = canPan(view.current.scale) ? { x: event.clientX, y: event.clientY, from: view.current } : null;
       return;
     }
     moved.current = true;
@@ -196,7 +236,8 @@ export default function ReviewAnatomy({ side, fullBody, highlighted, selectable,
       const midX = (a.x + b.x) / 2;
       const midY = (a.y + b.y) / 2;
       const current = view.current;
-      const scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, current.scale * distance / pinch.current.distance));
+      const { min, max } = limits();
+      const scale = Math.min(max, Math.max(min, current.scale * distance / pinch.current.distance));
       // 捏合中心下的那一点保持不动，缩放才跟手。
       const anchorX = (pinch.current.midX - box.left - current.x) / current.scale;
       const anchorY = (pinch.current.midY - box.top - current.y) / current.scale;
@@ -220,7 +261,7 @@ export default function ReviewAnatomy({ side, fullBody, highlighted, selectable,
     if (pointers.current.size === 1) {
       // 捏合后留下一根手指，接着滑就是平移，不要跳一下。
       const [only] = [...pointers.current.values()];
-      drag.current = view.current.scale > 1 ? { x: only.x, y: only.y, from: view.current } : null;
+      drag.current = canPan(view.current.scale) ? { x: only.x, y: only.y, from: view.current } : null;
       return;
     }
     drag.current = null;
@@ -250,8 +291,8 @@ export default function ReviewAnatomy({ side, fullBody, highlighted, selectable,
     if (!ready || !node) return;
     const rect = node.getBoundingClientRect();
     const x = Math.floor((event.clientX - rect.left) * width / rect.width);
-    const y = Math.floor((event.clientY - rect.top) * height / rect.height);
-    if (x < 0 || x >= width || y < 0 || y >= height) return;
+    const y = Math.floor((event.clientY - rect.top) * fullHeight / rect.height);
+    if (x < 0 || x >= width || y < 0 || y >= fullHeight) return;
     const points = atlas.pixels.data;
     const offset = (y * width + x) * 4;
     const muscle = points[offset + 3] ? muscleIds[points[offset] - 1] : undefined;
@@ -261,11 +302,12 @@ export default function ReviewAnatomy({ side, fullBody, highlighted, selectable,
   }
 
   return <div className={`review-anatomy${fullBody ? ' full' : ''}${zoomed ? ' zoomed' : ''}`} ref={frame}
+    style={{ touchAction: pannable ? 'none' : undefined }}
     onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={cancel}>
     <div className="review-anatomy-stage" ref={stage}>
-      <canvas ref={canvas} width={width} height={height} data-ready={ready}
+      <canvas ref={canvas} width={width} height={fullHeight} data-ready={ready}
         role="img"
-        aria-label={`${side === 'back' ? '背面' : '正面'}训练部位人体图，可双指放大查看`} />
+        aria-label={`${side === 'back' ? '背面' : '正面'}训练部位人体图，可双指缩放查看`} />
       {zoomed && <button type="button" className="review-zoom-reset" onClick={reset}>复位</button>}
       {!ready && <span className="review-anatomy-loading" role="status">{failed === side ? '人体图暂时无法载入' : '正在加载人体图…'}</span>}
     </div>
