@@ -231,65 +231,14 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
 
 /* Review and dated records */
 .review-figure { margin-bottom: 14px; }
-.review-anatomy {
-  position: relative;
-  display: grid;
-  justify-items: center;
-  width: 100%;
-  margin: 0 auto;
-  touch-action: pan-y;
-}
-.review-anatomy-stage {
+.review-body {
   position: relative;
   width: min(100%, 254px);
-  /* 取景框还是原来的半身比例，但画布装的是整身图，所以捏小就能看到脚 */
   aspect-ratio: 420 / 535;
-  overflow: hidden;
-  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent);
-  mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent);
+  margin: 0 auto;
+  touch-action: none;
 }
-.review-anatomy.full .review-anatomy-stage {
-  width: min(100%, 152px);
-  aspect-ratio: 420 / 960;
-}
-.review-anatomy.full .review-anatomy-stage,
-.review-anatomy.zoomed .review-anatomy-stage {
-  -webkit-mask-image: none;
-  mask-image: none;
-}
-.review-anatomy canvas {
-  display: block;
-  width: 100%;
-  height: auto;
-  cursor: crosshair;
-  touch-action: pan-y;
-  transform-origin: 0 0;
-  will-change: transform;
-}
-.review-anatomy canvas[data-ready=false] { visibility: hidden; }
-/* 放大后模型自己吃掉手势（touch-action 由 JS 按是否需要平移来给） */
-.review-anatomy.zoomed canvas { cursor: grab; }
-.review-anatomy.zoomed canvas:active { cursor: grabbing; }
-.review-zoom-reset {
-  position: absolute;
-  right: 3px;
-  bottom: 4px;
-  z-index: 1;
-  min-height: 34px;
-  padding: 4px 12px;
-  border: 1px solid var(--hairline);
-  border-radius: 999px;
-  background: var(--paper);
-  background: color-mix(in srgb, var(--paper) 88%, transparent);
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
-  color: var(--forest);
-  font: inherit;
-  font-size: 12px;
-  font-weight: 650;
-  cursor: pointer;
-}
-.review-anatomy-loading {
+.review-body-loading {
   position: absolute;
   inset: 0;
   display: grid;
@@ -304,12 +253,10 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
   margin: 3px 0 0;
   min-height: 32px;
 }
-.review-view-toggle {
+.review-spin-hint {
   justify-self: end;
-  min-height: 36px;
-  padding: 4px 0 4px 6px;
+  color: var(--quiet);
   font-size: 12px;
-  color: var(--forest);
 }
 .review-muscles summary {
   width: fit-content;

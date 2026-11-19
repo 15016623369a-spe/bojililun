@@ -300,20 +300,20 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
         wrapper.add(root);
         scene.add(wrapper);
 
-        // ---- 手 / 脚：浅层肌在那只剩肌腱丝，按解剖比例在腕、踝处截断，改用 skeleton 层的手骨脚骨 ----
+        // ---- 头 / 手 / 脚：换成 porcelain 的平滑部件，统一石膏材质 ----
         {
-          // 实测：桡骨末端 ≈ 51.5% 身高，踝 ≈ 6%（ecorche 实测而非教科书比例）
+          // ecorche 实测：腕 51.5% 身高、踝 6.2%、颈根 ≈ 84%
           const wristY = box.min.y + size.y * 0.515;
           const ankleY = box.min.y + size.y * 0.062;
+          const neckY = box.min.y + size.y * 0.845;
 
-          // 顶点是量化后的整数坐标，必须走 matrixWorld 才能拿到真实米制高度
+          // 1) 裁掉腕、踝以下的肌腱尾巴
+          const v3 = new THREE.Vector3();
           const clipBelow = (ids: string[], cutY: number) => {
-            const v = new THREE.Vector3();
             for (const m of meshes) {
               if (!m.visible || !ids.includes(String(m.userData.groupId))) continue;
               const g = m.geometry as THREE.BufferGeometry;
               const pos = g.attributes.position;
-              // 非索引几何先补一个顺序索引，否则裁不了
               let idx = g.index;
               if (!idx) {
                 const seq = new Uint32Array(pos.count);
@@ -322,8 +322,8 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
               }
               const above = new Uint8Array(pos.count);
               for (let i = 0; i < pos.count; i++) {
-                v.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld);
-                above[i] = v.y > cutY ? 1 : 0;
+                v3.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld);
+                above[i] = v3.y > cutY ? 1 : 0;
               }
               const keep: number[] = [];
               for (let t = 0; t < idx.count; t += 3) {
@@ -338,24 +338,237 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
               m.geometry = ng;
             }
           };
-          clipBelow(['forearms'], wristY);
+          clipBelow(['forearms'], wristY + size.y * 0.035);
           clipBelow(['calves', 'quads', 'hamstrings', 'adductors'], ankleY);
 
+          // 2) 藏掉头骨与颈部肌、以及手骨脚骨（都要被平滑部件替换）
           const bb = new THREE.Box3();
           root.traverse((obj) => {
             if (!(obj instanceof THREE.Mesh)) return;
             const ud = obj.userData as Record<string, unknown>;
-            if (String(ud.layer ?? '') !== 'skeleton') return;
+            const layer = String(ud.layer ?? '');
             bb.setFromObject(obj);
             const cy = (bb.min.y + bb.max.y) / 2;
-            const hand = cy < wristY + size.y * 0.005 && cy > ankleY;
-            const foot = cy < ankleY + size.y * 0.005;
-            if (!hand && !foot) return;
-            obj.visible = true;
-            obj.userData.groupId = null;
-            obj.material = dim;
-            obj.castShadow = true;
-            obj.receiveShadow = true;
+            const isSkeleton = layer === 'skeleton';
+            const isNeck = String(ud.groupId ?? '') === 'neck' || /sternocleidomastoid|scalenus|splenius|longus|omohyoid|sternohyoid|sternothyroid|thyrohyoid/i.test(String(ud.name ?? ''));
+            if (cy > neckY || isNeck) {
+              obj.visible = false;
+              return;
+            }
+            if (isSkeleton && cy < wristY) {
+              obj.visible = false;
+            }
+          });
+
+          // 3) 取 ecorche 的腕心 / 踝心，用于对齐
+          const anchorOf = (ids: string[], cutY: number) => {
+            const out = new Map<number, { x: number; z: number; r: number }>();
+            const acc = new Map<number, { sx: number; sz: number; n: number; pts: { x: number; z: number }[] }>();
+            for (const m of meshes) {
+              if (!m.visible || !ids.includes(String(m.userData.groupId))) continue;
+              const pos = m.geometry.getAttribute('position');
+              for (let i = 0; i < pos.count; i++) {
+                v3.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld);
+                if (Math.abs(v3.y - cutY) > size.y * 0.012) continue;
+                const sign = v3.x >= 0 ? 1 : -1;
+                const rec = acc.get(sign) ?? { sx: 0, sz: 0, n: 0, pts: [] };
+                rec.sx += v3.x;
+                rec.sz += v3.z;
+                rec.n += 1;
+                rec.pts.push({ x: v3.x, z: v3.z });
+                acc.set(sign, rec);
+              }
+            }
+            for (const [sign, rec] of acc) {
+              if (!rec.n) continue;
+              const cx = rec.sx / rec.n;
+              const cz = rec.sz / rec.n;
+              let r = 0;
+              for (const q of rec.pts) r += Math.hypot(q.x - cx, q.z - cz);
+              out.set(sign, { x: cx, z: cz, r: r / rec.n });
+            }
+            return out;
+          };
+          const ecoWrists = anchorOf(['forearms'], wristY);
+          const ecoAnkles = anchorOf(['calves', 'quads', 'hamstrings', 'adductors'], ankleY);
+
+          const plaster = new THREE.MeshStandardMaterial({
+            color: 0xf3ede4,
+            roughness: 0.86,
+            metalness: 0,
+            side: THREE.DoubleSide,
+          });
+          const parts = new THREE.Group();
+          parts.position.copy(center).negate();
+          wrapper.add(parts);
+
+          loader.load('/models/porcelain/male-fixed.glb', (pg) => {
+            if (disposed) return;
+            pg.scene.updateMatrixWorld(true);
+
+            // 把 porcelain 的所有网格合并成「顶点 + 三角形」的池子，按条件裁剪
+            type Tri = [number, number, number];
+            const P: number[] = [];
+            const tris: Tri[] = [];
+            const pushMesh = (mesh: THREE.Mesh, filter?: (x: number, y: number, z: number) => boolean) => {
+              const g = mesh.geometry as THREE.BufferGeometry;
+              const pos = g.attributes.position;
+              const idx = g.index;
+              const base = P.length / 3;
+              for (let i = 0; i < pos.count; i++) {
+                v3.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld);
+                P.push(v3.x, v3.y, v3.z);
+              }
+              const n = idx ? idx.count : pos.count;
+              for (let t = 0; t < n; t += 3) {
+                const a = (idx ? idx.getX(t) : t) + base;
+                const b2 = (idx ? idx.getX(t + 1) : t + 1) + base;
+                const c2 = (idx ? idx.getX(t + 2) : t + 2) + base;
+                if (filter) {
+                  const ok =
+                    filter(P[a * 3], P[a * 3 + 1], P[a * 3 + 2]) &&
+                    filter(P[b2 * 3], P[b2 * 3 + 1], P[b2 * 3 + 2]) &&
+                    filter(P[c2 * 3], P[c2 * 3 + 1], P[c2 * 3 + 2]);
+                  if (!ok) continue;
+                }
+                tris.push([a, b2, c2]);
+              }
+            };
+            pg.scene.traverse((o) => {
+              if (o instanceof THREE.Mesh) pushMesh(o);
+            });
+            const porcHeight = (() => {
+              let min = Infinity;
+              let max = -Infinity;
+              for (let i = 0; i < P.length; i += 3) {
+                min = Math.min(min, P[i + 1]);
+                max = Math.max(max, P[i + 1]);
+              }
+              return max - min;
+            })();
+
+            const build = (filter: (x: number, y: number, z: number) => boolean) => {
+              const keepTris = tris.filter(
+                ([a, b2, c2]) =>
+                  filter(P[a * 3], P[a * 3 + 1], P[a * 3 + 2]) &&
+                  filter(P[b2 * 3], P[b2 * 3 + 1], P[b2 * 3 + 2]) &&
+                  filter(P[c2 * 3], P[c2 * 3 + 1], P[c2 * 3 + 2]),
+              );
+              const geo = new THREE.BufferGeometry();
+              geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+              geo.setIndex(keepTris.flat());
+              geo.computeVertexNormals();
+              const lo = new THREE.Vector3(Infinity, Infinity, Infinity);
+              const hi = new THREE.Vector3(-Infinity, -Infinity, -Infinity);
+              for (const [a, b2, c2] of keepTris) {
+                for (const i of [a, b2, c2]) {
+                  lo.x = Math.min(lo.x, P[i * 3]);
+                  lo.y = Math.min(lo.y, P[i * 3 + 1]);
+                  lo.z = Math.min(lo.z, P[i * 3 + 2]);
+                  hi.x = Math.max(hi.x, P[i * 3]);
+                  hi.y = Math.max(hi.y, P[i * 3 + 1]);
+                  hi.z = Math.max(hi.z, P[i * 3 + 2]);
+                }
+              }
+              const used = new Set<number>();
+              for (const [a, b2, c2] of keepTris) {
+                used.add(a);
+                used.add(b2);
+                used.add(c2);
+              }
+              return { geo, lo, hi, tri: keepTris.length, used: [...used] };
+            };
+
+            const k = size.y / porcHeight; // 全身等比缩放
+
+            // ---- 头 + 颈 ----
+            const HEAD_CUT = 1.50;
+            const head = build((x, y) => y > HEAD_CUT && Math.abs(x) < 0.13);
+            const headMesh = new THREE.Mesh(head.geo, plaster);
+            headMesh.scale.setScalar(k);
+            // 让平的切面埋到颈根以下 3cm，避免断层
+            headMesh.position.set(0, neckY - size.y * 0.03 - head.lo.y * k, -size.z * 0.004);
+            parts.add(headMesh);
+
+            // ---- 手 ----
+            const POR_WRIST = 0.885;
+            for (const [sign, w] of ecoWrists) {
+              const hand = build((x, y) => y < POR_WRIST && y > 0.6 && x * sign > 0.2);
+              if (!hand.tri) continue;
+              const m = new THREE.Mesh(hand.geo, plaster);
+              // 手比按身高算的略大一点，腕口才能包住前臂断口
+              const kHand = k * 1.16;
+              m.scale.setScalar(kHand);
+              // 用这块手自身顶部开口环的中心去对腕心
+              let sx = 0;
+              let sz = 0;
+              let n = 0;
+              for (const i of hand.used) {
+                if (P[i * 3 + 1] < hand.hi.y - 0.012) continue;
+                sx += P[i * 3];
+                sz += P[i * 3 + 2];
+                n += 1;
+              }
+              const cx = n ? sx / n : 0;
+              const cz = n ? sz / n : 0;
+              m.position.set(w.x - cx * kHand, wristY + size.y * 0.06 - hand.hi.y * kHand, w.z - cz * kHand);
+              parts.add(m);
+
+
+              // 腕口封个盖，避免从袖口看进去
+              const rim: { x: number; z: number }[] = [];
+              for (const i of hand.used) {
+                if (P[i * 3 + 1] < hand.hi.y - 0.012) continue;
+                rim.push({ x: P[i * 3] - cx, z: P[i * 3 + 2] - cz });
+              }
+              if (rim.length > 4) {
+                rim.sort((a, b) => Math.atan2(a.z, a.x) - Math.atan2(b.z, b.x));
+                const capGeo = new THREE.BufferGeometry();
+                const verts: number[] = [];
+                const idx2: number[] = [];
+                verts.push(0, 0, 0);
+                for (const q of rim) verts.push(q.x, 0, q.z);
+                for (let i = 1; i <= rim.length; i++) {
+                  idx2.push(0, i, i === rim.length ? 1 : i + 1);
+                }
+                capGeo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+                capGeo.setIndex(idx2);
+                capGeo.computeVertexNormals();
+                const cap = new THREE.Mesh(capGeo, plaster);
+                cap.scale.setScalar(kHand);
+                cap.position.set(m.position.x, m.position.y + hand.hi.y * kHand, m.position.z);
+                parts.add(cap);
+              }
+            }
+
+            // ---- 脚 ----
+            const POR_ANKLE = 0.11;
+            for (const [sign, a] of ecoAnkles) {
+              const foot = build((x, y) => y < POR_ANKLE && x * sign > 0.01);
+              if (!foot.tri) continue;
+              const m = new THREE.Mesh(foot.geo, plaster);
+              m.scale.setScalar(k);
+              let sx = 0;
+              let sz = 0;
+              let n = 0;
+              for (const i of foot.used) {
+                if (P[i * 3 + 1] < foot.hi.y - 0.012) continue;
+                sx += P[i * 3];
+                sz += P[i * 3 + 2];
+                n += 1;
+              }
+              const cx = n ? sx / n : 0;
+              const cz = n ? sz / n : 0;
+              m.position.set(a.x - cx * k, ankleY + size.y * 0.026 - foot.hi.y * k, a.z - cz * k);
+              parts.add(m);
+            }
+
+            parts.traverse((o) => {
+              if (o instanceof THREE.Mesh) {
+                o.castShadow = true;
+                o.receiveShadow = true;
+              }
+            });
           });
         }
 

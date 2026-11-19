@@ -23,6 +23,8 @@ const PORCELAIN = 0xe2dbd0;
 const DIM = 0xefe9e2;
 const GREEN = 0x56765f;
 const GREEN_DARK = 0x2f6b47;
+// 只留颅骨/下颌/面骨当脑袋，其余骨头（脊柱、肋骨…）不画
+const SKULL = /(cranium|parietal|frontal|occipital|sphenoid|temporal bone|maxilla|zygomatic|mandible|nasal|ethmoid|lacrimal|vomer|palatine)/i;
 
 /** 回顾页的 3D 人体：可拖动旋转、双指缩放，记录过的部位染绿，点一下筛选时间线 */
 export default function ReviewBody({ recorded, selected, initialSide, onInspect }: {
@@ -93,6 +95,7 @@ export default function ReviewBody({ recorded, selected, initialSide, onInspect 
     controls.maxPolarAngle = Math.PI * 0.88;
 
     const base = new THREE.MeshStandardMaterial({ color: PORCELAIN, roughness: 0.86, metalness: 0.02 });
+    const skull = new THREE.MeshStandardMaterial({ color: 0xe7ded3, roughness: 0.92, metalness: 0.01 });
     const dim = new THREE.MeshStandardMaterial({ color: DIM, roughness: 0.94, metalness: 0.01 });
     const litMat = new THREE.MeshStandardMaterial({
       color: GREEN, roughness: 0.7, metalness: 0.02, emissive: new THREE.Color(GREEN).multiplyScalar(0.16),
@@ -121,19 +124,23 @@ export default function ReviewBody({ recorded, selected, initialSide, onInspect 
         const HIDE =
           /(finger|thumb|palm|wrist|thenar|hypothenar|pollicis|digiti|of hand|digitorum|tendon|aponeurosis|retinaculum|membrane|septum|fascia|interosseous|nipple|areola|skin|subcutaneous|bursa|palmaris|plantaris)/i;
 
-        let headBox = new THREE.Box3();
         root.traverse((obj) => {
           if (!(obj instanceof THREE.Mesh)) return;
           const ud = obj.userData as Record<string, unknown>;
+          const nameDetail = String(ud.nameDetail ?? ud.name ?? '');
           if (ud.type !== 'muscle') {
+            // 头面部的骨头留着当脑袋（否则会是个怪球），其余骨骼全部隐藏
+            if (ud.type === 'bone' && SKULL.test(nameDetail)) {
+              obj.userData.groupId = null;
+              obj.material = skull;
+              return;
+            }
             obj.visible = false;
             return;
           }
-          const nameDetail = String(ud.nameDetail ?? ud.name ?? '');
           const mb = new THREE.Box3().setFromObject(obj);
           if (mb.getCenter(new THREE.Vector3()).y > headCut) {
-            // 头面部肌肉单独处理：隐藏后补一个素头，免得小图里一脸碎肌肉
-            headBox = headBox.union(mb);
+            // 头面部肌肉太碎，小图里看不清，只留骨头
             obj.visible = false;
             return;
           }
@@ -155,23 +162,14 @@ export default function ReviewBody({ recorded, selected, initialSide, onInspect 
         wrapper.add(root);
         scene.add(wrapper);
 
-        if (!headBox.isEmpty()) {
-          const head = new THREE.Mesh(
-            new THREE.SphereGeometry(1, 40, 28),
-            new THREE.MeshStandardMaterial({ color: 0xe5dbd0, roughness: 0.97, metalness: 0.01 }),
-          );
-          head.position.set(0, totalBox.max.y - totalSize.y * 0.072 - center.y, -totalSize.z * 0.012);
-          head.scale.set(totalSize.y * 0.054, totalSize.y * 0.066, totalSize.y * 0.058);
-          scene.add(head);
-        }
-
         // 整身入镜：竖着的取景框按高度定机位
         const visibleH = size.y * 0.92;
         const fitDist = (visibleH / 2 / Math.tan((camera.fov * Math.PI) / 360)) * 1.02;
         camera.position.set(0, 0, side.current === 'back' ? -fitDist : fitDist);
         controls.target.set(0, 0, 0);
-        controls.minDistance = fitDist * 0.32;
-        controls.maxDistance = fitDist * 1.5;
+        // 模型本身的精度有限，最近只放到「上半身特写」，再近就是一片大三角面
+        controls.minDistance = fitDist * 0.55;
+        controls.maxDistance = fitDist * 1.4;
         controls.update();
 
         apiRef.current = { meshes, base, dim, lit: litMat, sel: selMat, controls, camera, fitDist };
@@ -266,6 +264,7 @@ export default function ReviewBody({ recorded, selected, initialSide, onInspect 
       });
       base.dispose();
       dim.dispose();
+      skull.dispose();
       litMat.dispose();
       selMat.dispose();
       renderer.dispose();

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { humanDate } from '@/lib/date';
 import type { JournalEntry } from '@/lib/journal';
 import { MUSCLES, type MuscleId } from '@/lib/muscles';
-import ReviewAnatomy from './ReviewAnatomy';
+import ReviewBody from './ReviewBody';
 import JournalTimeline from './JournalTimeline';
 
 const periodCaption = { day: '当天记录部位', week: '本周记录部位', month: '本月记录部位' };
@@ -14,13 +14,13 @@ export default function ReviewJournal({ days, period = 'week' }: {
   period?: keyof typeof periodCaption;
 }) {
   const [selected, setSelected] = useState<MuscleId | null>(null);
-  const [view, setView] = useState<'front' | 'back'>();
   const available = new Set(days.flatMap(({ entries }) => entries.flatMap((entry) => entry.muscles ?? [])));
   const muscles = MUSCLES.filter((muscle) => available.has(muscle.id));
-  const frontCount = muscles.filter((muscle) => muscle.side === 'front').length;
-  const backCount = muscles.filter((muscle) => muscle.side === 'back').length;
-  const side = view ?? (frontCount > backCount ? 'front' : 'back');
-  const fullBody = muscles.some((muscle) => muscle.region === '腿');
+  const recorded = muscles.map((muscle) => muscle.id);
+  // 记录主要在哪一面，3D 就先转哪一面过来；转过之后随便转。
+  const front = muscles.filter((muscle) => muscle.side === 'front').length;
+  const back = muscles.filter((muscle) => muscle.side === 'back').length;
+  const initialSide = front > back ? 'front' : 'back';
   const filtered = days
     .map(({ date, entries }) => ({ date, entries: selected ? entries.filter((entry) => entry.muscles?.includes(selected)) : entries }))
     .filter(({ entries }) => entries.length > 0);
@@ -30,22 +30,17 @@ export default function ReviewJournal({ days, period = 'week' }: {
       setSelected(null);
       return;
     }
-    const group = muscles.find((item) => item.id === muscle);
-    if (!group) return;
+    if (!available.has(muscle)) return;
     setSelected((current) => current === muscle ? null : muscle);
-    if (group.side !== 'both') setView(group.side);
   }
 
   return <>
     <figure className="review-figure">
-      <ReviewAnatomy side={side} fullBody={fullBody} highlighted={selected ? [selected] : [...available]}
-        selectable={[...available]} onInspect={inspect} />
+      <ReviewBody recorded={recorded} selected={selected} initialSide={initialSide} onInspect={inspect} />
       <figcaption>
         <span aria-hidden="true" />
         <span>{periodCaption[period]}</span>
-        <button className="review-view-toggle" onClick={() => setView(side === 'back' ? 'front' : 'back')}>
-          {side === 'back' ? '看正面' : '看背面'}
-        </button>
+        <span className="review-spin-hint">拖动旋转</span>
       </figcaption>
       {muscles.length > 0 && <details className="review-muscles">
         <summary>{selected ? muscles.find((muscle) => muscle.id === selected)?.label : '筛选部位'}</summary>
