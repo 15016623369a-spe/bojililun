@@ -6,13 +6,15 @@ import type { JournalEntry } from '@/lib/journal';
 import { MUSCLES, type MuscleId } from '@/lib/muscles';
 import { canonicalMuscle, recordedInGroup, sculptureGroup } from '@/lib/sculpture-groups';
 import ReviewBody from './ReviewBody';
+import type { SculptureVariant } from '@/lib/sculpture-groups';
 import JournalTimeline from './JournalTimeline';
 
 const periodCaption = { day: '当天记录部位', week: '本周记录部位', month: '本月记录部位' };
 
-export default function ReviewJournal({ days, period = 'week' }: {
+export default function ReviewJournal({ days, period = 'week', variant = 'male' }: {
   days: { date: string; entries: JournalEntry[] }[];
   period?: keyof typeof periodCaption;
+  variant?: SculptureVariant;
 }) {
   const [selected, setSelected] = useState<MuscleId | null>(null);
   const available = new Set(days.flatMap(({ entries }) => entries.flatMap((entry) => entry.muscles ?? [])));
@@ -38,7 +40,7 @@ export default function ReviewJournal({ days, period = 'week' }: {
 
   return <>
     <figure className="review-figure">
-      <ReviewBody recorded={recorded} selected={selected} initialSide={initialSide} onInspect={inspect} />
+      <ReviewBody recorded={recorded} selected={selected} initialSide={initialSide} onInspect={inspect} variant={variant} />
       <figcaption>
         <span aria-hidden="true" />
         <span>{periodCaption[period]}</span>

@@ -5,11 +5,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { MuscleId } from '@/lib/muscles';
-import { canonicalMuscle, labelAtBarycentric, SCULPTURE_GROUPS, SCULPTURE_METADATA, sculptureGroup } from '@/lib/sculpture-groups';
+import { canonicalMuscle, labelAtBarycentric, SCULPTURE_GROUPS, SCULPTURE_VARIANTS, sculptureGroup, type SculptureVariant } from '@/lib/sculpture-groups';
 import { labeledGeometry, validateLabelData } from '@/lib/sculpture-geometry';
 
-const MODEL = '/models/sculpture/fitcheck-sculpture-tripo-v1.glb';
-const LABELS = '/models/sculpture/sculpture-muscle-ortho-v1';
 const BY_BYTE = new Map(SCULPTURE_GROUPS.map((g) => [g.byteValue, g.id]));
 
 function disposeMaterial(material: THREE.Material) {
@@ -36,12 +34,13 @@ async function verifyHash(bytes: ArrayBuffer, expected: string) {
   if (actual !== expected) throw new Error('人体资源版本不匹配');
 }
 
-export default function SculptureBody({ recorded = [], selected = null, side = 'front', onPick, spin = false }: {
+export default function SculptureBody({ recorded = [], selected = null, side = 'front', onPick, spin = false, variant = 'male' }: {
   recorded?: MuscleId[];
   selected?: MuscleId | null;
   side?: 'front' | 'back';
   onPick?: (id: MuscleId) => void;
   spin?: boolean;
+  variant?: SculptureVariant;
 }) {
   const mount = useRef<HTMLDivElement>(null);
   const latest = useRef({ recorded, selected, side, onPick, spin });
@@ -228,15 +227,19 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
       },
     };
     void (async () => {
-      const version = SCULPTURE_METADATA.binarySha256;
+      const spec = SCULPTURE_VARIANTS[variant];
+      const MODEL = spec.model;
+      const LABELS = spec.labels;
+      const META = spec.metadata;
+      const version = META.binarySha256;
       const [modelBytes, labelBytes, metadata] = await Promise.all([
-        checkedFetch(`${MODEL}?v=${SCULPTURE_METADATA.modelSha256}`, abort.signal).then((r) => r.arrayBuffer()),
+        checkedFetch(`${MODEL}?v=${META.modelSha256}`, abort.signal).then((r) => r.arrayBuffer()),
         checkedFetch(`${LABELS}.bin?v=${version}`, abort.signal).then((r) => r.arrayBuffer()),
         checkedFetch(`${LABELS}.json?v=${version}`, abort.signal).then((r) => r.json()),
       ]);
       const labels = new Uint8Array(labelBytes);
-      validateLabelData(labels, metadata);
-      await Promise.all([verifyHash(labelBytes, SCULPTURE_METADATA.binarySha256), verifyHash(modelBytes, SCULPTURE_METADATA.modelSha256)]);
+      validateLabelData(labels, metadata, META);
+      await Promise.all([verifyHash(labelBytes, META.binarySha256), verifyHash(modelBytes, META.modelSha256)]);
       if (disposed) return;
       const gltf = await new GLTFLoader().parseAsync(modelBytes, '/models/sculpture/');
       if (disposed) { disposeSubject(gltf.scene); return; }
@@ -244,11 +247,11 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
         gltf.scene.updateMatrixWorld(true);
         const meshes: THREE.Mesh[] = [];
         gltf.scene.traverse((o) => { if (o instanceof THREE.Mesh) meshes.push(o); });
-        if (meshes.length !== SCULPTURE_METADATA.meshOrder.length) throw new Error('模型网格顺序不匹配');
+        if (meshes.length !== META.meshOrder.length) throw new Error('模型网格顺序不匹配');
         const box = new THREE.Box3().setFromObject(gltf.scene);
         const height = box.max.y-box.min.y;
         for (let i = 0; i < meshes.length; i++) {
-          const mesh = meshes[i], entry = SCULPTURE_METADATA.meshOrder[i];
+          const mesh = meshes[i], entry = META.meshOrder[i];
           if (mesh.geometry.getAttribute('position').count !== entry.vertexCount) throw new Error('模型顶点数量不匹配');
           const geometry = labeledGeometry(mesh, labels.subarray(entry.vertexOffset, entry.vertexOffset+entry.vertexCount), height);
           mesh.geometry.dispose();

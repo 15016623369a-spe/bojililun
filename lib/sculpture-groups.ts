@@ -1,8 +1,29 @@
 import metadata from '../public/models/sculpture/sculpture-muscle-ortho-v1.json';
+import femaleMetadata from '../public/models/sculpture/female/sculpture-muscle-female-slim-ortho-v1.json';
 import { muscleById, muscleMatchesExercise, type MuscleId } from './muscles';
 
 /** One source of truth shared by the API, recorded-muscle filters, and the viewer. */
 export const SCULPTURE_METADATA = metadata;
+
+export type SculptureVariant = 'male' | 'female';
+
+/** 每个体型的模型与标签；两者共用同一套 byte→肌群映射。 */
+export const SCULPTURE_VARIANTS = {
+  male: {
+    model: '/models/sculpture/fitcheck-sculpture-tripo-v1.glb',
+    labels: '/models/sculpture/sculpture-muscle-ortho-v1',
+    metadata,
+  },
+  female: {
+    model: '/models/sculpture/female/fitcheck-sculpture-female-slim-v1.glb',
+    labels: '/models/sculpture/female/sculpture-muscle-female-slim-ortho-v1',
+    metadata: femaleMetadata,
+  },
+} as const;
+
+export function sculptureVariant(sex: string | null | undefined): SculptureVariant {
+  return sex === 'female' ? 'female' : 'male';
+}
 const names: Record<string, string> = {
   chest_mid: '胸部', delt_side: '肩部', abs: '腹直肌', obliques: '腹斜肌',
   biceps: '肱二头肌', triceps: '肱三头肌', forearms: '前臂', lats: '背阔肌',

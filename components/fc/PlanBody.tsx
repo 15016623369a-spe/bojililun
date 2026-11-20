@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import SculptureAtlas from './SculptureAtlas';
 import type { HeatItem } from './MuscleDict';
+import type { SculptureVariant } from '@/lib/sculpture-groups';
 
-export default function PlanBody({ heat }: { heat: HeatItem[] }) {
+export default function PlanBody({ heat, variant = 'male' }: { heat: HeatItem[]; variant?: SculptureVariant }) {
   const [back, setBack] = useState(false);
 
   return (
@@ -19,7 +20,7 @@ export default function PlanBody({ heat }: { heat: HeatItem[] }) {
       </div>
 
       <div className="fc plan-embed">
-        <SculptureAtlas heat={heat} back={back} hideTabs />
+        <SculptureAtlas heat={heat} back={back} hideTabs variant={variant} />
       </div>
     </div>
   );

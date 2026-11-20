@@ -103,14 +103,14 @@ export function labeledGeometry(mesh: THREE.Mesh, labels: Uint8Array, height: nu
   return geometry;
 }
 
-export function validateLabelData(labels: Uint8Array, metadata: unknown) {
+export function validateLabelData(labels: Uint8Array, metadata: unknown, expected: typeof SCULPTURE_METADATA = SCULPTURE_METADATA) {
   const actual = metadata as typeof SCULPTURE_METADATA;
-  if (!actual || actual.binarySha256 !== SCULPTURE_METADATA.binarySha256
-    || actual.modelSha256 !== SCULPTURE_METADATA.modelSha256
-    || JSON.stringify(actual.palette) !== JSON.stringify(SCULPTURE_METADATA.palette)
-    || JSON.stringify(actual.meshOrder) !== JSON.stringify(SCULPTURE_METADATA.meshOrder)
-    || actual.vertexCount !== labels.length || labels.length !== SCULPTURE_METADATA.vertexCount
+  if (!actual || actual.binarySha256 !== expected.binarySha256
+    || actual.modelSha256 !== expected.modelSha256
+    || JSON.stringify(actual.palette) !== JSON.stringify(expected.palette)
+    || JSON.stringify(actual.meshOrder) !== JSON.stringify(expected.meshOrder)
+    || actual.vertexCount !== labels.length || labels.length !== expected.vertexCount
     || actual.backgroundValue !== 254) throw new Error('分区版本不匹配');
-  const allowed = new Set([254, ...SCULPTURE_METADATA.palette.map((p) => p.byteValue)]);
+  const allowed = new Set([254, ...expected.palette.map((p) => p.byteValue)]);
   if (labels.some((id) => !allowed.has(id))) throw new Error('分区含有无效标签');
 }

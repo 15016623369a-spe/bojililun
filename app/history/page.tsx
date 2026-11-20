@@ -2,6 +2,8 @@ import Link from 'next/link';
 import JournalIcon from '@/components/JournalIcon';
 import JournalShell from '@/components/JournalShell';
 import ReviewJournal from '@/components/ReviewJournal';
+import { getProfileRow } from '@/lib/core/meals';
+import { sculptureVariant } from '@/lib/sculpture-groups';
 import { journalForDate } from '@/lib/core/journal';
 import { todayStr } from '@/lib/core/workout';
 import { addDays, periodRange, shiftMonth, validDate } from '@/lib/period';
@@ -42,7 +44,7 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
       </Link>
       <Link className="journal-icon-button" href={href(period, step(1))} aria-label="下一段时间">›</Link>
     </div>
-    <ReviewJournal key={period + anchor} days={days} period={period} />
+    <ReviewJournal key={period + anchor} days={days} period={period} variant={sculptureVariant(getProfileRow()?.sex)} />
     <div className="journal-links"><Link href="/stats">训练统计</Link><Link href="/me">个人资料</Link></div>
   </JournalShell>;
 }

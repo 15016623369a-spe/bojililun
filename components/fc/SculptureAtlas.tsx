@@ -5,16 +5,18 @@ import type { MuscleId } from '@/lib/muscles';
 import ExerciseSheet from '@/components/fc/ExerciseSheet';
 import SculptureBody from './SculptureBody';
 import type { HeatItem } from './MuscleDict';
-import { canonicalMuscle, SCULPTURE_GROUPS, sculptureGroup } from '@/lib/sculpture-groups';
+import { canonicalMuscle, SCULPTURE_GROUPS, sculptureGroup, type SculptureVariant } from '@/lib/sculpture-groups';
 
 export default function SculptureAtlas({
   heat,
   back: backProp,
   hideTabs = false,
+  variant = 'male',
 }: {
   heat: HeatItem[];
   back?: boolean;
   hideTabs?: boolean;
+  variant?: SculptureVariant;
 }) {
   const [selected, setSelected] = useState<MuscleId | null>(null);
   const [backState, setBack] = useState(false);
@@ -35,6 +37,7 @@ export default function SculptureAtlas({
         selected={selected}
         side={back ? 'back' : 'front'}
         spin={spinning}
+        variant={variant}
         onPick={(id) => { setSpinning(false); setSelected((cur) => (cur === id ? null : canonicalMuscle(id))); }}
       />
       {!hideTabs && (

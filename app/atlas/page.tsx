@@ -3,6 +3,8 @@ import SculptureAtlas from '@/components/fc/SculptureAtlas';
 import TabBar from '@/components/fc/TabBar';
 import { LeafIcon } from '@/components/fc/icons';
 import { todayMuscles } from '@/lib/log';
+import { getProfileRow } from '@/lib/core/meals';
+import { sculptureVariant, type SculptureVariant } from '@/lib/sculpture-groups';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -11,8 +13,11 @@ export const metadata: Metadata = {
   title: '身体 · FitCheck',
 };
 
-export default function BodyPage() {
+export default async function BodyPage({ searchParams }: { searchParams: Promise<{ body?: string }> }) {
   const heat = todayMuscles();
+  const sp = await searchParams;
+  const forced = sp.body === 'male' || sp.body === 'female' ? (sp.body as SculptureVariant) : null;
+  const variant = forced ?? sculptureVariant(getProfileRow()?.sex);
 
   return (
     <div className="fc">
@@ -25,7 +30,7 @@ export default function BodyPage() {
           <h1 className="fc-h1">身体</h1>
         </header>
 
-        <SculptureAtlas heat={heat} />
+        <SculptureAtlas heat={heat} variant={variant} />
       </div>
 
       <div className="fc-dock">
