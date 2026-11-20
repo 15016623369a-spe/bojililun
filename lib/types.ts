@@ -136,6 +136,7 @@ export interface SessionRow {
   ended_at: string | null;
   plan_json: string | null;
   note: string | null;
+  photo_path?: string | null;
 }
 
 export interface SetRow {
@@ -188,4 +189,54 @@ export interface TrendPoint {
   date: string;
   volume: number;
   sets: number;
+}
+
+/* ------------------------------ 记录时间线 ------------------------------ */
+
+export interface TimelineMeal {
+  kind: 'meal';
+  id: number;
+  /** HH:MM */
+  time: string;
+  label: string;
+  title: string;
+  meta: string;
+  kcal: number;
+  items: string[];
+  /** 照片（/api/uploads/xxx） */
+  photo?: string;
+}
+
+export interface TimelineTraining {
+  kind: 'training';
+  id: number;
+  /** HH:MM */
+  time: string;
+  label: string;
+  title: string;
+  exercises: string[];
+  minutes: number;
+  region: string;
+  bodyPart: string;
+  note?: string;
+  /** 照片（/api/uploads/xxx） */
+  photo?: string;
+}
+
+export type TimelineEntry = TimelineMeal | TimelineTraining;
+
+export interface ReviewDay {
+  date: string;
+  /** 11月18日 周三 */
+  label: string;
+  weekday: string;
+  entries: TimelineEntry[];
+}
+
+export interface ReviewPayload {
+  start: string;
+  end: string;
+  label: string;
+  bodyParts: string[];
+  days: ReviewDay[];
 }

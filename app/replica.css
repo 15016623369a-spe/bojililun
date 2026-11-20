@@ -1,0 +1,1899 @@
+/* ============================================================
+   复刻稿 · 浅色「记录 / 回顾」设计系统
+   仅作用于 .fc 作用域，不影响原有深色五模块
+   ============================================================ */
+
+.fc {
+  --paper: #fbf6f3;
+  --paper-2: #f7f1ed;
+  --ink: #1a1a19;
+  --ink-2: #3d3d38;
+  --muted: #9a9a92;
+  --muted-2: #7d7d75;
+  --hair: #e3ddd4;
+  --hair-2: #d8d2c8;
+  --green: #115133;
+  --green-ink: #1c632e;
+  --green-soft: #f4f5ee;
+  --green-line: #a9c0a5;
+  --sage: #ebede5;
+  --orange: #dc7709;
+  --radius: 16px;
+
+  background: var(--paper);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro SC', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100dvh;
+}
+
+.fc *,
+.fc *::before,
+.fc *::after {
+  box-sizing: border-box;
+}
+
+.fc button {
+  font-family: inherit;
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.fc a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.fc-shell {
+  max-width: 432px;
+  margin: 0 auto;
+  padding: 18px 26px calc(190px + env(safe-area-inset-bottom));
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ------------------------------ 头部 ------------------------------ */
+
+.fc-brand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 19px;
+  font-weight: 650;
+  letter-spacing: 0.1px;
+  color: var(--green);
+}
+
+.fc-brand svg {
+  width: 23px;
+  height: 23px;
+}
+
+.fc-h1 {
+  font-size: 48px;
+  line-height: 1.06;
+  font-weight: 700;
+  letter-spacing: -0.6px;
+  margin: 19px 0 0;
+}
+
+.fc-sub {
+  margin: 8px 0 0;
+  font-size: 17px;
+  color: #2f2f2b;
+  font-weight: 400;
+}
+
+/* ------------------------------ 时间线 ------------------------------ */
+
+.fc-tl {
+  margin-top: 30px;
+}
+
+.fc-row {
+  display: block;
+  position: relative;
+  padding: 0 0 38px 34px;
+}
+
+.fc-row::before {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: 5px;
+  bottom: 0;
+  width: 1px;
+  background: var(--hair);
+}
+
+.fc-row:last-child::before {
+  bottom: auto;
+  height: 38px;
+}
+
+.fc-dot {
+  position: absolute;
+  left: 2.5px;
+  top: 3px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--green);
+}
+
+.fc-dot.meal {
+  background: var(--orange);
+}
+
+.fc-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 17.5px;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.fc-head .ico {
+  width: 21px;
+  height: 21px;
+  flex: none;
+  display: inline-flex;
+}
+
+.fc-head .ico svg {
+  width: 21px;
+  height: 21px;
+}
+
+.fc-head .t {
+  font-variant-numeric: tabular-nums;
+}
+
+.fc-head .sep {
+  color: var(--muted);
+}
+
+.fc-title {
+  font-size: 26px;
+  line-height: 1.3;
+  font-weight: 650;
+  letter-spacing: -0.4px;
+  margin-top: 10px;
+}
+
+.fc-meta {
+  font-size: 19px;
+  line-height: 1.55;
+  color: #7e7e75;
+  margin-top: 5px;
+}
+
+.fc-empty {
+  margin-top: 34px;
+  font-size: 15.5px;
+  line-height: 1.7;
+  color: var(--muted-2);
+}
+
+.fc-empty b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* ------------------------------ 语音 pill ------------------------------ */
+
+.fc-pill {
+  background: var(--sage);
+  border-radius: var(--radius);
+  padding: 13px 16px 15px;
+  margin: 26px 0 18px;
+}
+
+.fc-pill-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13.5px;
+  color: #6e7a6a;
+  letter-spacing: 0.2px;
+}
+
+.fc-wave {
+  display: flex;
+  align-items: center;
+  gap: 2.5px;
+  height: 20px;
+}
+
+.fc-wave i {
+  display: block;
+  width: 2.5px;
+  border-radius: 2px;
+  background: #58765a;
+  animation: fc-wave 1.1s ease-in-out infinite;
+}
+
+.fc-wave i:nth-child(1) { height: 26%; animation-delay: 0.05s; }
+.fc-wave i:nth-child(2) { height: 48%; animation-delay: 0.15s; }
+.fc-wave i:nth-child(3) { height: 78%; animation-delay: 0.25s; }
+.fc-wave i:nth-child(4) { height: 40%; animation-delay: 0.35s; }
+.fc-wave i:nth-child(5) { height: 92%; animation-delay: 0.2s; }
+.fc-wave i:nth-child(6) { height: 58%; animation-delay: 0.4s; }
+.fc-wave i:nth-child(7) { height: 34%; animation-delay: 0.3s; }
+.fc-wave i:nth-child(8) { height: 70%; animation-delay: 0.1s; }
+.fc-wave i:nth-child(9) { height: 44%; animation-delay: 0.45s; }
+
+.fc-wave i:nth-child(2) { animation-delay: 0.1s; }
+.fc-wave i:nth-child(3) { animation-delay: 0.2s; }
+.fc-wave i:nth-child(4) { animation-delay: 0.3s; }
+.fc-wave i:nth-child(5) { animation-delay: 0.4s; }
+.fc-wave i:nth-child(6) { animation-delay: 0.3s; }
+.fc-wave i:nth-child(7) { animation-delay: 0.2s; }
+.fc-wave i:nth-child(8) { animation-delay: 0.1s; }
+
+@keyframes fc-wave {
+  0%, 100% { height: 22%; opacity: 0.55; }
+  50% { height: 96%; opacity: 1; }
+}
+
+.fc-quote {
+  margin-top: 9px;
+  font-size: 20px;
+  line-height: 1.45;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  color: var(--ink);
+}
+
+/* ------------------------------ 已记录卡片 ------------------------------ */
+
+.fc-row.card-row {
+  padding-bottom: 30px;
+}
+
+.fc-row.card-row .fc-dot {
+  top: 22px;
+}
+
+.fc-card {
+  border: 1.5px solid var(--green-line);
+  background: var(--green-soft);
+  border-radius: var(--radius);
+  padding: 15px 16px 0;
+  margin: 0;
+}
+
+.fc-card-hd {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--green-ink);
+  font-size: 18.5px;
+  font-weight: 650;
+}
+
+.fc-check {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--green-ink);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.fc-check svg {
+  width: 12px;
+  height: 12px;
+}
+
+.fc-card-title {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  margin-top: 8px;
+  line-height: 1.25;
+}
+
+.fc-card-meta {
+  font-size: 20.5px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  margin-top: 3px;
+}
+
+.fc-card-foot {
+  display: flex;
+  align-items: stretch;
+  margin-top: 13px;
+  border-top: 1px solid #dfe2d6;
+}
+
+.fc-card-foot button {
+  flex: 1;
+  height: 53px;
+  font-size: 19px;
+  font-weight: 500;
+  color: var(--green-ink);
+}
+
+.fc-card-foot button + button {
+  border-left: 1px solid #dfe2d6;
+  color: var(--muted-2);
+}
+
+/* ------------------------------ 底部 ------------------------------ */
+
+.fc-dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  padding: 0 0 env(safe-area-inset-bottom);
+  background: linear-gradient(180deg, rgba(251, 246, 243, 0) 0%, var(--paper) 22%, var(--paper) 100%);
+  pointer-events: none;
+}
+
+.fc-dock-inner {
+  max-width: 432px;
+  margin: 0 auto;
+  padding: 22px 26px 6px;
+  pointer-events: auto;
+}
+
+.fc .fc-speak {
+  display: flex;
+  width: 100%;
+  height: 61px;
+  border-radius: 999px;
+  background: var(--green);
+  color: #fff;
+  font-size: 19.5px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  box-shadow: 0 8px 20px rgba(17, 81, 51, 0.18);
+  transition: transform 0.12s ease, background 0.2s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.fc .fc-speak svg {
+  width: 22px;
+  height: 22px;
+}
+
+.fc .fc-speak:active,
+.fc .fc-speak.rec {
+  transform: scale(0.985);
+  background: #0b3f27;
+}
+
+.fc .fc-speak.rec {
+  box-shadow: 0 0 0 5px rgba(17, 81, 51, 0.12);
+}
+
+.fc-tabs {
+  display: flex;
+  margin-top: 14px;
+  border-top: 1px solid var(--hair);
+}
+
+.fc-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 0 10px;
+  color: #8e8e86;
+  font-size: 13.5px;
+  letter-spacing: 0.4px;
+}
+
+.fc-tab svg {
+  width: 25px;
+  height: 25px;
+}
+
+.fc-tab.on {
+  color: var(--green);
+}
+
+.fc-tab .u {
+  height: 2.5px;
+  width: 34px;
+  border-radius: 2px;
+  background: transparent;
+  margin-top: -1px;
+}
+
+.fc-tab.on .u {
+  background: var(--green);
+}
+
+/* ------------------------------ 回顾 ------------------------------ */
+
+.fc-seg {
+  display: flex;
+  gap: 2px;
+  background: #eee7e0;
+  border-radius: 999px;
+  padding: 4px;
+  margin-top: 16px;
+}
+
+.fc-seg a {
+  flex: 1;
+  text-align: center;
+  padding: 10px 0;
+  font-size: 17px;
+  color: #4c4c45;
+  border-radius: 999px;
+  font-weight: 450;
+}
+
+.fc-seg a.on {
+  background: var(--green);
+  color: #eef4ec;
+  font-weight: 550;
+}
+
+.fc-range {
+  text-align: center;
+  font-size: 15.5px;
+  color: #6f6f68;
+  margin: 13px 0 0;
+}
+
+.fc-figure {
+  position: relative;
+  height: 318px;
+  margin: 4px -10px 0;
+}
+
+.fc-figure canvas {
+  display: block;
+}
+
+.fc-caption {
+  text-align: center;
+  font-size: 15px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.fc-hair {
+  height: 1px;
+  background: var(--hair);
+  margin: 15px 0 0;
+}
+
+.fc-day {
+  font-size: 18px;
+  font-weight: 650;
+  letter-spacing: -0.2px;
+  margin: 17px 0 8px;
+}
+
+.fc-lrow {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 6px 0;
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.fc-lrow .fc-dot {
+  position: static;
+  margin-top: 8px;
+  flex: none;
+  width: 7px;
+  height: 7px;
+}
+
+.fc-lrow .fc-lrow-b {
+  min-width: 0;
+}
+
+.fc-lrow .muted {
+  color: var(--muted);
+}
+
+.fc-more {
+  margin: 26px 0 0;
+  position: relative;
+  z-index: 2;
+  font-size: 13px;
+  color: #a8a8a0;
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ------------------------------ 弹层 ------------------------------ */
+
+.fc-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 26, 25, 0.28);
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fc-fade 0.16s ease;
+}
+
+/* 动作字典的遮罩放轻，让毛玻璃透出更多底层内容 */
+.fc-mask.dict {
+  background: rgba(36, 32, 27, 0.16);
+}
+
+@keyframes fc-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.fc-sheet {
+  width: 100%;
+  max-width: 432px;
+  background: var(--paper);
+  border-radius: 22px 22px 0 0;
+  padding: 22px 22px calc(24px + env(safe-area-inset-bottom));
+  animation: fc-up 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes fc-up {
+  from { transform: translateY(16px); opacity: 0.6; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.fc-sheet h3 {
+  font-size: 20px;
+  font-weight: 650;
+  margin: 0 0 4px;
+}
+
+.fc-sheet p.hint {
+  font-size: 13.5px;
+  color: var(--muted);
+  margin: 0 0 16px;
+  line-height: 1.6;
+}
+
+.fc-field {
+  display: block;
+  margin-bottom: 14px;
+}
+
+.fc-field span {
+  display: block;
+  font-size: 13px;
+  color: var(--muted-2);
+  margin-bottom: 7px;
+}
+
+.fc-input {
+  width: 100%;
+  font-family: inherit;
+  font-size: 16px;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--hair-2);
+  border-radius: 12px;
+  padding: 12px 14px;
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.fc-input:focus {
+  border-color: var(--green);
+}
+
+textarea.fc-input {
+  resize: none;
+  min-height: 74px;
+  line-height: 1.45;
+}
+
+.fc-sheet-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.fc-btn {
+  flex: 1;
+  height: 52px;
+  border-radius: 999px;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.fc-btn.primary {
+  background: var(--green);
+  color: #fff;
+}
+
+.fc-btn.ghost {
+  background: var(--sage);
+  color: var(--green);
+}
+
+.fc-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: -4px 0 14px;
+}
+
+.fc-examples button {
+  font-size: 13px;
+  color: var(--green);
+  background: var(--green-soft);
+  border: 1px solid var(--green-line);
+  border-radius: 999px;
+  padding: 7px 12px;
+}
+
+.fc-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 170px;
+  transform: translateX(-50%);
+  background: rgba(26, 26, 25, 0.88);
+  color: #fff;
+  font-size: 14px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  z-index: 60;
+  max-width: 320px;
+  text-align: center;
+}
+
+.fc-loading {
+  height: 352px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* 回顾页底部只有导航，内容不需要给说话按钮留位 */
+.fc-shell.review {
+  padding-bottom: calc(132px + env(safe-area-inset-bottom));
+}
+
+.fc-dock-inner.nav-only {
+  padding: 0 22px 4px;
+}
+
+/* ------------------------------ 训练详情（解剖热区 + 热量） ------------------------------ */
+
+.fc-shell.detail {
+  padding: 10px 26px 118px;
+}
+
+.fc-detail-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.fc-back {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--sage);
+  color: var(--green);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.fc-back svg {
+  width: 20px;
+  height: 20px;
+}
+
+.fc-detail-tag {
+  font-size: 13px;
+  color: var(--muted-2);
+}
+
+.fc-detail-h1 {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  margin: 14px 0 0;
+}
+
+.fc-detail-sub {
+  font-size: 14.5px;
+  color: var(--muted-2);
+  margin: 6px 0 0;
+}
+
+.fc-heat {
+  position: relative;
+  height: 302px;
+  margin: 4px -10px 0;
+}
+
+.fc-heat-tabs {
+  position: absolute;
+  top: 4px;
+  right: 10px;
+  display: flex;
+  gap: 2px;
+  background: rgba(255, 255, 255, 0.75);
+  border-radius: 999px;
+  padding: 3px;
+  backdrop-filter: blur(6px);
+  z-index: 2;
+}
+
+.fc-heat-tabs button {
+  font-size: 12.5px;
+  color: #6d6d64;
+  padding: 5px 11px;
+  border-radius: 999px;
+}
+
+.fc-heat-tabs button.on {
+  background: var(--green);
+  color: #fff;
+}
+
+.fc-legend {
+  display: grid;
+  gap: 7px;
+  margin-top: 2px;
+}
+
+.fc-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+}
+
+.fc-legend-name {
+  flex: none;
+  width: 92px;
+  color: #4a4a45;
+}
+
+.fc-legend-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: #ece5dd;
+  overflow: hidden;
+}
+
+.fc-legend-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--green);
+}
+
+.fc-legend-pct {
+  flex: none;
+  width: 38px;
+  text-align: right;
+  font-size: 12.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.fc-energy {
+  margin: 20px 0 0;
+  background: var(--green-soft);
+  border: 1.5px solid var(--green-line);
+  border-radius: 16px;
+  padding: 15px 16px 14px;
+}
+
+.fc-energy-label {
+  font-size: 13px;
+  color: #6f7a6b;
+  letter-spacing: 0.2px;
+}
+
+.fc-energy-num {
+  font-size: 44px;
+  font-weight: 700;
+  line-height: 1.08;
+  color: var(--green);
+  margin: 3px 0 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.fc-energy-num small {
+  font-size: 15px;
+  font-weight: 500;
+  color: #4b6a54;
+  margin-left: 6px;
+}
+
+.fc-energy-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 14px;
+  font-size: 13px;
+  color: #7e7e75;
+}
+
+.fc-energy-grid b {
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 650;
+  margin-right: 2px;
+}
+
+.fc-note {
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: #9a9a92;
+  margin: 8px 0 0;
+}
+
+.fc-sec-title {
+  font-size: 18px;
+  font-weight: 650;
+  margin: 24px 0 10px;
+}
+
+.fc-ex {
+  display: flex;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--hair);
+}
+
+.fc-ex:last-child {
+  border-bottom: none;
+}
+
+.fc-ex-thumb {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+  flex: none;
+  box-shadow: inset 0 0 0 1px #eee7e0;
+}
+
+.fc-ex-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.fc-ex-gif-tag {
+  position: absolute;
+  left: auto;
+  right: 4px;
+  bottom: 3px;
+  font-size: 9px;
+  font-style: normal;
+  letter-spacing: 0.3px;
+  color: #fff;
+  background: rgba(17, 81, 51, 0.72);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.fc-ex-fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  color: var(--green);
+  background: #f2f5ee;
+}
+
+.fc-ex-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.fc-ex-name {
+  font-size: 15.5px;
+  font-weight: 600;
+}
+
+.fc-ex-eq {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.fc-ex-fields {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.fc-ex-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.fc-ex-field span {
+  display: block;
+  font-size: 10.5px;
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+
+.fc-ex-field input {
+  width: 100%;
+  height: 36px;
+  padding: 0 4px;
+  border: 1px solid var(--hair-2);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 15px;
+  text-align: center;
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.fc-ex-field input:focus {
+  border-color: var(--green);
+}
+
+.fc-ex-kcal {
+  font-size: 12px;
+  color: var(--green-ink);
+  margin-top: 7px;
+  text-align: right;
+}
+
+.fc-save-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  max-width: 432px;
+  margin: 0 auto;
+  padding: 12px 26px calc(14px + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--paper) 62%, rgba(251, 246, 243, 0));
+}
+
+.fc-save-bar .fc-btn {
+  width: 100%;
+  height: 52px;
+}
+
+/* 时间线上可点进详情的行 */
+.fc-row-link {
+  display: block;
+}
+
+.fc-row-link:active {
+  opacity: 0.72;
+}
+
+.fc-card-main {
+  display: block;
+}
+
+.fc-delete {
+  display: block;
+  width: 100%;
+  margin: 30px 0 0;
+  padding: 12px 0;
+  font-size: 13.5px;
+  color: #a8a8a0;
+  text-align: center;
+}
+
+/* ------------------------------ 记录面板：文字 / 照片 / 语音 ------------------------------ */
+
+.fc-compose-bar {
+  display: flex;
+  gap: 10px;
+  margin: 12px 0 4px;
+}
+
+.fc-attach,
+.fc-hold {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 15px;
+  color: var(--green);
+  background: var(--green-soft);
+  border: 1px solid var(--green-line);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.fc-attach svg,
+.fc-hold svg {
+  width: 18px;
+  height: 18px;
+}
+
+.fc-attach {
+  flex: none;
+}
+
+.fc-hold {
+  flex: 1;
+}
+
+.fc-hold.on {
+  background: var(--green);
+  color: #fff;
+  border-color: var(--green);
+}
+
+.fc-attach.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.fc-photo {
+  position: relative;
+  margin-top: 12px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px #eee7e0;
+}
+
+.fc-photo img {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+}
+
+.fc-photo-x {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(26, 26, 25, 0.55);
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+}
+
+.fc-draft-list {
+  display: grid;
+  gap: 8px;
+  margin: 4px 0 14px;
+}
+
+.fc-draft-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 15.5px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid var(--hair);
+}
+
+.fc-draft-grams {
+  color: var(--muted-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 时间线 / 卡片里的照片 */
+.fc-row-photo {
+  display: block;
+  width: 100%;
+  max-width: 260px;
+  margin-top: 10px;
+  border-radius: 12px;
+  object-fit: cover;
+  max-height: 180px;
+}
+
+.fc-card-photo {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  border-radius: 12px;
+  object-fit: cover;
+  max-height: 190px;
+}
+
+.fc-detail-photo {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  border-radius: 14px;
+  object-fit: cover;
+  max-height: 220px;
+}
+
+.fc-warn {
+  margin: 10px 0 0;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: #fdf1e3;
+  border: 1px solid #e8c9a0;
+  color: #8a5a18;
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+/* ------------------------------ 动作字典（解剖图即索引） ------------------------------ */
+
+.fc-shell.atlas {
+  padding-bottom: 46px;
+}
+
+.fc-dict-body {
+  position: relative;
+  height: 468px;
+  margin: 6px -10px 0;
+}
+
+.fc-dict-tabs {
+  position: absolute;
+  top: 4px;
+  right: 10px;
+  display: flex;
+  gap: 2px;
+  background: rgba(255, 255, 255, 0.75);
+  border-radius: 999px;
+  padding: 3px;
+  backdrop-filter: blur(6px);
+  z-index: 2;
+}
+
+.fc-dict-tabs button {
+  font-size: 12.5px;
+  color: #6d6d64;
+  padding: 5px 11px;
+  border-radius: 999px;
+}
+
+.fc-dict-tabs button.on {
+  background: var(--green);
+  color: #fff;
+}
+
+.fc-dict-hintline {
+  margin: 4px 0 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted-2);
+  min-height: 18px;
+}
+
+.fc-dict-sheet {
+  max-height: 60dvh;
+  display: flex;
+  flex-direction: column;
+  /* 顶部/左右多留一点，避开圆角 */
+  padding: 30px 26px calc(28px + env(safe-area-inset-bottom));
+  /* 半透明毛玻璃：让底层页面和 3D 模型隐约透出来 */
+  background: rgba(248, 246, 241, 0.75);
+  -webkit-backdrop-filter: blur(20px) saturate(1.06);
+  backdrop-filter: blur(20px) saturate(1.06);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    0 -10px 36px rgba(31, 28, 24, 0.12);
+}
+
+/* 不支持毛玻璃时退回接近实心的纸色，保证可读性 */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .fc-dict-sheet {
+    background: rgba(248, 246, 241, 0.97);
+  }
+}
+
+/* 动作详情：竖向结构，正文在弹窗内部滚动，底部按钮常驻 */
+.fc-dict-sheet.fc-dict-detail {
+  max-height: 88dvh;
+}
+
+.fc-dict-head {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+}
+
+.fc-dict-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 19px;
+  font-weight: 650;
+}
+
+.fc-dict-count {
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.fc-dict-note {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.fc-dict-close {
+  font-size: 13px;
+  color: var(--muted-2);
+  padding: 6px 2px;
+  flex: none;
+}
+
+.fc-dict-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -6px;
+  padding: 0 6px;
+}
+
+.fc-dict-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--hair);
+  text-align: left;
+}
+
+.fc-dict-item:last-child {
+  border-bottom: none;
+}
+
+.fc-dict-gif {
+  width: 54px;
+  height: 54px;
+  flex: none;
+}
+
+.fc-dict-gif img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  /* 白底键控：接近纯白的像素透明掉，小人直接融入毛玻璃 */
+  filter: url(#fc-gif-key);
+}
+
+.fc-gif-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.fc-dict-gif.big {
+  width: min(84%, 340px);
+  height: auto;
+  aspect-ratio: 1;
+}
+
+.fc-dict-gif.big img {
+  object-fit: contain;
+}
+
+.fc-dict-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.fc-dict-item-body b {
+  display: block;
+  font-size: 15.5px;
+  font-weight: 600;
+}
+
+.fc-dict-item-body em {
+  display: block;
+  font-style: normal;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.fc-dict-arrow {
+  color: #c9c2ba;
+  font-size: 20px;
+  flex: none;
+}
+
+.fc-dict-src {
+  flex: none;
+  font-size: 11px;
+  color: #b0b0a8;
+  margin: 10px 0 0;
+}
+
+.fc-dict-detail-top {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.fc-dict-detail-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  margin: 0 -6px;
+  padding: 0 6px 34px;
+  /* 滚动到底部时内容渐隐——用 mask 而不是实色渐变，半透明背景才不会被盖住 */
+  -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 30px), transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 30px), transparent 100%);
+}
+
+.fc-dict-back {
+  font-size: 13.5px;
+  color: var(--green);
+}
+
+.fc-dict-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.fc-dict-meta {
+  width: 100%;
+}
+
+h3.fc-dict-name {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.fc-dict-en {
+  margin: 5px 0 0;
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.fc-dict-chips {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.fc-dict-chips span {
+  font-size: 11.5px;
+  color: #5b6b5a;
+  background: rgba(244, 245, 238, 0.6);
+  border: 1px solid rgba(169, 192, 165, 0.75);
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+
+.fc-dict-sub {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 650;
+  margin: 24px 0 10px;
+}
+
+.fc-dict-sub::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--hair);
+}
+
+.fc-dict-steps {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 9px;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.fc-dict-steps li {
+  list-style: decimal;
+  padding-left: 2px;
+}
+
+.fc-dict-steps li::marker {
+  color: var(--green);
+  font-weight: 600;
+}
+
+/* 底部主操作：不跟着正文滚动，始终吸在弹窗底部 */
+.fc-dict-actions {
+  flex: none;
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(60, 52, 42, 0.12);
+}
+
+.fc-dict-actions .fc-btn {
+  width: 100%;
+  height: 50px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.fc-dict-actions .fc-btn.done {
+  background: var(--sage);
+  color: var(--green);
+}
+
+/* 矮屏让弹窗多占一点高度，保证首屏能看到要点开头 */
+@media (max-height: 720px) {
+  .fc-dict-sheet.fc-dict-detail {
+    max-height: 94dvh;
+  }
+
+  .fc-dict-hero {
+    gap: 12px;
+  }
+
+  .fc-dict-sub {
+    margin: 18px 0 8px;
+  }
+}
+
+.fc-dict-link {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--green);
+}
+
+/* ------------------------------ 问答浮层（临时，划走即散） ------------------------------ */
+
+.fc-ask-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(26, 26, 25, 0.26);
+  animation: fc-fade 0.16s ease;
+}
+
+.fc-ask {
+  width: 100%;
+  max-width: 432px;
+  max-height: 76dvh;
+  overflow-y: auto;
+  background: var(--paper);
+  border-radius: 22px 22px 0 0;
+  padding: 0 22px calc(16px + env(safe-area-inset-bottom));
+  box-shadow: 0 -12px 40px rgba(26, 26, 25, 0.12);
+}
+
+.fc-ask-handle {
+  height: 28px;
+  display: grid;
+  place-items: center;
+  cursor: grab;
+  touch-action: none;
+}
+
+.fc-ask-handle i {
+  width: 38px;
+  height: 4px;
+  border-radius: 2px;
+  background: #ded6cc;
+}
+
+.fc-ask-q {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.fc-ask-media {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.fc-ask-media img {
+  width: 84px;
+  height: 84px;
+  border-radius: 12px;
+  object-fit: cover;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px #eee7e0;
+}
+
+.fc-ask-media span {
+  font-size: 13px;
+  color: var(--muted-2);
+}
+
+.fc-ask-text {
+  margin: 0;
+  font-size: 16.5px;
+  line-height: 1.72;
+  color: var(--ink);
+  min-height: 3.2em;
+}
+
+.fc-ask-caret {
+  display: inline-block;
+  width: 7px;
+  height: 17px;
+  margin-left: 3px;
+  vertical-align: -3px;
+  background: var(--green);
+  animation: fc-blink 1s steps(2, start) infinite;
+}
+
+@keyframes fc-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.fc-ask-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 14px;
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--muted-2);
+}
+
+.fc-ask-facts div {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.fc-ask-facts b {
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.fc-ask-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.fc .fc-ask-cap {
+  padding: 11px 18px;
+  border-radius: 999px;
+  background: var(--green-soft);
+  border: 1px solid var(--green-line);
+  color: var(--green);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.fc .fc-ask-cap.done {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+
+.fc-ask-hint {
+  margin: 16px 0 0;
+  text-align: center;
+  font-size: 11.5px;
+  color: #b3b3ab;
+  letter-spacing: 0.3px;
+}
+
+.fc-ask-toast {
+  margin-top: 8px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--green-ink);
+}
+
+/* ------------------------------ 身体页（全屏解剖图） ------------------------------ */
+
+.fc-shell.atlas {
+  padding: 12px 0 calc(96px + env(safe-area-inset-bottom));
+}
+
+.fc-atlas-hd {
+  padding: 0 26px;
+}
+
+.fc-atlas-hd .fc-h1 {
+  font-size: 40px;
+  margin-top: 12px;
+}
+
+.fc-shell.atlas .fc-dict-body {
+  height: calc(100dvh - 322px);
+  min-height: 360px;
+  margin: 0;
+}
+
+.fc-dict-filters {
+  flex: none;
+  display: flex;
+  gap: 8px;
+  margin: 0 -4px 8px;
+  padding: 2px 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.fc-dict-filters::-webkit-scrollbar {
+  display: none;
+}
+
+.fc-dict-filters button {
+  flex: none;
+  font-size: 12.5px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--hair-2);
+  background: #fff;
+  color: #6d6d64;
+}
+
+.fc-dict-filters button.on {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+
+/* ------------------------------ 回顾：轻量概览 ------------------------------ */
+
+.fc-ov {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--green-soft);
+  border: 1px solid #dfe6d9;
+}
+
+.fc-ov-line {
+  font-size: 13.5px;
+  color: #5b6b5a;
+}
+
+.fc-ov-line b {
+  font-size: 17px;
+  font-weight: 650;
+  color: var(--ink);
+  margin: 0 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.fc-ov-days {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 14px;
+}
+
+.fc-ov-day {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.fc-ov-day i {
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-style: normal;
+  font-size: 10.5px;
+  color: #8a8a82;
+  background: #fff;
+  border: 1px solid #e0dad1;
+  font-variant-numeric: tabular-nums;
+}
+
+.fc-ov-day.has i {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+
+.fc-ov-day.today i {
+  box-shadow: 0 0 0 2px rgba(17, 81, 51, 0.16);
+}
+
+.fc-ov-parts {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.fc-ov-parts span {
+  font-size: 12px;
+  color: #4f6b50;
+  background: #fff;
+  border: 1px solid #dfe6d9;
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
+.fc-ov-foot {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #8a9a88;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 嵌进 journal 计划页：不要整页纸底，画布按视口给高度 */
+.fc.plan-embed {
+  min-height: 0;
+  background: transparent;
+}
+
+.fc.plan-embed .fc-dict-body {
+  height: clamp(380px, calc(100dvh - 372px), 640px);
+  margin: 0 -10px;
+}
+
+.fc.plan-embed .fc-dict-hintline {
+  margin-top: 2px;
+}
+
+/* SVG 人体图（从 2D 图集描出来的矢量版） */
+.fc-map {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 -10px;
+}
+
+.fc-map-tabs {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(251, 246, 243, 0.86);
+}
+
+.fc-map-tabs button {
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 13px;
+  color: var(--muted-2);
+}
+
+.fc-map-tabs button.on {
+  background: var(--green);
+  color: #fdfaf6;
+}
+
+.fc-map-svg {
+  height: clamp(360px, calc(100dvh - 372px), 620px);
+  width: auto;
+  max-width: 100%;
+}
+
+.fc-map-muscle {
+  cursor: pointer;
+  transition: fill 0.15s ease;
+}
+
+.fc-map-hint {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--muted-2);
+  text-align: center;
+}
+
+/* 计划页：3D / 平面 切换 */
+.fc-plan-stage {
+  position: relative;
+}
+
+.fc-plan-view {
+  position: absolute;
+  top: 2px;
+  left: 0;
+  z-index: 3;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(251, 246, 243, 0.86);
+}
+
+.fc-plan-view button {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  color: var(--muted-2);
+}
+
+.fc-plan-view button.on {
+  background: var(--green);
+  color: #fdfaf6;
+}
+
+.fc-plan-view .fc-plan-sep {
+  align-self: center;
+  padding: 0 2px;
+  color: var(--hair);
+  font-size: 12px;
+}
+
+.fc-plan-view button.on.fc-plan-sep {
+  background: none;
+  color: var(--hair);
+}

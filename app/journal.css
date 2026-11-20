@@ -267,23 +267,14 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
 
 /* Review and dated records */
 .review-figure { margin-bottom: 14px; }
-.review-anatomy {
+.review-body {
   position: relative;
-  display: grid;
-  justify-items: center;
   width: min(100%, 254px);
+  aspect-ratio: 420 / 535;
   margin: 0 auto;
+  touch-action: none;
 }
-.review-anatomy.full { width: min(100%, 152px); }
-.review-anatomy canvas {
-  display: block;
-  width: 100%;
-  height: auto;
-  cursor: crosshair;
-  touch-action: pan-y;
-}
-.review-anatomy canvas[data-ready=false] { visibility: hidden; }
-.review-anatomy-loading {
+.review-body-loading {
   position: absolute;
   inset: 0;
   display: grid;
@@ -298,12 +289,10 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
   margin: 3px 0 0;
   min-height: 32px;
 }
-.review-view-toggle {
+.review-spin-hint {
   justify-self: end;
-  min-height: 36px;
-  padding: 4px 0 4px 6px;
+  color: var(--quiet);
   font-size: 12px;
-  color: var(--forest);
 }
 .review-muscles summary {
   width: fit-content;

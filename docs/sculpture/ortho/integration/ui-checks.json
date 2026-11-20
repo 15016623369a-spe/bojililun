@@ -1,0 +1,19 @@
+{
+  "base": "http://127.0.0.1:3104",
+  "checks": [
+    "Production /atlas loads approved mesh, .bin and mapping with no approximate fallback",
+    "Chest pointer hover uses the baked chest label",
+    "Chest click selects the full chest and opens the chest exercise union",
+    "Head, front shorts, foot and hand points do not hover/click",
+    "Orbit dragging does not fire a muscle click",
+    "Posterior shorts glutes hover/select and open glute exercises after orbit/reset",
+    "Deltoid click opens the full shoulder list",
+    "API totals match ALL pectorals/delts while legacy upper-chest filtering stays narrower",
+    "Statistics highlights chest, rear-deltoid-to-shoulder and glutes in selected range",
+    "Review chest selection retains a chest_upper-only journal record",
+    "Fine-ID deep link maps to its coarse selection",
+    "Mobile layout still supports model picking and the exercise sheet",
+    "No browser exceptions, label errors or shader compilation errors"
+  ],
+  "errors": []
+}

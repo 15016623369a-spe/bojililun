@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import './journal.css';
+import './replica.css';
 
 export const metadata: Metadata = {
   title: 'FitCheck · 健身记录',

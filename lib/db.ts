@@ -191,6 +191,11 @@ function loadZhMap(): Map<string, string> {
   return map;
 }
 
+function ensureColumn(db: DatabaseSync, table: string, column: string, ddl: string) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as unknown as Array<{ name: string }>;
+  if (!cols.some((c) => c.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
+}
+
 function ensureJournalKinds(db: DatabaseSync) {
   const table = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'journal_entry'").get() as { sql?: string } | undefined;
   if (!table?.sql || table.sql.includes("'sleep'")) return;
@@ -217,28 +222,14 @@ function ensureJournalKinds(db: DatabaseSync) {
 function ensureColumns(db: DatabaseSync) {
   ensureJournalKinds(db);
 
-  const sessionColumns = db.prepare('PRAGMA table_info(session)').all();
-  if (!sessionColumns.some((column) => column.name === 'plan_json')) {
-    db.exec('ALTER TABLE session ADD COLUMN plan_json TEXT');
-  }
-
-  const setColumns = db.prepare('PRAGMA table_info(session_set)').all() as unknown as Array<{ name: string }>;
-  if (!setColumns.some((column) => column.name === 'actual_rest_sec')) {
-    db.exec('ALTER TABLE session_set ADD COLUMN actual_rest_sec INTEGER');
-  }
-
-  const journalColumns = db.prepare('PRAGMA table_info(journal_entry)').all() as unknown as Array<{ name: string }>;
-  if (!journalColumns.some((column) => column.name === 'merged_session_id')) {
-    db.exec('ALTER TABLE journal_entry ADD COLUMN merged_session_id INTEGER');
-  }
-  if (!journalColumns.some((column) => column.name === 'payload_json')) {
-    db.exec('ALTER TABLE journal_entry ADD COLUMN payload_json TEXT');
-  }
-
-  const cols = db.prepare('PRAGMA table_info(exercise)').all() as unknown as Array<{ name: string }>;
-  if (!cols.some((c) => c.name === 'zh_name')) {
-    db.exec("ALTER TABLE exercise ADD COLUMN zh_name TEXT NOT NULL DEFAULT ''");
-  }
+  ensureColumn(db, 'exercise', 'zh_name', "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(db, 'session', 'plan_json', 'TEXT');
+  // 记录也支持挂一张照片（训练 / 餐食都当“笔记”用）
+  ensureColumn(db, 'session', 'photo_path', 'TEXT');
+  ensureColumn(db, 'meal_log', 'photo_path', 'TEXT');
+  ensureColumn(db, 'session_set', 'actual_rest_sec', 'INTEGER');
+  ensureColumn(db, 'journal_entry', 'merged_session_id', 'INTEGER');
+  ensureColumn(db, 'journal_entry', 'payload_json', 'TEXT');
 }
 
 /** 同步中文名：只更新和 data/exercise-zh.json 不一致的行 */
