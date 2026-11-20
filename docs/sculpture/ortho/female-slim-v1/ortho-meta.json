@@ -1,0 +1,71 @@
+{
+  "front": {
+    "view": "front",
+    "width": 1024,
+    "height": 1536,
+    "aspect": 0.6666666666666666,
+    "modelCenter": [
+      0.00015597050429461828,
+      -6.750226020812988e-06,
+      -0.0002296680280725466
+    ],
+    "modelHeight": 0.9807697832584381,
+    "orthoHalfHeight": 0.5492310786247254,
+    "yaw": -1.5707963267948966,
+    "backgroundGuards": [
+      {
+        "name": "Hands distal to wrists, including fingers overlying the thigh in side views",
+        "normalizedY": [
+          0.39,
+          0.525
+        ],
+        "normalizedAbsLocalZ": [
+          0.161,
+          0.3
+        ]
+      }
+    ]
+  },
+  "back": {
+    "view": "back",
+    "width": 1024,
+    "height": 1536,
+    "aspect": 0.6666666666666666,
+    "modelCenter": [
+      0.00015597050429461828,
+      -6.750226020812988e-06,
+      -0.0002296680280725466
+    ],
+    "modelHeight": 0.9807697832584381,
+    "orthoHalfHeight": 0.5492310786247254,
+    "yaw": 1.5707963267948966
+  },
+  "left": {
+    "view": "left",
+    "width": 1024,
+    "height": 1536,
+    "aspect": 0.6666666666666666,
+    "modelCenter": [
+      0.00015597050429461828,
+      -6.750226020812988e-06,
+      -0.0002296680280725466
+    ],
+    "modelHeight": 0.9807697832584381,
+    "orthoHalfHeight": 0.5492310786247254,
+    "yaw": 3.141592653589793
+  },
+  "right": {
+    "view": "right",
+    "width": 1024,
+    "height": 1536,
+    "aspect": 0.6666666666666666,
+    "modelCenter": [
+      0.00015597050429461828,
+      -6.750226020812988e-06,
+      -0.0002296680280725466
+    ],
+    "modelHeight": 0.9807697832584381,
+    "orthoHalfHeight": 0.5492310786247254,
+    "yaw": 0.0
+  }
+}

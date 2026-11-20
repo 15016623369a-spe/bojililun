@@ -127,7 +127,7 @@ def project(p, n, meta, width, height):
     return np.column_stack((x, y, q[:, 2])), normal
 
 
-@njit(cache=True)
+@njit
 def rasterize(projected, triangles, colors, width, height):
     """Orthographic z-buffer and barycentric vertex-color render at pixel centers."""
     depth = np.full((height, width), -np.inf)
@@ -386,9 +386,19 @@ def main():
     # Never allow tiny residual lines in white head/neck to become palette labels.
     # A conservative upper-neck/head guard is explicitly recorded, in normalized height.
     normalized_y = (local[:, 1]-local[:, 1].min())/H
-    head_neck = (normalized_y > .855) & (np.abs(local[:, 2]-center[2])/H < .065)
+    lateral = np.abs(local[:, 2]-center[2])/H
+    head_neck = (normalized_y > .855) & (lateral < .065)
+    protected_vertices = head_neck.copy()
+    extra_guards = meta['front'].get('backgroundGuards', [])
+    guard_stats = []
+    for guard in extra_guards:
+        min_y, max_y = guard['normalizedY']
+        min_side, max_side = guard['normalizedAbsLocalZ']
+        mask = (normalized_y >= min_y) & (normalized_y <= max_y) & (lateral >= min_side) & (lateral <= max_side)
+        protected_vertices |= mask
+        guard_stats.append(dict(guard, vertexCount=int(mask.sum())))
     protected = np.zeros(count, dtype=bool)
-    np.logical_or.at(protected, groups, head_neck)
+    np.logical_or.at(protected, groups, protected_vertices)
     labels[protected] = BG
     unknown_before = int(sizes[labels == 255].sum())
     graph = make_graph(p, faces, groups, count)
@@ -397,7 +407,7 @@ def main():
     result = labels[groups]
     assert np.all(result == result[mirror]), 'Mirror agreement failed.'
     assert not np.any(result == 255), 'Unassigned vertex found.'
-    assert np.all(result[head_neck] == BG)
+    assert np.all(result[protected_vertices] == BG)
     text = (ROOT/'lib/sculpture.ts').read_text()
     order = re.findall(r"'([^']+)'", re.search(r'SCULPTURE_ORDER: MuscleId\[\] = \[(.*?)\];', text, re.S).group(1))
     lookup = np.full(256, BG, dtype=np.uint8)
@@ -412,7 +422,7 @@ def main():
                     vertexCount=int((result == i).sum())) for i, (key, _, color, linked) in enumerate(PALETTE)]
     report = dict(format='uint8, one byte per original vertex; no header', vertexCount=vertex_count,
                   triangleCount=len(faces), backgroundValue=BG, unassignedValue=255, unassignedVertices=0,
-                  model=str(args.model.relative_to(ROOT)), modelSha256=digest(args.model),
+                  model=str(args.model.resolve().relative_to(ROOT)), modelSha256=digest(args.model),
                   metadataSha256=digest(args.meta), binarySha256=digest(args.bin),
                   meshOrder=records, sculptureOrder=order, palette=palette,
                   fineToCanonical={fine: key for key, _, _, linked in PALETTE for fine in linked},
@@ -431,6 +441,8 @@ def main():
                   inputCleanup='Near white RGB > 240, plus achromatic outline ink with max(RGB)-min(RGB) < 64, is background; all remaining pixels use nearest RGB palette color',
                   explicitGuard='Head / upper neck: normalized native Y > 0.855 and abs(native Z-centerZ)/height < 0.065',
                   glutesOnShorts=True, pageIntegration=False)
+    if guard_stats:
+        report['modelBackgroundGuards'] = guard_stats
     (args.bin.with_suffix('.json')).write_text(json.dumps(report, indent=2)+'\n')
     (args.out/'bake-report.json').write_text(json.dumps(report, indent=2)+'\n')
     preview(p, n, faces, result, meta, args.out)
