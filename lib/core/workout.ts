@@ -1,5 +1,5 @@
 import { getDb } from '../db';
-import { todayKey } from '../date';
+import { DEFAULT_TZ, todayKey } from '../date';
 import { idsForTarget } from '../energy';
 import { mentionedMuscles } from '../journal';
 import { MUSCLES, muscleMatchesExercise, type MuscleId } from '../muscles';
@@ -14,7 +14,7 @@ import type {
   VolumeStats,
 } from '../types';
 
-const TZ = process.env.APP_TZ || 'Asia/Shanghai';
+export const WORKOUT_TIME_ZONE = process.env.APP_TZ || DEFAULT_TZ;
 
 /** node:sqlite 返回的是 null 原型对象，传给 Client Component 前必须转成普通对象 */
 function plain<T extends object>(row: T): T {
@@ -25,7 +25,7 @@ function plainAll<T extends object>(rows: T[]): T[] {
 }
 
 export function todayStr(): string {
-  return todayKey(TZ);
+  return todayKey(WORKOUT_TIME_ZONE);
 }
 
 export function nowIso(): string {
@@ -41,9 +41,24 @@ export function getPlan(date = todayStr()): PlanItem[] {
   return plainAll(rows);
 }
 
+/** 按仍然保留的实练组数计算计划进度。 */
+export function getPlanProgress(date: string): PlanItem[] {
+  const completed = getDb().prepare(
+    `SELECT ss.plan_item_id AS id, COUNT(*) AS sets
+     FROM session_set ss JOIN session s ON s.id = ss.session_id
+     WHERE s.date = ? AND ss.plan_item_id IS NOT NULL
+     GROUP BY ss.plan_item_id`,
+  ).all(date) as { id: number; sets: number }[];
+  const setsByItem = new Map(completed.map(({ id, sets }) => [id, sets]));
+  return getPlan(date).map((item) => ({
+    ...item,
+    done: (setsByItem.get(item.id) ?? 0) >= item.sets ? 1 : 0,
+  }));
+}
+
 export function addPlanItem(
   ex: ExerciseRow,
-  opts: { sets?: number; reps?: number; weight?: number; restSec?: number; date?: string } = {},
+  opts: { sets?: number; reps?: number; weight?: number; restSec?: number; date?: string; supplemental?: boolean } = {},
 ): PlanItem {
   const db = getDb();
   const date = opts.date ?? todayStr();
@@ -51,8 +66,8 @@ export function addPlanItem(
     ((db.prepare('SELECT MAX(position) AS m FROM plan_item WHERE date = ?').get(date) as { m: number | null }).m ??
       0) + 1;
   db.prepare(
-    `INSERT INTO plan_item (date, exercise_id, name, body_part, target, equipment, sets, reps, weight, rest_sec, position, done, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+    `INSERT INTO plan_item (date, exercise_id, name, body_part, target, equipment, sets, reps, weight, rest_sec, position, done, supplemental, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
   ).run(
     date,
     ex.id,
@@ -65,6 +80,7 @@ export function addPlanItem(
     clamp(opts.weight, 0, 1000, 0),
     Math.round(clamp(opts.restSec, 0, 600, 90)),
     pos,
+    opts.supplemental ? 1 : 0,
     nowIso(),
   );
   return plain(
@@ -116,20 +132,32 @@ export function sessionPlan(session: SessionRow): PlanItem[] {
   return session.plan_json ? JSON.parse(session.plan_json) as PlanItem[] : getPlan(session.date);
 }
 
-export function startSession(note?: string, firstPlanItemId?: number, guided = false): SessionRow {
+export function startSession({
+  note, firstPlanItemId, guided = false, usePlanProgress = false, supplemental,
+}: {
+  note?: string;
+  firstPlanItemId?: number;
+  guided?: boolean;
+  usePlanProgress?: boolean;
+  supplemental?: { exercise: ExerciseRow; sets: number; reps: number; weight: number; restSec: number }[];
+} = {}): SessionRow {
   const db = getDb();
   db.exec('BEGIN IMMEDIATE');
   try {
-    const active = guided ? activeTraining() : null;
+    const active = guided || supplemental ? activeTraining() : null;
     if (active) {
+      if (supplemental) throw new Error('已有训练进行中，请先完成该节训练');
       db.exec('COMMIT');
       return active;
     }
 
     const date = todayStr();
     let queue: PlanItem[] | null = null;
-    if (guided) {
-      const pending = getPlan(date).filter((item) => !item.done);
+    if (supplemental) {
+      queue = supplemental.map(({ exercise, ...config }) => addPlanItem(exercise, { ...config, date, supplemental: true }));
+    } else if (guided) {
+      const plan = usePlanProgress ? getPlanProgress(date) : getPlan(date);
+      const pending = plan.filter((item) => !item.done);
       const first = pending.find((item) => item.id === firstPlanItemId);
       if (firstPlanItemId !== undefined && !first) throw new Error('这个动作已完成或已从清单移除');
       queue = first ? [first, ...pending.filter((item) => item.id !== first.id)] : pending;
@@ -214,6 +242,72 @@ export function updateSessionSet(id: number, patch: { weight?: number; reps?: nu
   const reps = patch.reps === undefined ? current.reps : Math.round(clamp(patch.reps, 1, 1000, current.reps));
   db.prepare('UPDATE session_set SET weight = ?, reps = ? WHERE id = ?').run(weight, reps, id);
   return plain(db.prepare('SELECT * FROM session_set WHERE id = ?').get(id) as unknown as SetRow);
+}
+
+/** 历史记录里给某个动作末尾补一组，默认沿用该动作上一组的重量与次数。 */
+export function appendSessionSet(
+  sessionId: number,
+  exerciseId: string,
+  patch: { weight?: number; reps?: number } = {},
+): SetRow[] {
+  const db = getDb();
+  if (!getSession(sessionId)) throw new Error('训练不存在');
+  const group = plainAll(
+    db
+      .prepare('SELECT * FROM session_set WHERE session_id = ? AND exercise_id = ? ORDER BY id ASC')
+      .all(sessionId, exerciseId) as unknown as SetRow[],
+  );
+  const last = group.at(-1);
+  if (!last) throw new Error('该动作没有可追加的训练组');
+  const nextIndex = Math.max(...group.map((set) => set.set_index)) + 1;
+  const weight = patch.weight === undefined ? last.weight : clamp(patch.weight, 0, 1000, last.weight);
+  const reps = patch.reps === undefined ? last.reps : Math.round(clamp(patch.reps, 1, 1000, last.reps));
+  db.prepare(
+    `INSERT INTO session_set (session_id, plan_item_id, exercise_id, exercise_name, body_part, target, set_index, weight, reps, duration_sec, rest_sec, actual_rest_sec, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, NULL, ?)`,
+  ).run(
+    sessionId,
+    last.plan_item_id,
+    last.exercise_id,
+    last.exercise_name,
+    last.body_part,
+    last.target,
+    nextIndex,
+    weight,
+    reps,
+    nowIso(),
+  );
+  return plainAll(
+    db
+      .prepare('SELECT * FROM session_set WHERE session_id = ? AND exercise_id = ? ORDER BY id ASC')
+      .all(sessionId, exerciseId) as unknown as SetRow[],
+  );
+}
+
+/** 删除一组，并把同一动作剩下的组号重新编号；返回该动作剩余的组。 */
+export function deleteSessionSet(id: number): { sets: SetRow[]; exerciseId: string; sessionId: number } {
+  const db = getDb();
+  const current = db.prepare('SELECT * FROM session_set WHERE id = ?').get(id) as SetRow | undefined;
+  if (!current) throw new Error('训练组不存在');
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    db.prepare('DELETE FROM session_set WHERE id = ?').run(id);
+    const rest = plainAll(
+      db
+        .prepare('SELECT * FROM session_set WHERE session_id = ? AND exercise_id = ? ORDER BY id ASC')
+        .all(current.session_id, current.exercise_id) as unknown as SetRow[],
+    );
+    rest.forEach((set, index) => {
+      if (set.set_index === index + 1) return;
+      db.prepare('UPDATE session_set SET set_index = ? WHERE id = ?').run(index + 1, set.id);
+      set.set_index = index + 1;
+    });
+    db.exec('COMMIT');
+    return { sets: rest, exerciseId: current.exercise_id, sessionId: current.session_id };
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
 }
 
 export function saveGuidedSet(

@@ -1,8 +1,24 @@
 import { NextResponse } from 'next/server';
-import { addSet, getSession, getSessionSets, markPlanDone, saveGuidedSet, updateSessionSet } from '@/lib/core/workout';
+import { addSet, appendSessionSet, deleteSessionSet, getSession, getSessionSets, markPlanDone, saveGuidedSet, updateSessionSet } from '@/lib/core/workout';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+const clampNumber = (value: unknown, fallback = 0) => (Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : fallback);
+
+function assertWeight(value: unknown) {
+  if (value === undefined) return;
+  if (!Number.isFinite(Number(value)) || Number(value) < 0 || Number(value) > 1000) {
+    throw new Error('重量需要在 0 至 1000 kg 之间');
+  }
+}
+
+function assertReps(value: unknown) {
+  if (value === undefined) return;
+  if (!Number.isFinite(Number(value)) || Number(value) < 1 || Number(value) > 1000) {
+    throw new Error('次数需要在 1 至 1000 次之间');
+  }
+}
 
 export async function POST(req: Request) {
   try {
@@ -20,21 +36,30 @@ export async function POST(req: Request) {
       restSec?: number;
       previousSetId?: number;
       previousRestSec?: number;
+      /** 回顾页追加一组：只追加，不走引导式训练进度校验 */
+      append?: boolean;
     };
+    if (b.append === true) {
+      if (!Number.isSafeInteger(b.sessionId) || Number(b.sessionId) < 1) throw new Error('缺少 sessionId');
+      if (typeof b.exerciseId !== 'string' || !b.exerciseId) throw new Error('缺少 exerciseId');
+      assertWeight(b.weight);
+      assertReps(b.reps);
+      const sets = appendSessionSet(Number(b.sessionId), b.exerciseId, { weight: b.weight, reps: b.reps });
+      return NextResponse.json({ ok: true, sets });
+    }
     if (b.sessionId && getSession(b.sessionId)?.plan_json) {
       if (!b.planItemId || !b.setIndex) {
         return NextResponse.json({ error: '缺少动作或组号' }, { status: 400 });
       }
-      const number = (value: unknown) => Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 0;
       return NextResponse.json(saveGuidedSet(b.sessionId, {
         planItemId: b.planItemId,
         setIndex: b.setIndex,
-        weight: number(b.weight),
-        reps: number(b.reps),
-        durationSec: number(b.durationSec),
-        restSec: Math.min(600, number(b.restSec)),
+        weight: clampNumber(b.weight),
+        reps: clampNumber(b.reps),
+        durationSec: clampNumber(b.durationSec),
+        restSec: Math.min(600, clampNumber(b.restSec)),
         previousSetId: b.previousSetId,
-        previousRestSec: b.previousRestSec === undefined ? undefined : Math.min(86400, number(b.previousRestSec)),
+        previousRestSec: b.previousRestSec === undefined ? undefined : Math.min(86400, clampNumber(b.previousRestSec)),
       }));
     }
     if (!b.sessionId || !b.exerciseId) {
@@ -65,14 +90,21 @@ export async function PATCH(req: Request) {
     if (!Number.isInteger(body.id) || Number(body.id) <= 0) {
       return NextResponse.json({ error: '缺少训练组 id' }, { status: 400 });
     }
-    if (body.weight !== undefined && (!Number.isFinite(body.weight) || Number(body.weight) < 0 || Number(body.weight) > 1000)) {
-      return NextResponse.json({ error: '重量需要在 0 至 1000 kg 之间' }, { status: 400 });
-    }
-    if (body.reps !== undefined && (!Number.isFinite(body.reps) || Number(body.reps) < 1 || Number(body.reps) > 1000)) {
-      return NextResponse.json({ error: '次数需要在 1 至 1000 次之间' }, { status: 400 });
-    }
+    assertWeight(body.weight);
+    assertReps(body.reps);
     const set = updateSessionSet(Number(body.id), { weight: body.weight, reps: body.reps });
     return NextResponse.json({ set });
+  } catch (e) {
+    const error = e as Error;
+    return NextResponse.json({ error: error.message }, { status: error.message === '训练组不存在' ? 404 : 400 });
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const id = Number(new URL(req.url).searchParams.get('id'));
+    if (!Number.isSafeInteger(id) || id < 1) throw new Error('缺少训练组 id');
+    return NextResponse.json({ ok: true, ...deleteSessionSet(id) });
   } catch (e) {
     const error = e as Error;
     return NextResponse.json({ error: error.message }, { status: error.message === '训练组不存在' ? 404 : 400 });

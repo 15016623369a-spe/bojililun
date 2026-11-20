@@ -1,11 +1,16 @@
 'use client';
 
 import { useState } from 'react';
+import type { ExerciseChoice } from './ExerciseSheet';
 import SculptureAtlas from './SculptureAtlas';
 import type { HeatItem } from './MuscleDict';
 import type { SculptureVariant } from '@/lib/sculpture-groups';
 
-export default function PlanBody({ heat, variant = 'male' }: { heat: HeatItem[]; variant?: SculptureVariant }) {
+export default function PlanBody({ heat, variant = 'male', onChooseExercise }: {
+  heat: HeatItem[];
+  variant?: SculptureVariant;
+  onChooseExercise?: (exercise: ExerciseChoice) => void;
+}) {
   const [back, setBack] = useState(false);
   const [body, setBody] = useState<SculptureVariant>(variant);
 
@@ -28,7 +33,7 @@ export default function PlanBody({ heat, variant = 'male' }: { heat: HeatItem[];
       </div>
 
       <div className="fc plan-embed">
-        <SculptureAtlas heat={heat} back={back} hideTabs variant={body} />
+        <SculptureAtlas heat={heat} back={back} hideTabs variant={body} onChooseExercise={onChooseExercise} />
       </div>
     </div>
   );

@@ -30,7 +30,7 @@ export default function TrainPage() {
   const targetProtein = snap.profile?.target_protein ?? 0;
 
   return (
-    <JournalShell active="plan" title="编辑今日计划" subtitle={dayLabel(today)} back={{ href: "/body", label: "计划" }}>
+    <JournalShell active="plan" title="编辑今日计划" subtitle={dayLabel(today)} back={{ href: "/body", label: "计划" }} today={today}>
       <div className="journal-utility">
         <div className="journal-links"><Link href="/exercises">动作库</Link><Link href="/stats">训练统计</Link></div>
         {!snap.profile && (
@@ -64,7 +64,7 @@ export default function TrainPage() {
           </div>
         </section>
 
-        <TodayPlan initialItems={plan} activeSession={activeSession ? activeSession.id : null} />
+        <TodayPlan key={today} initialItems={plan} activeSession={activeSession ? activeSession.id : null} />
 
         {(details.length > 0 || quickWorkouts.length > 0) && (
           <section className="block">

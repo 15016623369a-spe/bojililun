@@ -73,11 +73,12 @@ function regionsOf(muscles: Iterable<MuscleId>): Region[] {
   return [...new Set(MUSCLES.filter((muscle) => ids.has(muscle.id)).map((muscle) => muscle.region))];
 }
 
+export function planMuscles(plan: PlanItem[]): MuscleId[] {
+  return [...new Set(plan.flatMap((item) => exerciseMuscles(item.exercise_id, item.name)))];
+}
+
 function plannedMuscles(date: string): Set<MuscleId> {
-  const muscles = new Set<MuscleId>();
-  for (const item of getPlan(date)) {
-    for (const muscle of exerciseMuscles(item.exercise_id, item.name)) muscles.add(muscle);
-  }
+  const muscles = new Set(planMuscles(getPlan(date)));
   for (const { groups } of daySessions(date)) {
     for (const group of groups) {
       for (const muscle of exerciseMuscles(group.exercise_id, group.exercise_name)) muscles.add(muscle);
@@ -406,10 +407,12 @@ export function undoQuickEntry(id: number) {
 }
 
 export function journalMarkers(start: string, end: string) {
-  const rows = getDb().prepare(`
+  const db = getDb();
+  const rows = db.prepare(`
     SELECT date, kind, count(*) AS count
     FROM (
-      SELECT date, kind FROM journal_entry WHERE date BETWEEN $start AND $end AND merged_session_id IS NULL
+      SELECT date, kind FROM journal_entry
+      WHERE date BETWEEN $start AND $end AND kind = 'meal' AND merged_session_id IS NULL
       UNION ALL
       SELECT date, 'meal' FROM meal_log WHERE date BETWEEN $start AND $end
       UNION ALL
@@ -418,15 +421,28 @@ export function journalMarkers(start: string, end: string) {
         AND EXISTS (SELECT 1 FROM session_set WHERE session_id = session.id)
     )
     GROUP BY date, kind
-  `).all({ $start: start, $end: end }) as Array<{ date: string; kind: JournalEntry['kind']; count: number }>;
+  `).all({ $start: start, $end: end }) as Array<{ date: string; kind: 'training' | 'meal'; count: number }>;
+  const quickTraining = db.prepare(`
+    SELECT * FROM journal_entry
+    WHERE date BETWEEN ? AND ? AND kind = 'training' AND merged_session_id IS NULL
+  `).all(start, end) as unknown as QuickRow[];
   const byDate = new Map<string, { training: number; meal: number }>();
   for (const { date, kind, count } of rows) {
-    if (kind !== 'training' && kind !== 'meal') continue; // 睡眠和普通笔记不参与训练/饮食标记
     const markers = byDate.get(date) ?? { training: 0, meal: 0 };
     markers[kind] = count;
     byDate.set(date, markers);
   }
+  for (const row of quickTraining) {
+    if (payloadOf(row).planned) continue;
+    const markers = byDate.get(row.date) ?? { training: 0, meal: 0 };
+    markers.training += 1;
+    byDate.set(row.date, markers);
+  }
   return byDate;
+}
+
+export function recordedJournalForDate(date: string): JournalEntry[] {
+  return journalForDate(date).filter((entry) => entry.kind !== 'training' || !entry.payload?.planned);
 }
 
 export function journalForDate(date: string): JournalEntry[] {

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AssistantReply, CandidateMemory, FoodItem, TodayPayload } from '@/lib/types';
 import type { MealType } from '@/lib/date';
@@ -86,6 +87,7 @@ async function compressImage(file: File): Promise<string> {
 }
 
 export default function Page() {
+  const router = useRouter();
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [today, setToday] = useState<TodayPayload | null>(null);
   const [needOnboarding, setNeedOnboarding] = useState(false);
@@ -201,6 +203,7 @@ export default function Page() {
     const data = (await res.json()) as { replies?: AssistantReply[]; error?: string };
     if (!res.ok || !data.replies) throw new Error(data.error ?? '请求失败');
     appendReplies(pendingId, data.replies);
+    router.refresh();
     await refreshToday();
   }
 

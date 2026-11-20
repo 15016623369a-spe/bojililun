@@ -23,6 +23,8 @@ interface DictResult {
   items: DictItem[];
 }
 
+export type ExerciseChoice = { id: string; name: string };
+
 const FILTERS: { key: string; label: string; equip: string[] }[] = [
   { key: 'all', label: '全部', equip: [] },
   { key: 'machine', label: '固定器械', equip: ['leverage machine', 'smith machine', 'sled machine'] },
@@ -31,7 +33,12 @@ const FILTERS: { key: string; label: string; equip: string[] }[] = [
   { key: 'body', label: '自重', equip: ['body weight'] },
 ];
 
-export default function ExerciseSheet({ muscle, onClose, grouped = false }: { muscle: MuscleId | null; onClose: () => void; grouped?: boolean }) {
+export default function ExerciseSheet({ muscle, onClose, grouped = false, onChooseExercise }: {
+  muscle: MuscleId | null;
+  onClose: () => void;
+  grouped?: boolean;
+  onChooseExercise?: (exercise: ExerciseChoice) => void;
+}) {
   const router = useRouter();
   const [data, setData] = useState<DictResult | null>(null);
   const [busyList, setBusyList] = useState(false);
@@ -122,7 +129,7 @@ export default function ExerciseSheet({ muscle, onClose, grouped = false }: { mu
         });
         if (!res.ok) throw new Error('记录失败');
         setState((prev) => ({ ...prev, [it.id]: 'done' }));
-        setToast('已记入今天，肌肉点亮了');
+        setToast('已记入今天的训练记录');
         router.refresh();
       } catch {
         setState((prev) => ({ ...prev, [it.id]: 'err' }));
@@ -160,7 +167,7 @@ export default function ExerciseSheet({ muscle, onClose, grouped = false }: { mu
   return (
     <>
       <div className="fc-mask dict" onClick={onClose}>
-        <div className="fc-sheet fc-dict-sheet" role="dialog" aria-modal="true" aria-label={`${title ?? '肌群'}动作列表`} onClick={(e) => e.stopPropagation()}>
+        <div className={`fc-sheet fc-dict-sheet${active ? ' fc-dict-detail' : ''}`} role="dialog" aria-modal="true" aria-label={`${title ?? '肌群'}动作列表`} onClick={(e) => e.stopPropagation()}>
           {active ? (
             <>
               <div className="fc-dict-detail-top">
@@ -172,53 +179,63 @@ export default function ExerciseSheet({ muscle, onClose, grouped = false }: { mu
                 </button>
               </div>
 
-              <div className="fc-dict-hero">
-                <span className="fc-dict-gif big">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={imageUrl(active.image)} alt={active.zh_name || active.name} />
-                </span>
-                <div>
-                  <div className="fc-dict-name">{active.zh_name || active.name}</div>
-                  <div className="fc-dict-en">{active.name}</div>
-                  <div className="fc-dict-chips">
-                    <span>{EQUIPMENT_LABEL[active.equipment] ?? active.equipment}</span>
-                    <span>{TARGET_LABEL[active.target] ?? active.target}</span>
+              <div className="fc-dict-detail-body">
+                <div className="fc-dict-hero">
+                  <span className="fc-dict-gif big">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={imageUrl(active.image)} alt={active.zh_name || active.name} />
+                  </span>
+                  <div>
+                    <div className="fc-dict-name">{active.zh_name || active.name}</div>
+                    <div className="fc-dict-en">{active.name}</div>
+                    <div className="fc-dict-chips">
+                      <span>{EQUIPMENT_LABEL[active.equipment] ?? active.equipment}</span>
+                      <span>{TARGET_LABEL[active.target] ?? active.target}</span>
+                    </div>
                   </div>
                 </div>
+
+                <h4 className="fc-dict-sub">要点</h4>
+                {active.steps.length > 0 ? (
+                  <ol className="fc-dict-steps">
+                    {active.steps.map((s, i) => (
+                      <li key={i}>{s}</li>
+                    ))}
+                  </ol>
+                ) : (
+                  <p className="fc-note">这个动作暂时没有分步说明。</p>
+                )}
               </div>
 
-              <h4 className="fc-dict-sub">要点</h4>
-              {active.steps.length > 0 ? (
-                <ol className="fc-dict-steps">
-                  {active.steps.map((s, i) => (
-                    <li key={i}>{s}</li>
-                  ))}
-                </ol>
-              ) : (
-                <p className="fc-note">这个动作暂时没有分步说明。</p>
-              )}
-
-              <div className="fc-dict-actions">
-                <button
-                  type="button"
-                  className="fc-btn primary"
-                  onClick={() => void markDone(active)}
-                  disabled={state[active.id] === 'busy'}
-                >
-                  {state[active.id] === 'done' ? '✓ 已记入今天' : state[active.id] === 'busy' ? '记录中…' : '✓ 记入今天'}
-                </button>
-                <button
-                  type="button"
-                  className="fc-btn ghost"
-                  onClick={() => void addToPlan(active)}
-                  disabled={state[`plan-${active.id}`] === 'busy'}
-                >
-                  {state[`plan-${active.id}`] === 'done' ? '✓ 已在清单' : '+ 加入训练'}
-                </button>
-              </div>
-              <p className="fc-dict-src">
-                <a href={`/exercises/${active.id}`}>看完整详情与步骤 →</a>
-              </p>
+              {onChooseExercise ? <div className="fc-dict-actions">
+                <button type="button" className="fc-btn primary" onClick={() => {
+                  onChooseExercise({ id: active.id, name: active.zh_name || active.name });
+                  setActive(null);
+                  onClose();
+                }}>选择此动作</button>
+              </div> : <>
+                <div className="fc-dict-actions">
+                  <button
+                    type="button"
+                    className="fc-btn primary"
+                    onClick={() => void markDone(active)}
+                    disabled={state[active.id] === 'busy'}
+                  >
+                    {state[active.id] === 'done' ? '✓ 已记入今天' : state[active.id] === 'busy' ? '记录中…' : '✓ 记入今天'}
+                  </button>
+                  <button
+                    type="button"
+                    className="fc-btn ghost"
+                    onClick={() => void addToPlan(active)}
+                    disabled={state[`plan-${active.id}`] === 'busy'}
+                  >
+                    {state[`plan-${active.id}`] === 'done' ? '✓ 已在清单' : '+ 加入训练'}
+                  </button>
+                </div>
+                <p className="fc-dict-src">
+                  <a href={`/exercises/${active.id}`}>看完整详情与步骤 →</a>
+                </p>
+              </>}
             </>
           ) : (
             <>

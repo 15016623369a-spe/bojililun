@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { MuscleId } from '@/lib/muscles';
-import ExerciseSheet from '@/components/fc/ExerciseSheet';
+import ExerciseSheet, { type ExerciseChoice } from '@/components/fc/ExerciseSheet';
 import SculptureBody from './SculptureBody';
 import type { HeatItem } from './MuscleDict';
 import { canonicalMuscle, SCULPTURE_GROUPS, sculptureGroup, type SculptureVariant } from '@/lib/sculpture-groups';
@@ -12,11 +12,13 @@ export default function SculptureAtlas({
   back: backProp,
   hideTabs = false,
   variant = 'male',
+  onChooseExercise,
 }: {
   heat: HeatItem[];
   back?: boolean;
   hideTabs?: boolean;
   variant?: SculptureVariant;
+  onChooseExercise?: (exercise: ExerciseChoice) => void;
 }) {
   const [selected, setSelected] = useState<MuscleId | null>(null);
   const [backState, setBack] = useState(false);
@@ -55,6 +57,6 @@ export default function SculptureAtlas({
       )}
     </div>
     <p className="fc-dict-hintline">拖动旋转 · 点击肌肉查看对应训练动作</p>
-    <ExerciseSheet muscle={selected} grouped onClose={() => setSelected(null)} />
+    <ExerciseSheet muscle={selected} grouped onClose={() => setSelected(null)} onChooseExercise={onChooseExercise} />
   </>;
 }

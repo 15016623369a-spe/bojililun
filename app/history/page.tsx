@@ -4,7 +4,7 @@ import JournalShell from '@/components/JournalShell';
 import ReviewJournal from '@/components/ReviewJournal';
 import { getProfileRow } from '@/lib/core/meals';
 import { sculptureVariant } from '@/lib/sculpture-groups';
-import { journalForDate } from '@/lib/core/journal';
+import { recordedJournalForDate } from '@/lib/core/journal';
 import { todayStr } from '@/lib/core/workout';
 import { addDays, periodRange, shiftMonth, validDate } from '@/lib/period';
 
@@ -28,10 +28,10 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
     : addDays(anchor, direction * (period === 'day' ? 1 : 7));
   const days = [];
   for (let date = end; date >= start; date = addDays(date, -1)) {
-    const entries = journalForDate(date);
+    const entries = recordedJournalForDate(date);
     if (entries.length) days.push({ date, entries });
   }
-  return <JournalShell active="review" title="回顾">
+  return <JournalShell active="review" title="回顾" today={today}>
     <nav className="review-period" aria-label="回顾范围">
       {periods.map(({ key, label }) => <Link href={href(key, anchor)} key={key} aria-current={key === period ? 'page' : undefined}>{label}</Link>)}
     </nav>

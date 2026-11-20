@@ -8,7 +8,7 @@ const DB_PATH = path.resolve(process.env.FITCHECK_DB_PATH || path.join(DATA_DIR,
 export const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
 
 // Increment when the schema or column migrations change. Next.js keeps globalThis across hot reloads.
-const SCHEMA_REVISION = 6;
+const SCHEMA_REVISION = 7;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS profile (
@@ -98,6 +98,7 @@ CREATE TABLE IF NOT EXISTS plan_item (
   rest_sec INTEGER NOT NULL DEFAULT 90,
   position INTEGER NOT NULL DEFAULT 0,
   done INTEGER NOT NULL DEFAULT 0,
+  supplemental INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_plan_date ON plan_item(date);
@@ -228,6 +229,7 @@ function ensureColumns(db: DatabaseSync) {
   ensureColumn(db, 'session', 'photo_path', 'TEXT');
   ensureColumn(db, 'meal_log', 'photo_path', 'TEXT');
   ensureColumn(db, 'session_set', 'actual_rest_sec', 'INTEGER');
+  ensureColumn(db, 'plan_item', 'supplemental', 'INTEGER NOT NULL DEFAULT 0');
   ensureColumn(db, 'journal_entry', 'merged_session_id', 'INTEGER');
   ensureColumn(db, 'journal_entry', 'payload_json', 'TEXT');
 }

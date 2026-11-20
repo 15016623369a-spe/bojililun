@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { PlanItem } from '@/lib/types';
 import { EQUIPMENT_LABEL, TARGET_LABEL } from '@/lib/exercise-label';
+import SupplementalMark from './SupplementalMark';
 
 const REST_CHOICES = [60, 90, 120, 180];
 
@@ -17,32 +18,50 @@ export default function TodayPlan({
 }) {
   const router = useRouter();
   const [items, setItems] = useState<PlanItem[]>(initialItems);
+  const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const savedItems = useRef(initialItems);
+  const saveQueue = useRef(Promise.resolve());
 
-  async function patch(id: number, body: Record<string, number>) {
-    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...mapPatch(body) } : it)));
-    try {
-      const res = await fetch('/api/plan', {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ id, ...body }),
-      });
-      const data = (await res.json()) as { items?: PlanItem[]; error?: string };
-      if (!res.ok) throw new Error(data.error ?? '保存失败');
-      if (data.items) setItems(data.items);
-    } catch (e) {
-      setErr((e as Error).message);
-    }
+  function save(url: string, options: RequestInit) {
+    setSaving(true);
+    setErr('');
+    const request = saveQueue.current.then(async () => {
+      try {
+        const res = await fetch(url, options);
+        const data = (await res.json()) as { items?: PlanItem[]; error?: string };
+        if (!res.ok || !data.items) throw new Error(data.error ?? '保存计划失败');
+        savedItems.current = data.items;
+      } catch (e) {
+        setErr((e as Error).message);
+      }
+    });
+    saveQueue.current = request;
+    void request.then(() => {
+      if (request !== saveQueue.current) return;
+      setItems(savedItems.current);
+      setSaving(false);
+      router.refresh();
+    });
   }
 
-  async function remove(id: number) {
+  function patch(id: number, body: Record<string, number>) {
+    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...mapPatch(body) } : it)));
+    save('/api/plan', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id, ...body }),
+    });
+  }
+
+  function remove(id: number) {
     setItems((prev) => prev.filter((it) => it.id !== id));
-    await fetch(`/api/plan?id=${id}`, { method: 'DELETE' });
+    save(`/api/plan?id=${id}`, { method: 'DELETE' });
   }
 
   async function start() {
-    if (busy) return;
+    if (busy || saving) return;
     if (activeSession) {
       router.push(`/train/${activeSession}`);
       return;
@@ -95,6 +114,7 @@ export default function TodayPlan({
               <div className="plan-order">{i + 1}</div>
               <div className="plan-main">
                 <div className="plan-name">
+                  {it.supplemental ? <SupplementalMark /> : null}
                   {it.name}
                   {it.done === 1 && <span className="done-tag">已练</span>}
                 </div>
@@ -150,10 +170,10 @@ export default function TodayPlan({
         </div>
       )}
 
-      {err && <p className="form-err">{err}</p>}
+      {err && <p className="form-err" role="alert">{err}</p>}
 
       {items.length > 0 && (
-        <button className="btn primary big" onClick={start} disabled={busy}>
+        <button className="btn primary big" onClick={start} disabled={busy || saving}>
           {busy ? '开始中…' : activeSession ? '继续训练' : `开始训练（${totalSets} 组）`}
         </button>
       )}

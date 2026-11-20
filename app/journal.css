@@ -51,19 +51,9 @@
   flex-shrink: 0;
 }
 .journal-icon-button:hover, .journal-chip:hover { background: var(--sage); }
-.queue-toggle { position: relative; }
-.queue-toggle span {
-  position: absolute;
-  top: -5px;
-  right: -6px;
-  min-width: 20px;
-  padding: 2px 4px;
-  border-radius: 15px;
-  background: var(--forest);
-  color: white;
-  font-weight: 700;
-  font-size: 11px;
-}
+.queue-toggle svg { fill: currentColor; }
+.supplemental-mark { display: inline-flex; vertical-align: -.1em; margin-inline-end: 5px; color: #a65817; }
+.supplemental-mark svg { width: .9em; height: .9em; fill: currentColor; }
 .journal-footer, .journal-input-dock {
   position: fixed;
   bottom: 0;
@@ -219,8 +209,10 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
 .queue-item { display: grid; justify-items: start; text-align: left; gap: 4px; border: 1px solid var(--hairline); padding: 11px; border-radius: 12px; }
 .queue-item[aria-pressed=true] { background: var(--sage); border-color: var(--forest); }
 .queue-item:disabled { opacity: .6; cursor: default; }
-.queue-item span { font-size: 12px; color: var(--quiet); }
+.queue-item > span { font-size: 12px; color: var(--quiet); }
 .journal-dialog > .journal-primary { width: 100%; }
+.queue-confirm-actions { display: flex; justify-content: flex-end; align-items: center; gap: 16px; margin-top: 18px; }
+.queue-confirm-actions .journal-primary { min-width: 92px; }
 .journal-shell .body-canvas { height: clamp(335px, 54dvh, 520px); background: radial-gradient(ellipse at center, #faf9f4, #ebeae0); }
 .journal-shell .body-hint, .journal-shell .body-rotate { background: #faf8f3e8; font-size: 11px; }
 .journal-shell .body-loading { background: #f2f0e780; }
@@ -397,7 +389,8 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
 .set-detail-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .set-detail-row { padding: 9px; border-radius: 9px; background: var(--panel-2); }
 .set-detail-row + .set-detail-row { border-top: 1px solid var(--line); }
-.set-detail-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 7px; font-size: 12px; }
+.set-detail-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-bottom: 7px; font-size: 12px; }
+.set-detail-heading strong { margin-right: auto; }
 .set-detail-heading span, .set-rest { color: var(--quiet); font-size: 11px; font-weight: 500; }
 .set-edit-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end; gap: 7px; }
 .set-edit-fields > label { display: grid; gap: 4px; color: var(--quiet); font-size: 11px; }
@@ -409,6 +402,11 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
 .set-input small { flex: none; color: var(--quiet); font-size: 10px; }
 .set-save { min-width: 48px; height: 38px; padding: 0 10px; border: 0; border-radius: 8px; background: var(--forest); color: var(--paper); font-size: 12px; font-weight: 700; cursor: pointer; }
 .set-save:disabled { opacity: .55; cursor: wait; }
+.set-delete { flex: none; padding: 4px 8px; border: 1px solid rgb(var(--danger-rgb) / .28); border-radius: 7px; background: transparent; color: var(--danger); font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+.set-delete:disabled { opacity: .5; cursor: wait; }
+.set-add { display: block; width: 100%; margin-top: 9px; padding: 9px 10px; border: 1px dashed var(--line); border-radius: 9px; background: transparent; color: var(--forest); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.set-add:hover:not(:disabled) { border-color: var(--forest); background: color-mix(in srgb, var(--forest) 6%, transparent); }
+.set-add:disabled { opacity: .55; cursor: wait; }
 .set-rest { margin: 7px 0 0; }
 .set-save-message { margin: 9px 0 0; color: var(--forest); font-size: 12px; }
 @media (max-width: 380px) {
@@ -688,7 +686,6 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
   position: absolute; z-index: 1; top: 8px; left: 6%;
   pointer-events: none; font-size: clamp(32px, 7vw, 44px);
 }
-.journal-shell:has(.plan-atlas) .queue-toggle,
 .journal-shell:has(.plan-atlas) .journal-nav { border: 0; background: transparent; }
 .plan-atlas { position: relative; }
 .journal-shell .plan-atlas .body-canvas {

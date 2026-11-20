@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 export default function AddToPlanButton({
@@ -9,6 +10,7 @@ export default function AddToPlanButton({
   exerciseId: string;
   variant?: 'icon' | 'full' | 'mini';
 }) {
+  const router = useRouter();
   const [state, setState] = useState<'idle' | 'busy' | 'done' | 'err'>('idle');
 
   async function add(e: React.MouseEvent) {
@@ -24,6 +26,7 @@ export default function AddToPlanButton({
       });
       if (!res.ok) throw new Error('failed');
       setState('done');
+      router.refresh();
       setTimeout(() => setState('idle'), 1600);
     } catch {
       setState('err');

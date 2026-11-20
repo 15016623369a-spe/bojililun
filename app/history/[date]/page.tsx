@@ -6,9 +6,9 @@ import JournalShell from '@/components/JournalShell';
 import JournalTimeline from '@/components/JournalTimeline';
 import { DEFAULT_TZ, humanDate, MEAL_LABEL } from '@/lib/date';
 import { validDate } from '@/lib/period';
-import { journalForDate, mealLogPayload } from '@/lib/core/journal';
+import { mealLogPayload, recordedJournalForDate } from '@/lib/core/journal';
 import { hasRecordedData, type QuickPayload } from '@/lib/journal';
-import { daySessions, getPlan, sessionTotals } from '@/lib/core/workout';
+import { daySessions, sessionTotals } from '@/lib/core/workout';
 import { mealsOn } from '@/lib/core/meals';
 
 export const runtime = 'nodejs';
@@ -33,10 +33,10 @@ export default async function DayPage({ params, searchParams }: {
     ? { href: `/history/calendar?date=${date}&period=${calendarPeriod}`, label: '月历' }
     : { href: `/history?period=day&date=${date}`, label: '回顾' };
 
-  const sessions = daySessions(date);
+  // 组被全部删掉的历史训练不再作为一条空记录展示
+  const sessions = daySessions(date).filter(({ sets }) => sets.length > 0);
   const meals = mealsOn(date);
-  const plan = getPlan(date);
-  const quick = journalForDate(date).filter((entry) => entry.quickId !== undefined);
+  const quick = recordedJournalForDate(date).filter((entry) => entry.quickId !== undefined);
   const quickWorkouts = quick.filter((entry) => entry.kind === 'training');
   // 有详细训练时，纯名称提及（无组数/次数/重量/用时）不作为记录卡片列出；仅语音的日子保留标准化摘要
   const listedQuickWorkouts = sessions.length > 0
@@ -114,16 +114,6 @@ export default async function DayPage({ params, searchParams }: {
           <span>{quickSleep.length} 条</span>
         </h2>
         <JournalTimeline entries={quickSleep} compact />
-      </section>}
-
-      {plan.length > 0 && <section className="day-panel">
-        <h2 className="day-heading">当日计划 <span>{plan.length} 个动作</span></h2>
-        <ul className="day-plan">
-          {plan.map((item) => <li key={item.id}>
-            <span>{item.done ? '✓ ' : ''}{item.name}</span>
-            <small>{item.sets} 组 × {item.reps} 次 · {item.weight > 0 ? `${item.weight} kg` : '自重'}</small>
-          </li>)}
-        </ul>
       </section>}
     </JournalShell>
   );

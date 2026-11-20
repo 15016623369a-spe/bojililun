@@ -126,7 +126,16 @@ export interface PlanItem {
   rest_sec: number;
   position: number;
   done: number;
+  supplemental?: number;
   created_at: string;
+}
+
+export interface SupplementalExercise {
+  exerciseId: string;
+  sets: number;
+  reps: number;
+  weight: number;
+  restSec: number;
 }
 
 export interface SessionRow {

@@ -148,7 +148,8 @@ function trainingEntry(d: SessionDetail): TimelineEntry {
 /** 某一天的全部记录（饮食 + 训练），按时间升序 */
 export function dayTimeline(date: string): TimelineEntry[] {
   const meals = mealsOn(date).map(mealEntry);
-  const trainings = daySessions(date).map(trainingEntry);
+  // 组被全部删掉的历史训练不再作为一条空记录展示
+  const trainings = daySessions(date).filter((d) => d.sets.length > 0).map(trainingEntry);
   return [...meals, ...trainings].sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0));
 }
 

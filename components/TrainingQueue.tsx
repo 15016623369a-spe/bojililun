@@ -5,11 +5,16 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import type { PlanItem } from '@/lib/types';
 import JournalIcon from './JournalIcon';
+import SupplementalMark from './SupplementalMark';
 
-export default function TrainingQueue({ items, activeId }: { items: PlanItem[]; activeId: number | null }) {
+export default function TrainingQueue({ items, activeId }: {
+  items: PlanItem[];
+  activeId: number | null;
+}) {
   const router = useRouter();
   const dialog = useRef<HTMLDialogElement>(null);
   const [open, setOpen] = useState(false);
+  const [confirmExtra, setConfirmExtra] = useState(false);
   const [selected, setSelected] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -21,14 +26,18 @@ export default function TrainingQueue({ items, activeId }: { items: PlanItem[]; 
   }, [open]);
 
   async function start() {
-    if (busy || activeId || !firstItem) return;
+    if (busy || activeId || items.length === 0) return;
+    if (!firstItem) {
+      setConfirmExtra(true);
+      return;
+    }
     setBusy(true);
     setError('');
     try {
       const response = await fetch('/api/session', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ firstPlanItemId: firstItem.id }),
+        body: JSON.stringify({ firstPlanItemId: firstItem.id, usePlanProgress: true }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || '开始训练失败');
@@ -43,26 +52,34 @@ export default function TrainingQueue({ items, activeId }: { items: PlanItem[]; 
 
   return (
     <>
-      <button className="journal-icon-button queue-toggle" aria-label="今日训练清单" title="今日训练清单" onClick={() => {
+      <button type="button" className="journal-icon-button queue-toggle" aria-label="打开今日训练计划" aria-haspopup="dialog" onClick={() => {
         setSelected(null);
         setError('');
+        setConfirmExtra(false);
         setOpen(true);
         router.refresh();
-      }}><JournalIcon name="queue" />{pending.length > 0 && <span>{pending.length}</span>}</button>
+      }}><JournalIcon name="play" /></button>
       {open && <dialog className="journal-dialog" ref={dialog} aria-labelledby="queue-title" onClose={() => setOpen(false)}>
-        <div className="dialog-head"><h2 id="queue-title">今日训练</h2><button aria-label="关闭清单" className="journal-icon-button" onClick={() => dialog.current?.close()}>×</button></div>
+        {confirmExtra ? <>
+          <div className="dialog-head"><h2 id="queue-title">今日计划已完成，是否需要继续加练？</h2></div>
+          <div className="queue-confirm-actions">
+            <button type="button" className="journal-quiet" autoFocus onClick={() => setConfirmExtra(false)}>取消</button>
+            <Link className="journal-primary" href="/train/extra" onClick={() => setOpen(false)}>确定</Link>
+          </div>
+        </> : <>
+        <div className="dialog-head"><h2 id="queue-title">今日训练计划</h2><button type="button" aria-label="关闭清单" className="journal-icon-button" onClick={() => dialog.current?.close()}>×</button></div>
         {items.length > 0 ? (
           <div className="queue-list">
-            {items.map((item) => <button key={item.id} type="button" className="queue-item" aria-pressed={!activeId && firstItem?.id === item.id} disabled={Boolean(item.done || activeId)} onClick={() => setSelected(item.id)}>
-              <strong>{!activeId && firstItem?.id === item.id && <span aria-hidden="true">✓ </span>}{item.name}</strong>
-              <span>{item.sets} 组 × {item.reps} 次 · {item.rest_sec} 秒休息{item.done ? ' · 已完成' : ''}</span>
+            {items.map((item) => <button key={item.id} type="button" className="queue-item" aria-pressed={!activeId && firstItem?.id === item.id} disabled={Boolean(busy || activeId || item.done)} onClick={() => setSelected(item.id)}>
+              <strong>{item.supplemental ? <SupplementalMark /> : null}{item.name}</strong>
+              <span>{item.sets} 组 × {item.reps} 次 · {item.weight > 0 ? `${item.weight} kg` : '自重'} · 休息 {item.rest_sec} 秒{item.done ? ' · 已完成' : ''}</span>
             </button>)}
           </div>
         ) : <p className="journal-muted">在计划里点选肌肉，加入今天想练的动作。</p>}
         {activeId ? <Link className="journal-primary" href={`/train/${activeId}`} onClick={() => setOpen(false)}>继续训练</Link>
-          : pending.length > 0 ? <button className="journal-primary" disabled={busy} onClick={() => void start()}>{busy ? '开始中…' : '开始训练'}</button>
-          : <Link className="journal-primary" href="/body" onClick={() => setOpen(false)}>去计划</Link>}
+          : <button type="button" className="journal-primary" disabled={busy || items.length === 0} onClick={() => void start()}>{busy ? '开始中…' : '开始训练'}</button>}
         {error && <p className="journal-error" role="alert">{error}</p>}
+        </>}
       </dialog>}
     </>
   );

@@ -4,12 +4,11 @@ import { useState } from 'react';
 import { humanDate } from '@/lib/date';
 import { consolidateMealEntries, consolidateTrainingEntries, type JournalEntry } from '@/lib/journal';
 import { MUSCLES, type MuscleId } from '@/lib/muscles';
-import { canonicalMuscle, recordedInGroup, sculptureGroup } from '@/lib/sculpture-groups';
+import { canonicalMuscle, recordedInGroup, sculptureGroup, type SculptureVariant } from '@/lib/sculpture-groups';
 import ReviewBody from './ReviewBody';
-import type { SculptureVariant } from '@/lib/sculpture-groups';
 import JournalTimeline from './JournalTimeline';
 
-const periodCaption = { day: '当天记录部位', week: '本周记录部位', month: '本月记录部位' };
+const periodCaption = { day: '当天实练部位', week: '本周实练部位', month: '本月实练部位' };
 const ENTRY_GROUPS: Array<{ kind: JournalEntry['kind']; label: string }> = [
   { kind: 'training', label: '训练' },
   { kind: 'meal', label: '饮食' },
@@ -17,31 +16,39 @@ const ENTRY_GROUPS: Array<{ kind: JournalEntry['kind']; label: string }> = [
   { kind: 'note', label: '其他记录' },
 ];
 
+function trainedMuscles(entry: JournalEntry): MuscleId[] {
+  return entry.kind === 'training' ? entry.muscles ?? [] : [];
+}
+
 export default function ReviewJournal({ days, period = 'week', variant = 'male' }: {
   days: { date: string; entries: JournalEntry[] }[];
   period?: keyof typeof periodCaption;
   variant?: SculptureVariant;
 }) {
-  const [selected, setSelected] = useState<MuscleId | null>(null);
-  const available = new Set(days.flatMap(({ entries }) => entries.flatMap((entry) => entry.muscles ?? [])));
+  const [filter, setFilter] = useState<MuscleId | null>(null);
+  const available = new Set(days.flatMap(({ entries }) => entries.flatMap(trainedMuscles)));
   const recorded = MUSCLES.filter((muscle) => available.has(muscle.id)).map((muscle) => muscle.id);
+  const selected = filter && recordedInGroup(recorded, filter) ? filter : null;
   const muscles = [...new Set(recorded.map((id) => canonicalMuscle(id) ?? id))].map((id) =>
     sculptureGroup(id) ?? MUSCLES.find((muscle) => muscle.id === id)!);
   // 记录主要在哪一面，3D 就先转哪一面过来；转过之后随便转。
   const front = muscles.filter((muscle) => muscle.side === 'front').length;
   const back = muscles.filter((muscle) => muscle.side === 'back').length;
   const initialSide = front > back ? 'front' : 'back';
-  const filtered = days
-    .map(({ date, entries }) => ({ date, entries: selected ? entries.filter((entry) => recordedInGroup(entry.muscles ?? [], selected)) : entries }))
-    .filter(({ entries }) => entries.length > 0);
+  const filtered = selected ? days
+    .map(({ date, entries }) => ({
+      date,
+      entries: entries.filter((entry) => recordedInGroup(trainedMuscles(entry), selected)),
+    }))
+    .filter(({ entries }) => entries.length > 0) : days;
 
   function inspect(muscle: MuscleId | null) {
     if (muscle === null) {
-      setSelected(null);
+      setFilter(null);
       return;
     }
     if (!recordedInGroup(recorded, muscle)) return;
-    setSelected((current) => current === muscle ? null : muscle);
+    setFilter(selected === muscle ? null : muscle);
   }
 
   return <>

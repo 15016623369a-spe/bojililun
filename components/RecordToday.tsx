@@ -89,16 +89,17 @@ export default function RecordToday({ date, entries, workoutSaved }: { date: str
       }
       if (!response.ok) throw new Error(result.error || '记录失败，请重试');
       const entry: JournalEntry = result.entry;
+      const plannedTraining = entry.kind === 'training' && entry.payload?.planned;
       const replacedName = conflict?.options?.find((option) => option.id === replacementExerciseId)?.zh_name
         || conflict?.results.find((option) => option.id === replacementExerciseId)?.zh_name;
       setConflict(undefined);
-      setStatus(id ? '记录已更新'
+      setStatus(plannedTraining ? '已识别为训练安排' : id ? '记录已更新'
         : resolution === 'actual' && conflict?.mode === 'exercise' ? `已替换为「${replacedName ?? '所选动作'}」，原有语音记录已清理，训练表格已更新`
           : resolution === 'actual' ? `已确认实际练${conflict?.actual.join('、') ?? ''}，不相符记录与原有语音记录已清理`
-            : entry.kind === 'training' ? '已记录为训练，并同步到计划与训练统计'
+            : entry.kind === 'training' ? '已记录训练'
               : entry.kind === 'meal' ? '已记录为饮食' : entry.kind === 'sleep' ? '已记录为睡眠' : '已记录');
       setFreshId(entry.id);
-      setPastEntry(entry.date !== date ? entry : undefined);
+      setPastEntry(!plannedTraining && entry.date !== date ? entry : undefined);
       setText('');
       setEditing(false);
       setEditingId(undefined);
