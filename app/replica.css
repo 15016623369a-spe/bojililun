@@ -1708,6 +1708,27 @@ h3.fc-dict-name {
   color: var(--green-ink);
 }
 
+.fc-ask-mask.docked-ask {
+  position: static; display: block; margin: 0 0 8px; background: none;
+  animation: docked-ask-in .2s ease-out;
+}
+.docked-ask .fc-ask {
+  max-width: none; max-height: min(44dvh, 320px); padding: 10px 14px 13px; color: var(--ink);
+  background: #fff; border: 1px solid #eae6df; border-radius: 15px;
+  box-shadow: 0 6px 22px #152b1512;
+}
+.docked-ask .fc-ask-q {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 6px;
+  color: var(--forest); margin: 0 0 4px; font-size: 13px; font-weight: 650; overflow-wrap: anywhere;
+}
+.docked-ask .fc-ask-text { font-size: 14px; line-height: 1.6; min-height: 0; }
+.docked-ask .fc-ask-actions { margin-top: 11px; gap: 7px; }
+.docked-ask .fc-ask-cap { padding: 7px 11px; border: 1px solid #d8e4d9; border-radius: 999px; color: var(--forest); background: var(--sage); font-size: 12px; font-weight: 650; }
+.docked-ask .ask-follow-up { background: #fff; }
+.docked-ask .fc-ask-cap:disabled { opacity: .55; }
+@keyframes docked-ask-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .fc-ask-mask.docked-ask { animation: none; } }
+
 /* ------------------------------ 身体页（全屏解剖图） ------------------------------ */
 
 .fc-shell.atlas {

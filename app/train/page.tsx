@@ -16,7 +16,9 @@ export default function TrainPage() {
   const plan = getPlan(today);
   const snap = todaySnapshot();
   const details = daySessions(today);
-  const quickWorkouts = journalForDate(today).filter((entry) => entry.quickId !== undefined && entry.kind === 'training');
+  const quickEntries = journalForDate(today).filter((entry) => entry.quickId !== undefined);
+  const quickWorkouts = quickEntries.filter((entry) => entry.kind === 'training');
+  const quickMeals = quickEntries.filter((entry) => entry.kind === 'meal' && !entry.payload?.planned);
   // 有详细训练时，纯名称提及不列入「今天已练」；仅语音的日子保留记录入口
   const listedQuickWorkouts = details.length > 0
     ? quickWorkouts.filter((entry) => (entry.payload?.exercises ?? []).some(hasRecordedData))
@@ -109,7 +111,7 @@ export default function TrainPage() {
           </section>
         )}
 
-        {snap.meals.length > 0 && (
+        {(snap.meals.length > 0 || quickMeals.length > 0) && (
           <section className="block">
             <h2 className="block-title">今天吃了</h2>
             <div className="meal-list">
@@ -122,6 +124,15 @@ export default function TrainPage() {
                     <p>{m.items.map((i) => `${i.name} ${i.grams}g`).join('、')}</p>
                   </div>
                 </div>
+              ))}
+              {quickMeals.map((entry) => (
+                <Link key={entry.id} href={`/history/${today}`} className="meal-row">
+                  <div>
+                    <b>{entry.title} · {(entry.payload?.items ?? []).map((item) => item.name).join('、')}</b>
+                    {entry.meta && <p>{entry.meta}</p>}
+                  </div>
+                  <span className="arrow">›</span>
+                </Link>
               ))}
             </div>
           </section>

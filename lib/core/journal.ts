@@ -2,14 +2,16 @@ import { getDb } from '../db';
 import { DEFAULT_TZ, MEAL_LABEL } from '../date';
 import { getExercise } from '../exercise';
 import { canonicalExercise, coreOf, prefixOf, rootOf, spokenExercisePhrase } from '../exercise-words';
-import { mentionedMuscles, negatedMuscles, type JournalEntry, type QuickPayload } from '../journal';
+import { JOURNAL_MEAL_LABELS, mealNutritionLabel, mentionedMuscles, negatedMuscles, type JournalEntry, type QuickPayload } from '../journal';
 import { MUSCLES, muscleMatchesExercise, type MuscleId, type Region } from '../muscles';
+import { macrosFor } from '../nutrition';
 import { addDays } from '../period';
-import { parseQuickPayload } from '../quick-parse';
+import { estimateQuickMealItem, looksLikeMeal, numOf, parseQuickPayload, readQuickPayload } from '../quick-parse';
 import { fixSpeechText } from '../speech-fix';
 import type { MealRecord, PlanItem, SessionRow } from '../types';
+import { savePhoto } from './chat';
 import { mealsOn } from './meals';
-import { daySessions, getPlan, nowIso, todayStr, type SessionDetail } from './workout';
+import { addSet, appendSessionSet, daySessions, getPlan, getPlanProgress, getSession, markPlanDone, nowIso, todayStr, type SessionDetail } from './workout';
 
 const timeFormatter = new Intl.DateTimeFormat('zh-CN', {
   timeZone: process.env.APP_TZ || DEFAULT_TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
@@ -279,8 +281,8 @@ function inferQuickEntry(source: string, date: string) {
   const dateOffset = /前天/.test(source) ? -2 : /昨天|昨晚/.test(source) ? -1 : 0;
   const entryDate = addDays(date, dateOffset);
   const detail = source.replace(/^(?:帮我)?(?:记录一下|记一下|记录|记一笔)[：:，,\s]*/, '')
-    .replace(/^(?:前天|昨天|今天)(?=\S)/, '').replace(/^[\s，,：:]+|[。！!]+$/g, '');
-  if (ate) {
+    .replace(/^(?:前天|昨天|今天)\s*/, '').replace(/^[\s，,：:]+|[。！!]+$/g, '');
+  if (ate || (!training && !sleep && looksLikeMeal(detail))) {
     const title = /早/.test(meal?.[0] ?? '') ? '早餐'
       : /午/.test(meal?.[0] ?? '') ? '午餐'
         : /晚/.test(meal?.[0] ?? '') || /昨晚/.test(source) ? '晚餐'
@@ -293,22 +295,20 @@ function inferQuickEntry(source: string, date: string) {
   return { date: entryDate, kind: 'note' as const, title: '记录', detail };
 }
 
-function payloadOf(row: QuickRow): QuickPayload {
-  if (row.payload_json) {
-    try { return JSON.parse(row.payload_json) as QuickPayload; } catch { /* 损坏时重新解析 */ }
-  }
-  return parseQuickPayload(row.source_text, row.kind, row.detail, row.title);
-}
-
 function serializeQuick(row: QuickRow): JournalEntry {
-  const payload = payloadOf(row);
+  const payload = readQuickPayload(row);
+  let title = row.title;
   // 饮食分量可编辑：为每行食物带上回写来源（语音记录 id + 行号）
   if (payload.kind === 'meal' && payload.items?.length) {
     payload.items = payload.items.map((item, index) => ({ ...item, src: { kind: 'quick', quickId: row.id, index } }));
+    const labels = new Set(payload.items.map((item) => item.meal ?? payload.mealType ?? row.title));
+    if (labels.size === 1) title = [...labels][0];
   }
   return {
-    id: `quick-${row.id}`, quickId: row.id, date: row.date, kind: row.kind, title: row.title,
+    id: `quick-${row.id}`, quickId: row.id, date: row.date, kind: row.kind, title,
     detail: row.detail, source: row.source_text,
+    time: timeFormatter.format(new Date(row.created_at)),
+    meta: payload.kind === 'meal' ? mealNutritionLabel([payload]) : undefined,
     muscles: row.kind === 'training' ? mentionedMuscles(row.detail) : [],
     payload,
   };
@@ -323,24 +323,144 @@ export function mealLogPayload(meal: MealRecord): QuickPayload {
       name: item.name,
       amount: `${item.grams} g`,
       grams: item.grams,
+      nutrition: item.matched || item.kcal_100g || item.protein_100g || item.carb_100g || item.fat_100g
+        ? macrosFor(item.grams, {
+          kcal: item.kcal_100g, protein: item.protein_100g, carb: item.carb_100g, fat: item.fat_100g,
+        }) : undefined,
       src: { kind: 'meal', mealId: meal.id, index },
     })),
   };
 }
 
-/** 修改语音饮食记录某一行食物的分量（标准化 payload，不改原话） */
-export function updateQuickMealAmount(quickId: number, index: number, amount: string): string {
+/** 修改语音饮食记录中的单行食物并重算营养 */
+export function updateQuickMealItem(quickId: number, index: number, changes: {
+  amount: string;
+  name?: string;
+  meal?: string;
+  preparation?: string;
+  manualKcal?: number | null;
+  photoData?: string;
+  removePhoto?: boolean;
+}): JournalEntry {
   const db = getDb();
   const row = db.prepare('SELECT * FROM journal_entry WHERE id = ?').get(quickId) as QuickRow | undefined;
   if (!row || row.kind !== 'meal') throw new Error('记录不存在');
-  const value = amount.trim();
+  const value = changes.amount.trim();
   if (!value || value.length > 30) throw new Error('分量不能为空，且不超过 30 个字');
-  const payload = payloadOf(row);
-  const item = payload.items?.[index];
-  if (!item) throw new Error('记录不存在');
-  item.amount = value;
-  db.prepare('UPDATE journal_entry SET payload_json = ? WHERE id = ?').run(JSON.stringify(payload), quickId);
-  return value;
+  const foodName = changes.name?.trim();
+  if (foodName !== undefined && (!foodName || foodName.length > 100)) throw new Error('食物名称需要 1 至 100 个字');
+  const payload = readQuickPayload(row);
+  if (!payload.items?.[index]) throw new Error('记录不存在');
+  const item = payload.items[index];
+  const { meal, manualKcal } = changes;
+  if (meal !== undefined && !JOURNAL_MEAL_LABELS.some((label) => label === meal)) throw new Error('请选择餐次');
+  const preparation = changes.preparation?.trim();
+  if (preparation && preparation.length > 120) throw new Error('做法或备注请控制在 120 个字以内');
+  if (manualKcal != null && (!Number.isSafeInteger(manualKcal) || manualKcal < 0)) {
+    throw new Error('热量需要填写非负整数');
+  }
+  const updated = estimateQuickMealItem({ ...item, name: foodName ?? item.name, amount: value });
+  if (meal !== undefined) updated.meal = meal;
+  if (preparation !== undefined) updated.preparation = preparation || undefined;
+  if (manualKcal !== undefined) updated.manualKcal = manualKcal ?? undefined;
+  if (changes.removePhoto) updated.photoUrl = undefined;
+  if (changes.photoData) updated.photoUrl = savePhoto(changes.photoData);
+  payload.items[index] = updated;
+  const payloadJson = JSON.stringify(payload);
+  db.prepare('UPDATE journal_entry SET payload_json = ? WHERE id = ?').run(payloadJson, quickId);
+  return serializeQuick({ ...row, payload_json: payloadJson });
+}
+
+export interface TrainingMutationPreview {
+  intent: 'correction' | 'completion';
+  date: string;
+  sessionId: number | null;
+  planItemId: number | null;
+  exerciseId: string;
+  exerciseName: string;
+  beforeSets: number;
+  afterSets: number;
+}
+
+/** Read the current DB state and prepare a preview; this never mutates journal/workout rows. */
+export function prepareTrainingMutation(raw: string, intent: 'correction' | 'completion', targetCardId?: string): TrainingMutationPreview {
+  const source = fixSpeechText(raw.trim());
+  const parsed = inferQuickEntry(source, todayStr());
+  let date = parsed.date;
+  const explicit = source.match(/(\d+|[一二两三四五六七八九十]+)\s*组/);
+  const requested = explicit ? numOf(explicit[1]) : undefined;
+  if (intent === 'correction' && requested === undefined) throw new Error('请说清要改成几组，例如「杠铃站姿转体应该是三组」');
+  if (requested !== undefined && (requested < 1 || requested > 20)) throw new Error('组数需要在 1 至 20 之间');
+
+  let target: TrainingConflictTarget | undefined;
+  if (targetCardId?.startsWith('session-')) {
+    const sessionId = Number(targetCardId.slice(8));
+    const targetedSession = getSession(sessionId);
+    if (!targetedSession) throw new Error('这条训练卡片已不存在');
+    date = targetedSession.date;
+    const card = daySessions(date).find(({ session }) => session.id === sessionId);
+    if (!card) throw new Error('这条训练卡片已不存在或日期不匹配');
+    const phrase = spokenExercisePhrase(source);
+    const candidates = phrase ? card.groups.filter((group) => sameExercise(group.exercise_name, canonicalExercise(phrase))) : card.groups;
+    const group = candidates.length === 1 ? candidates[0] : card.groups.length === 1 ? card.groups[0] : undefined;
+    if (!group) throw new Error('这张卡片里有多个动作，请从动作明细中直接修改目标动作');
+    target = { ordinal: 1, planItemId: group.sets[0]?.plan_item_id ?? null, sessionId, exerciseId: group.exercise_id, exerciseName: group.exercise_name };
+  } else {
+    target = exerciseTarget(source, date);
+  }
+  if (!target) throw new Error('没有找到可修改的今日训练动作');
+  const details = daySessions(date);
+  const group = details.find(({ session }) => session.id === target!.sessionId)?.groups.find(({ exercise_id }) => exercise_id === target!.exerciseId);
+  const planItem = getPlan(date).find(({ id }) => id === target!.planItemId)
+    ?? getPlan(date).find(({ exercise_id }) => exercise_id === target!.exerciseId);
+  const beforeSets = group?.sets.length ?? 0;
+  const afterSets = requested ?? Math.max(beforeSets, planItem?.sets ?? 0);
+  if (afterSets < 1) throw new Error('还没有找到已完成组数；请在卡片编辑里明确修改，或说出完成的组数');
+  return { intent, date, sessionId: target.sessionId, planItemId: planItem?.id ?? target.planItemId,
+    exerciseId: target.exerciseId, exerciseName: target.exerciseName, beforeSets, afterSets };
+}
+
+/** Apply only after explicit user confirmation, and reject previews if DB state changed. */
+export function applyTrainingMutation(preview: TrainingMutationPreview): JournalEntry {
+  const db = getDb();
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const details = daySessions(preview.date);
+    let session = preview.sessionId ? details.find(({ session: row }) => row.id === preview.sessionId) : undefined;
+    let group = session?.groups.find(({ exercise_id }) => exercise_id === preview.exerciseId);
+    const current = group?.sets.length ?? 0;
+    if (current !== preview.beforeSets) throw new Error('训练记录刚刚发生变化，请重新识别并确认');
+    let sessionId = session?.session.id;
+    if (!sessionId && preview.afterSets > 0) {
+      const now = nowIso();
+      const result = db.prepare('INSERT INTO session (date, started_at, ended_at) VALUES (?, ?, ?)').run(preview.date, now, now);
+      sessionId = Number(result.lastInsertRowid);
+      session = undefined;
+    }
+    if (sessionId && group) {
+      const ordered = [...group.sets].sort((a, b) => a.set_index - b.set_index || a.id - b.id);
+      for (const set of ordered.slice(preview.afterSets)) db.prepare('DELETE FROM session_set WHERE id = ?').run(set.id);
+      if (preview.afterSets < ordered.length) {
+        const remaining = ordered.slice(0, preview.afterSets);
+        remaining.forEach((set, index) => db.prepare('UPDATE session_set SET set_index = ? WHERE id = ?').run(index + 1, set.id));
+      }
+      for (let i = ordered.length; i < preview.afterSets; i++) appendSessionSet(sessionId, preview.exerciseId, {});
+    } else if (sessionId && preview.planItemId) {
+      const plan = getPlan(preview.date).find(({ id }) => id === preview.planItemId);
+      if (!plan) throw new Error('对应计划已不存在，请重新确认');
+      for (let i = 0; i < preview.afterSets; i++) addSet(sessionId, { planItemId: plan.id, exerciseId: plan.exercise_id,
+        exerciseName: plan.name, bodyPart: plan.body_part, target: plan.target, setIndex: i + 1,
+        weight: plan.weight, reps: plan.reps, durationSec: 0, restSec: plan.rest_sec });
+    }
+    if (preview.intent === 'completion' && preview.planItemId) markPlanDone(preview.planItemId);
+    const entry = recordedJournalForDate(preview.date).find((item) => item.id === `session-${sessionId}`);
+    if (!entry) throw new Error('训练变更已处理，但记录卡暂时无法读取');
+    db.exec('COMMIT');
+    return entry;
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
 }
 
 export function writeQuickEntry(raw: string, requestId: string, id?: number, resolution?: 'actual', replacementExerciseId?: string) {
@@ -353,9 +473,28 @@ export function writeQuickEntry(raw: string, requestId: string, id?: number, res
     if (!row) throw new Error('这条记录已不存在');
     const changedDate = /前天|昨天|今天|昨晚/.test(source);
     const parsed = inferQuickEntry(source, todayStr());
+    const payload = parseQuickPayload(source, parsed.kind, parsed.detail, parsed.title);
+    if (payload.items && row.kind === 'meal') {
+      const previous = readQuickPayload(row).items ?? [];
+      if (source === row.source_text) {
+        payload.items = previous;
+      } else {
+        // 原话编辑可能改变顺序。只在能对上菜名时保留照片和备注。
+        const unused = [...previous];
+        payload.items = payload.items.map((item) => {
+          const matches = unused.filter((old) => old.name === item.name);
+          const old = matches.find((candidate) => candidate.amount === item.amount)
+            ?? (matches.length === 1 ? matches[0] : undefined);
+          if (!old) return item;
+          unused.splice(unused.indexOf(old), 1);
+          return { ...item, preparation: old.preparation, photoUrl: old.photoUrl,
+            manualKcal: old.amount === item.amount ? old.manualKcal : undefined };
+        });
+      }
+    }
     db.prepare('UPDATE journal_entry SET date = ?, kind = ?, title = ?, detail = ?, source_text = ?, payload_json = ? WHERE id = ?')
       .run(changedDate ? parsed.date : row.date, parsed.kind, parsed.title, parsed.detail, source,
-        JSON.stringify(parseQuickPayload(source, parsed.kind, parsed.detail, parsed.title)), id);
+        JSON.stringify(payload), id);
     return serializeQuick(db.prepare('SELECT * FROM journal_entry WHERE id = ?').get(id) as unknown as QuickRow);
   }
 
@@ -433,7 +572,7 @@ export function journalMarkers(start: string, end: string) {
     byDate.set(date, markers);
   }
   for (const row of quickTraining) {
-    if (payloadOf(row).planned) continue;
+    if (readQuickPayload(row).planned) continue;
     const markers = byDate.get(row.date) ?? { training: 0, meal: 0 };
     markers.training += 1;
     byDate.set(row.date, markers);
@@ -450,11 +589,12 @@ export function journalForDate(date: string): JournalEntry[] {
     .filter((row) => row.merged_session_id === null);
   const entries = quick.map((row) => ({ at: row.created_at, entry: serializeQuick(row) }));
   for (const meal of mealsOn(date)) {
+    const payload = mealLogPayload(meal);
     entries.push({ at: meal.created_at, entry: {
       id: `meal-${meal.id}`, date, kind: 'meal', title: MEAL_LABEL[meal.meal_type],
       detail: meal.items.map((item) => `${item.name} ${item.grams} g`).join('、'),
-      meta: meal.kcal > 0 ? `约 ${meal.kcal} kcal` : undefined,
-      payload: mealLogPayload(meal),
+      meta: mealNutritionLabel([payload]), time: timeFormatter.format(new Date(meal.created_at)),
+      payload,
     } });
   }
   for (const { session, sets, groups } of daySessions(date)) {
@@ -485,6 +625,7 @@ export function journalForDate(date: string): JournalEntry[] {
       title,
       detail: groups.map((group) => group.exercise_name).join('、'),
       meta: `共 ${sets.length} 组 · ${duration < 60 ? duration + ' 秒' : Math.round(duration / 60) + ' 分钟'}`,
+      note: session.note ?? undefined,
       time: timeFormatter.format(new Date(session.ended_at)),
       muscles: [...muscles], href: `/history/${date}#session-${session.id}`,
       payload: { kind: 'training', exercises, regions },

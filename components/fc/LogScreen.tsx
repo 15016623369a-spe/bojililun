@@ -155,7 +155,7 @@ export default function LogScreen({ entries }: { entries: TimelineEntry[] }) {
     (value: string) => {
       const text = value.trim();
       if (!text) return;
-      if (detectIntent(text).kind === 'question') {
+      if (detectIntent(text).intent === 'question') {
         setAsk(text);
         setPhase('idle');
         setHeard('');

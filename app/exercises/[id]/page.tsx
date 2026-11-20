@@ -11,12 +11,19 @@ import {
   zhAlias,
 } from '@/lib/exercise-label';
 import { getExercise, relatedExercises } from '@/lib/exercise';
+import { getPlan } from '@/lib/core/workout';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export default async function ExerciseDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ExerciseDetailPage({ params, searchParams }: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string; item?: string }>;
+}) {
   const { id } = await params;
+  const query = await searchParams;
+  const fromToday = query.from === 'today';
+  const planned = fromToday ? getPlan().find((item) => item.id === Number(query.item) && item.exercise_id === id) : undefined;
   const ex = getExercise(id);
   if (!ex) notFound();
 
@@ -42,9 +49,12 @@ export default async function ExerciseDetailPage({ params }: { params: Promise<{
   })();
 
   return (
-    <JournalShell active="plan" title={displayZh || ex.name} subtitle={displayZh !== ex.name ? ex.name : undefined} back={{ href: '/exercises', label: '动作库' }}>
+    <JournalShell active={fromToday ? 'record' : 'plan'} title={displayZh || ex.name}
+      subtitle={displayZh !== ex.name ? ex.name : undefined}
+      back={fromToday ? { href: '/', label: '今天' } : { href: '/exercises', label: '动作库' }}>
       <div className="detail">
         <ExerciseMedia id={ex.id} image={ex.image ? imageUrl(ex.image) : undefined} name={displayZh || ex.name} hasAnimation={Boolean(ex.gif_url)} />
+        {planned && <p className="hint">今日计划 · {planned.sets} 组 × {planned.reps} 次 · 组间休息 {planned.rest_sec} 秒</p>}
 
         <div className="detail-cta">
           <AddToPlanButton exerciseId={ex.id} variant="full" />

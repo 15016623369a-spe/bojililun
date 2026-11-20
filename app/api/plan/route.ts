@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getExercise } from '@/lib/exercise';
-import { addPlanExercises, addPlanItem, deletePlanItem, getPlan, updatePlanItem } from '@/lib/core/workout';
+import { addPlanExercises, addPlanItem, completePlannedExercise, deletePlanItem, getPlan, updatePlanItem } from '@/lib/core/workout';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -57,8 +57,14 @@ export async function PATCH(req: Request) {
       weight?: number;
       restSec?: number;
       done?: number;
+      complete?: boolean;
     };
     if (!body.id) return NextResponse.json({ error: '缺少 id' }, { status: 400 });
+    if (body.complete === true) {
+      if (!Number.isSafeInteger(body.id) || body.id < 1) throw new Error('计划动作无效');
+      completePlannedExercise(body.id);
+      return NextResponse.json({ ok: true });
+    }
     updatePlanItem(body.id, body);
     return NextResponse.json({ ok: true, items: getPlan() });
   } catch (e) {

@@ -4,11 +4,12 @@
  */
 
 import { getDb } from './db';
-import { dayText, dayTimeline, todayStr } from './log';
+import { dayText, todayStr } from './log';
 import { BODY_LABEL, EQUIPMENT_LABEL, TARGET_LABEL } from './exercise-label';
 import { muscleStats, volumeStats } from './core/workout';
 import { periodRange } from './period';
 import { todaySnapshot } from './core/meals';
+import { FOODS } from './foods';
 
 export interface AskFact {
   label: string;
@@ -40,6 +41,7 @@ export interface AskAnswer {
   facts: AskFact[];
   media?: { id: string; name: string; image: string };
   actions: AskAction[];
+  followUps?: { label: string; question: string }[];
 }
 
 /* ------------------------------ 清洗问句 ------------------------------ */
@@ -126,7 +128,7 @@ function answerFood(q: string, token: string): AskAnswer | null {
     actions: [
       {
         id: 'log',
-        label: '+ 记入今天',
+        label: '+ 记为今日饮食',
         text: `吃了${token}`,
         items: [
           {
@@ -141,6 +143,34 @@ function answerFood(q: string, token: string): AskAnswer | null {
         ],
       },
     ],
+  };
+}
+
+function answerBeefNoodles(question: string): AskAnswer {
+  const noodles = FOODS.find((food) => food.name === '面条')!;
+  const beef = FOODS.find((food) => food.name === '牛肉')!;
+  const egg = FOODS.find((food) => food.name === '鸡蛋')!;
+  const withEgg = /卤蛋|鸡蛋/.test(question);
+  const grams = 240 + 110 + 11;
+  const density = (noodleValue: number, beefValue: number, extra = 0) =>
+    (noodleValue * 240 + beefValue * 110 + extra * 100) / grams;
+  const items = [{
+    name: '牛肉面', grams, matched: false,
+    kcal_100g: density(noodles.kcal_100g, beef.kcal_100g, 11 * 9),
+    protein_100g: density(noodles.protein_100g, beef.protein_100g),
+    carb_100g: density(noodles.carb_100g, beef.carb_100g),
+    fat_100g: density(noodles.fat_100g, beef.fat_100g, 11),
+  }];
+  const eggKcal = Math.round(egg.kcal_100g * egg.default_grams / 100);
+  if (withEgg) items.push({ ...egg, name: '卤蛋', grams: egg.default_grams, matched: false });
+  return {
+    kind: 'food', question,
+    text: withEgg
+      ? `一碗牛肉面加一个卤蛋约 ${600 + eggKcal}–${680 + eggKcal} 千卡。卤蛋按普通鸡蛋估算，约增加 ${eggKcal} 千卡。`
+      : '一碗牛肉面约 600–680 千卡。按约 240 克面条、110 克牛肉和汤底用油估算，面量和油量会影响结果。',
+    facts: [],
+    actions: [{ id: 'log', label: '+ 记为今日饮食', text: '吃了牛肉面', items }],
+    followUps: withEgg ? undefined : [{ label: '加个卤蛋呢？', question: '一碗牛肉面加一个卤蛋大概多少大卡？' }],
   };
 }
 
@@ -270,15 +300,15 @@ function answerToday(q: string): AskAnswer {
   const snap = todaySnapshot();
   const target = snap.profile?.target_kcal ?? 0;
   const protein = Math.round(snap.consumed.protein);
-  const entries = dayTimeline(todayStr());
-  const meals = entries.filter((e) => e.kind === 'meal').length;
+  const meals = snap.meals.length + snap.quickMealCount;
+  const pending = snap.pendingQuickMealItems ? `还有 ${snap.pendingQuickMealItems} 项热量待补。` : '';
 
   return {
     kind: 'today',
     question: q,
-    text: target
+    text: (target
       ? `今天吃了 ${Math.round(snap.consumed.kcal)} kcal（${meals} 条饮食记录），蛋白质 ${protein}g；目标 ${target} kcal，还剩 ${snap.remainingKcal} kcal。`
-      : `今天吃了 ${Math.round(snap.consumed.kcal)} kcal（${meals} 条饮食记录），蛋白质 ${protein}g。还没有填个人资料，所以算不出剩余额度。`,
+      : `今天吃了 ${Math.round(snap.consumed.kcal)} kcal（${meals} 条饮食记录），蛋白质 ${protein}g。还没有填个人资料，所以算不出剩余额度。`) + pending,
     facts: [
       { label: '摄入', value: `${Math.round(snap.consumed.kcal)} kcal` },
       { label: '蛋白质', value: `${protein} g` },
@@ -313,6 +343,7 @@ export function answerQuestion(question: string): AskAnswer {
 
   // 热量 / 营养问题
   if (/(热量|卡|kal|kcal|蛋白|碳水|脂肪|胖|减脂)/i.test(q)) {
+    if (/牛肉面/.test(q) && /热量|大卡|千卡|kcal|卡路里/i.test(q)) return answerBeefNoodles(q);
     const food = answerFood(q, token);
     if (food) return food;
   }
