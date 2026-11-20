@@ -23,15 +23,16 @@ const clock = new Intl.DateTimeFormat('zh-CN', {
 
 export default async function DayPage({ params, searchParams }: {
   params: Promise<{ date: string }>;
-  searchParams: Promise<{ from?: string; period?: string }>;
+  searchParams: Promise<{ from?: string; period?: string; anchor?: string }>;
 }) {
   const { date } = await params;
   if (!validDate(date)) notFound();
-  const { from, period } = await searchParams;
+  const { from, period, anchor } = await searchParams;
   const calendarPeriod = period === 'day' || period === 'week' ? period : 'month';
   const back = from === 'calendar'
     ? { href: `/history/calendar?date=${date}&period=${calendarPeriod}`, label: '月历' }
-    : { href: `/history?period=day&date=${date}`, label: '回顾' };
+    : { href: from === 'review' && (period === 'week' || period === 'month')
+      ? `/history?period=${period}&date=${validDate(anchor) ? anchor : date}` : `/history?period=day&date=${date}`, label: '回顾' };
 
   // 组被全部删掉的历史训练不再作为一条空记录展示
   const sessions = daySessions(date).filter(({ sets }) => sets.length > 0);

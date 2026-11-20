@@ -34,21 +34,22 @@ async function verifyHash(bytes: ArrayBuffer, expected: string) {
   if (actual !== expected) throw new Error('人体资源版本不匹配');
 }
 
-export default function SculptureBody({ recorded = [], selected = null, side = 'front', onPick, spin = false, variant = 'male' }: {
+export default function SculptureBody({ recorded = [], selected = null, side = 'front', onPick, spin = false, variant = 'male', heatLevels }: {
   recorded?: MuscleId[];
   selected?: MuscleId | null;
   side?: 'front' | 'back';
   onPick?: (id: MuscleId) => void;
   spin?: boolean;
   variant?: SculptureVariant;
+  heatLevels?: ReadonlyMap<MuscleId, number>;
 }) {
   const mount = useRef<HTMLDivElement>(null);
-  const latest = useRef({ recorded, selected, side, onPick, spin });
-  latest.current = { recorded, selected, side, onPick, spin };
+  const latest = useRef({ recorded, selected, side, onPick, spin, heatLevels });
+  latest.current = { recorded, selected, side, onPick, spin, heatLevels };
   const api = useRef<{ refresh: () => void; setSide: (side: 'front' | 'back') => void } | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [hovered, setHovered] = useState<MuscleId | null>(null);
-  useEffect(() => { api.current?.refresh(); }, [recorded, selected]);
+  useEffect(() => { api.current?.refresh(); }, [recorded, selected, heatLevels]);
   useEffect(() => { api.current?.setSide(side); }, [side]);
 
   useEffect(() => {
@@ -99,7 +100,9 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
       heatData.fill(0);
       for (const g of SCULPTURE_GROUPS) {
         const i = g.byteValue * 4;
-        heatData[i] = selectedId === g.id || active.has(g.id) ? 255 : 0;
+        const levels = latest.current.heatLevels;
+        heatData[i] = levels ? Math.round((levels.get(g.id) ?? 0) * 255)
+          : selectedId === g.id || active.has(g.id) ? 255 : 0;
         heatData[i + 1] = hover === g.id ? 255 : 0;
         heatData[i + 3] = 255;
       }
@@ -154,8 +157,9 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
         if (id < 32.0) {
           vec2 state = texture2D(uMuscleHeat, vec2((id+0.5)/32.0, 0.5)).rg;
           float feather = smoothstep(0.0, 1.0, vMuscleEdge);
-          vec3 tint = state.r > 0.5 ? uMuscleGreen : uMuscleHover;
-          diffuseColor.rgb = mix(diffuseColor.rgb, tint, max(state.r, state.g)*feather);
+          vec3 tint = state.r > 0.0 ? uMuscleGreen : uMuscleHover;
+          float intensity = state.r > 0.0 ? state.r : state.g;
+          diffuseColor.rgb = mix(diffuseColor.rgb, tint, intensity * feather);
         }
       `);
     };
