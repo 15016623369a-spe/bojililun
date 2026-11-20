@@ -380,6 +380,7 @@ export interface TrainingMutationPreview {
   exerciseName: string;
   beforeSets: number;
   afterSets: number;
+  clearDayTraining?: boolean;
 }
 
 /** Read the current DB state and prepare a preview; this never mutates journal/workout rows. */
@@ -387,6 +388,12 @@ export function prepareTrainingMutation(raw: string, intent: 'correction' | 'com
   const source = fixSpeechText(raw.trim());
   const parsed = inferQuickEntry(source, todayStr());
   let date = parsed.date;
+  if (!targetCardId && /(实际没练|其实没练|今天没练|今天没有训练|实际没有训练|没进行训练)/.test(source)) {
+    const sessions = daySessions(date).filter(({ sets }) => sets.length > 0);
+    return { intent, date, sessionId: null, planItemId: null, exerciseId: '',
+      exerciseName: '今日全部训练记录', beforeSets: sessions.reduce((sum, row) => sum + row.sets.length, 0),
+      afterSets: 0, clearDayTraining: true };
+  }
   const explicit = source.match(/(\d+|[一二两三四五六七八九十]+)\s*组/);
   const requested = explicit ? numOf(explicit[1]) : undefined;
   if (intent === 'correction' && requested === undefined) throw new Error('请说清要改成几组，例如「杠铃站姿转体应该是三组」');
@@ -425,6 +432,16 @@ export function applyTrainingMutation(preview: TrainingMutationPreview): Journal
   const db = getDb();
   db.exec('BEGIN IMMEDIATE');
   try {
+    if (preview.clearDayTraining) {
+      const currentSets = daySessions(preview.date).reduce((sum, row) => sum + row.sets.length, 0);
+      if (currentSets !== preview.beforeSets) throw new Error('训练记录刚刚发生变化，请重新识别并确认');
+      db.prepare('DELETE FROM session_set WHERE session_id IN (SELECT id FROM session WHERE date = ?)').run(preview.date);
+      db.prepare('DELETE FROM session WHERE date = ?').run(preview.date);
+      db.prepare("DELETE FROM journal_entry WHERE date = ? AND kind = 'training'").run(preview.date);
+      db.exec('COMMIT');
+      return { id: `session-cleared-${preview.date}`, date: preview.date, kind: 'training', title: '训练记录已更正',
+        detail: '已移除今日训练记录', time: '', source: '', quickId: null } as unknown as JournalEntry;
+    }
     const details = daySessions(preview.date);
     let session = preview.sessionId ? details.find(({ session: row }) => row.id === preview.sessionId) : undefined;
     let group = session?.groups.find(({ exercise_id }) => exercise_id === preview.exerciseId);
