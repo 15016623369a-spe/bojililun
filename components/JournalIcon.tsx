@@ -9,6 +9,7 @@ const paths = {
   photo: 'M3 7h4l2-3h6l2 3h4v13H3zM12 10a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z',
   calendar: 'M4 6h16v14H4zM8 3v5m8-5v5M4 10h16m-9 4h2m-2 3h2',
   play: 'M9 5v14l11-7z',
+  book: 'M12 6a8 8 0 0 0-9-2v14a8 8 0 0 1 9 2 8 8 0 0 1 9-2V4a8 8 0 0 0-9 2Zm0 0v14M6 8l3 1m6 0 3-1',
   spark: 'M12 2c0 6 4 10 10 10-6 0-10 4-10 10 0-6-4-10-10-10 6 0 10-4 10-10Z',
   pause: 'M9 5H6v14h3zM18 5h-3v14h3z',
   check: 'm5 12 4 4L19 6',

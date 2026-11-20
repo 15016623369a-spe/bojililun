@@ -93,6 +93,26 @@ function clamp(value: unknown, min: number, max: number, fallback: number): numb
   return Number.isFinite(number) ? Math.min(max, Math.max(min, number)) : fallback;
 }
 
+export function addPlanExercises(date: string, exercises: ExerciseRow[]): PlanItem[] {
+  const db = getDb();
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    if (date !== todayStr()) throw new Error('日期已变化，请刷新今日计划后再选择');
+    const existing = new Set(getPlan(date).map((item) => item.exercise_id));
+    for (const exercise of exercises) {
+      if (existing.has(exercise.id)) continue;
+      addPlanItem(exercise, { date });
+      existing.add(exercise.id);
+    }
+    const items = getPlan(date);
+    db.exec('COMMIT');
+    return items;
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
+}
+
 export function updatePlanItem(
   id: number,
   patch: { sets?: number; reps?: number; weight?: number; restSec?: number; done?: number },
@@ -444,6 +464,31 @@ export function muscleStats(start: string, end: string): MuscleStat[] {
     }
   }
   return [...merged.values()].sort((a, b) => b.volume - a.volume || b.records - a.records);
+}
+
+/** 每个动作的容量只计入一个主要目标肌群。 */
+export function muscleVolumeStats(start: string, end: string) {
+  const rows = getDb().prepare(`
+    SELECT COALESCE(NULLIF(e.name, ''), s.exercise_name) AS name,
+      COALESCE(NULLIF(e.target, ''), s.target) AS target,
+      COALESCE(NULLIF(e.body_part, ''), s.body_part) AS body_part,
+      SUM(s.weight * s.reps) AS volume
+    FROM session_set s JOIN session se ON se.id = s.session_id
+    LEFT JOIN exercise e ON e.id = s.exercise_id
+    WHERE se.date BETWEEN ? AND ?
+    GROUP BY 1, 2, 3
+  `).all(start, end) as { name: string; target: string; body_part: string; volume: number }[];
+  const stats = new Map<MuscleId, number>();
+  for (const row of rows) {
+    const matches = MUSCLES.filter((muscle) => muscleMatchesExercise(muscle, row));
+    const candidates = idsForTarget(row.target);
+    const id = matches.find((muscle) => muscle.include)?.id ?? matches[0]?.id
+      ?? (candidates.includes('delt_side') ? 'delt_side' : candidates[0])
+      ?? mentionedMuscles(row.name)[0];
+    if (!id) continue;
+    stats.set(id, (stats.get(id) ?? 0) + row.volume);
+  }
+  return stats;
 }
 
 /** Same session/date scope as muscleStats, including zero-weight recorded sets. */

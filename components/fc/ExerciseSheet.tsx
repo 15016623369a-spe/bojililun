@@ -1,10 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { EQUIPMENT_LABEL, TARGET_LABEL, imageUrl } from '@/lib/exercise-label';
 import { muscleById, type MuscleId } from '@/lib/muscles';
 import { sculptureGroup } from '@/lib/sculpture-groups';
+import JournalIcon from '@/components/JournalIcon';
 
 interface DictItem {
   id: string;
@@ -24,6 +25,14 @@ interface DictResult {
 }
 
 export type ExerciseChoice = { id: string; name: string };
+export type ExerciseSelection = {
+  planned: ReadonlySet<string>;
+  selected: ReadonlySet<string>;
+  toggle: (exerciseId: string) => void;
+  saving: boolean;
+  error: string;
+  complete: () => Promise<boolean>;
+};
 
 const FILTERS: { key: string; label: string; equip: string[] }[] = [
   { key: 'all', label: '全部', equip: [] },
@@ -33,10 +42,11 @@ const FILTERS: { key: string; label: string; equip: string[] }[] = [
   { key: 'body', label: '自重', equip: ['body weight'] },
 ];
 
-export default function ExerciseSheet({ muscle, onClose, grouped = false, onChooseExercise }: {
+export default function ExerciseSheet({ muscle, onClose, grouped = false, onChooseExercise, selection }: {
   muscle: MuscleId | null;
   onClose: () => void;
   grouped?: boolean;
+  selection?: ExerciseSelection;
   onChooseExercise?: (exercise: ExerciseChoice) => void;
 }) {
   const router = useRouter();
@@ -46,9 +56,21 @@ export default function ExerciseSheet({ muscle, onClose, grouped = false, onChoo
   const [active, setActive] = useState<DictItem | null>(null);
   const [state, setState] = useState<Record<string, 'busy' | 'done' | 'err'>>({});
   const [toast, setToast] = useState('');
+  const list = useRef<HTMLDivElement>(null);
+  const listScroll = useRef(0);
+
+  function showDetails(item: DictItem) {
+    listScroll.current = list.current?.scrollTop ?? 0;
+    setActive(item);
+  }
+
+  useEffect(() => {
+    if (!active && list.current) list.current.scrollTop = listScroll.current;
+  }, [active]);
 
   useEffect(() => {
     if (!muscle) return;
+    listScroll.current = 0;
     let cancelled = false;
     setBusyList(true);
     setFilter('all');
@@ -207,7 +229,7 @@ export default function ExerciseSheet({ muscle, onClose, grouped = false, onChoo
                 )}
               </div>
 
-              {onChooseExercise ? <div className="fc-dict-actions">
+              {selection ? null : onChooseExercise ? <div className="fc-dict-actions">
                 <button type="button" className="fc-btn primary" onClick={() => {
                   onChooseExercise({ id: active.id, name: active.zh_name || active.name });
                   setActive(null);
@@ -245,7 +267,7 @@ export default function ExerciseSheet({ muscle, onClose, grouped = false, onChoo
                     {title ?? '这块肌肉'}
                     <span className="fc-dict-count">{busyList ? '…' : `${data?.total ?? 0} 个动作`}</span>
                   </div>
-                  <div className="fc-dict-note">点动作看动图与要点</div>
+                  <div className="fc-dict-note">{selection ? '点动作加入或取消选择' : '点动作看动图与要点'}</div>
                 </div>
                 <button type="button" className="fc-dict-close" onClick={onClose}>
                   关闭
@@ -265,27 +287,48 @@ export default function ExerciseSheet({ muscle, onClose, grouped = false, onChoo
                 ))}
               </div>
 
-              <div className="fc-dict-list">
+              <div className="fc-dict-list" ref={list}>
                 {busyList && <p className="fc-note">正在取这一块的动作…</p>}
                 {!busyList &&
-                  items.map((it) => (
-                    <button type="button" key={it.id} className="fc-dict-item" onClick={() => setActive(it)}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                  items.map((it) => {
+                    const name = it.zh_name || it.name;
+                    const planned = selection?.planned.has(it.id);
+                    const selected = planned || selection?.selected.has(it.id);
+                    const preview = <>
                       <span className="fc-dict-gif">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={imageUrl(it.image)} alt={it.zh_name || it.name} />
+                        <img src={imageUrl(it.image)} alt="" />
                       </span>
                       <span className="fc-dict-item-body">
-                        <b>{it.zh_name || it.name}</b>
-                        <em>
-                          {EQUIPMENT_LABEL[it.equipment] ?? it.equipment} · {TARGET_LABEL[it.target] ?? it.target}
-                        </em>
+                        <b>{name}</b>
+                        <em>{EQUIPMENT_LABEL[it.equipment] ?? it.equipment} · {TARGET_LABEL[it.target] ?? it.target}</em>
                       </span>
-                      <span className="fc-dict-arrow">›</span>
-                    </button>
-                  ))}
+                    </>;
+
+                    if (!selection) return <button type="button" key={it.id} className="fc-dict-item" onClick={() => showDetails(it)}>
+                      {preview}<span className="fc-dict-arrow" aria-hidden="true">›</span>
+                    </button>;
+
+                    return <div className="fc-dict-select-row" data-selected={selected} key={it.id}>
+                      <button type="button" className="fc-dict-item" aria-pressed={selected}
+                        disabled={selection.saving || planned} onClick={() => selection.toggle(it.id)}>
+                        {preview}
+                        {planned && <span className="fc-dict-planned">已在计划</span>}
+                      </button>
+                      <button type="button" className="fc-dict-explain" aria-label={`讲解：${name}`} title="动作讲解" onClick={() => showDetails(it)}>
+                        <JournalIcon name="book" />
+                      </button>
+                    </div>;
+                  })}
                 {!busyList && items.length === 0 && <p className="fc-note">这个筛选下没有动作，换个器械试试。</p>}
               </div>
+              {selection && <div className="fc-dict-actions">
+                {selection.error && <p className="fc-note" role="alert">{selection.error}</p>}
+                <button type="button" className="fc-btn primary" disabled={selection.saving || selection.selected.size === 0}
+                  onClick={async () => { if (await selection.complete()) onClose(); }}>
+                  {selection.saving ? '保存中…' : selection.selected.size ? `完成（${selection.selected.size}）` : '完成'}
+                </button>
+              </div>}
               <p className="fc-dict-src">动作数据：hasaneyldrm/exercises-dataset（MIT）· 动图版权 Gym visual</p>
             </>
           )}

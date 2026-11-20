@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getExercise } from '@/lib/exercise';
-import { addPlanItem, deletePlanItem, getPlan, updatePlanItem } from '@/lib/core/workout';
+import { addPlanExercises, addPlanItem, deletePlanItem, getPlan, updatePlanItem } from '@/lib/core/workout';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,11 +13,25 @@ export async function POST(req: Request) {
   try {
     const body = (await req.json()) as {
       exerciseId?: string;
+      exerciseIds?: string[];
+      date?: string;
       sets?: number;
       reps?: number;
       weight?: number;
       restSec?: number;
     };
+    if (body.exerciseIds !== undefined) {
+      if (!body.date || !Array.isArray(body.exerciseIds) || body.exerciseIds.length === 0) {
+        return NextResponse.json({ error: '请选择要加入计划的动作' }, { status: 400 });
+      }
+      const exercises = [...new Set(body.exerciseIds)].map((id) => {
+        if (typeof id !== 'string') throw new Error('动作不存在');
+        const exercise = getExercise(id);
+        if (!exercise) throw new Error('动作不存在');
+        return exercise;
+      });
+      return NextResponse.json({ items: addPlanExercises(body.date, exercises) });
+    }
     if (!body.exerciseId) return NextResponse.json({ error: '缺少 exerciseId' }, { status: 400 });
     const ex = getExercise(body.exerciseId);
     if (!ex) return NextResponse.json({ error: '动作不存在' }, { status: 404 });
