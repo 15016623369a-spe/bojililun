@@ -2,7 +2,8 @@ import Link from 'next/link';
 import JournalShell from '@/components/JournalShell';
 import { BODY_LABEL } from '@/lib/exercise-label';
 import { PERIOD_LABEL, addDays, periodRange, type Period } from '@/lib/period';
-import { exerciseStats, muscleStats, todayStr, trendStats, volumeStats } from '@/lib/core/workout';
+import { exerciseStats, muscleStats, recordedMuscles, todayStr, trendStats, volumeStats } from '@/lib/core/workout';
+import SculptureAtlas from '@/components/fc/SculptureAtlas';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -66,6 +67,7 @@ export default async function StatsPage({ searchParams }: { searchParams: SP }) 
   const cur = volumeStats(r.start, r.end);
   const prev = volumeStats(r.prevStart, r.prevEnd);
   const muscles = muscleStats(r.start, r.end);
+  const recorded = recordedMuscles(r.start, r.end);
   const exs = exerciseStats(r.start, r.end);
   const trend = trendStats(r.start, r.end);
   const buckets = bucketize(period, r.start, r.end, trend);
@@ -133,6 +135,10 @@ export default async function StatsPage({ searchParams }: { searchParams: SP }) 
           </div>
         ) : (
           <>
+            <section className="block stats-sculpture fc">
+              <h2 className="block-title">已训练部位<span>所选时间范围</span></h2>
+              <SculptureAtlas heat={recorded.map((id) => ({ id, level: 1 }))} />
+            </section>
             <section className="block">
               <h2 className="block-title">
                 肌群训练分布

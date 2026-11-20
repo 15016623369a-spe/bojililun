@@ -1,10 +1,10 @@
 {
-  "base": "http://127.0.0.1:3104",
+  "base": "http://127.0.0.1:3105",
   "checks": [
     "Production /atlas loads approved mesh, .bin and mapping with no approximate fallback",
     "Chest pointer hover uses the baked chest label",
     "Chest click selects the full chest and opens the chest exercise union",
-    "Head, front shorts, foot and hand points do not hover/click",
+    "Head, neck, front shorts, foot, hand and background do not hover/click",
     "Orbit dragging does not fire a muscle click",
     "Posterior shorts glutes hover/select and open glute exercises after orbit/reset",
     "Deltoid click opens the full shoulder list",

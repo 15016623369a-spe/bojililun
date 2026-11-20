@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { MuscleId } from '@/lib/muscles';
 import ExerciseSheet from '@/components/fc/ExerciseSheet';
 import SculptureBody from './SculptureBody';
 import type { HeatItem } from './MuscleDict';
+import { canonicalMuscle, SCULPTURE_GROUPS, sculptureGroup } from '@/lib/sculpture-groups';
 
 export default function SculptureAtlas({
   heat,
@@ -21,6 +22,12 @@ export default function SculptureAtlas({
   const back = backProp ?? backState;
   const recorded = heat.map((h) => h.id as MuscleId);
 
+  useEffect(() => {
+    if (hideTabs) return;
+    const group = sculptureGroup(new URLSearchParams(window.location.search).get('muscle'));
+    if (group) { setSelected(group.id); setBack(group.side === 'back'); }
+  }, [hideTabs]);
+
   return <>
     <div className="fc-dict-body">
       <SculptureBody
@@ -28,7 +35,7 @@ export default function SculptureAtlas({
         selected={selected}
         side={back ? 'back' : 'front'}
         spin={spinning}
-        onPick={(id) => setSelected((cur) => (cur === id ? null : id))}
+        onPick={(id) => { setSpinning(false); setSelected((cur) => (cur === id ? null : canonicalMuscle(id))); }}
       />
       {!hideTabs && (
         <div className="fc-dict-tabs">
@@ -39,6 +46,11 @@ export default function SculptureAtlas({
       )}
     </div>
     <p className="fc-dict-hintline">拖动旋转 · 点击肌肉查看对应训练动作</p>
-    <ExerciseSheet muscle={selected} onClose={() => setSelected(null)} />
+    <details className="sculpture-group-options">
+      <summary>按肌群选择</summary>
+      <div>{SCULPTURE_GROUPS.map((group) => <button type="button" key={group.id}
+        onClick={() => { setSpinning(false); setBack(group.side === 'back'); setSelected(group.id); }}>{group.label}</button>)}</div>
+    </details>
+    <ExerciseSheet muscle={selected} grouped onClose={() => setSelected(null)} />
   </>;
 }

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { EQUIPMENT_LABEL, TARGET_LABEL, imageUrl } from '@/lib/exercise-label';
 import { muscleById, type MuscleId } from '@/lib/muscles';
+import { sculptureGroup } from '@/lib/sculpture-groups';
 
 interface DictItem {
   id: string;
@@ -30,7 +31,7 @@ const FILTERS: { key: string; label: string; equip: string[] }[] = [
   { key: 'body', label: '自重', equip: ['body weight'] },
 ];
 
-export default function ExerciseSheet({ muscle, onClose }: { muscle: MuscleId | null; onClose: () => void }) {
+export default function ExerciseSheet({ muscle, onClose, grouped = false }: { muscle: MuscleId | null; onClose: () => void; grouped?: boolean }) {
   const router = useRouter();
   const [data, setData] = useState<DictResult | null>(null);
   const [busyList, setBusyList] = useState(false);
@@ -45,7 +46,8 @@ export default function ExerciseSheet({ muscle, onClose }: { muscle: MuscleId | 
     setBusyList(true);
     setFilter('all');
     setActive(null);
-    fetch(`/api/exercises?muscle=${muscle}&limit=40&steps=1`)
+    setData(null);
+    fetch(`/api/exercises?${grouped ? 'group' : 'muscle'}=${muscle}&limit=100&steps=1`)
       .then((r) => r.json())
       .then((json: DictResult) => {
         if (!cancelled) setData(json);
@@ -59,7 +61,14 @@ export default function ExerciseSheet({ muscle, onClose }: { muscle: MuscleId | 
     return () => {
       cancelled = true;
     };
-  }, [muscle]);
+  }, [muscle, grouped]);
+
+  useEffect(() => {
+    if (!muscle) return;
+    const close = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', close);
+    return () => window.removeEventListener('keydown', close);
+  }, [muscle, onClose]);
 
   useEffect(() => {
     if (!toast) return;
@@ -146,11 +155,12 @@ export default function ExerciseSheet({ muscle, onClose }: { muscle: MuscleId | 
 
   if (!muscle) return null;
   const def = muscleById(muscle);
+  const title = grouped ? sculptureGroup(muscle)?.label : def ? `${def.region}·${def.label}` : undefined;
 
   return (
     <>
       <div className="fc-mask dict" onClick={onClose}>
-        <div className="fc-sheet fc-dict-sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="fc-sheet fc-dict-sheet" role="dialog" aria-modal="true" aria-label={`${title ?? '肌群'}动作列表`} onClick={(e) => e.stopPropagation()}>
           {active ? (
             <>
               <div className="fc-dict-detail-top">
@@ -215,7 +225,7 @@ export default function ExerciseSheet({ muscle, onClose }: { muscle: MuscleId | 
               <div className="fc-dict-head">
                 <div>
                   <div className="fc-dict-title">
-                    {def ? `${def.region}·${def.label}` : '这块肌肉'}
+                    {title ?? '这块肌肉'}
                     <span className="fc-dict-count">{busyList ? '…' : `${data?.total ?? 0} 个动作`}</span>
                   </div>
                   <div className="fc-dict-note">点动作看动图与要点</div>

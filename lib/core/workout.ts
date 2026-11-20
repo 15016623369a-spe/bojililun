@@ -1,5 +1,8 @@
 import { getDb } from '../db';
 import { todayKey } from '../date';
+import { idsForTarget } from '../energy';
+import { mentionedMuscles } from '../journal';
+import { MUSCLES, muscleMatchesExercise, type MuscleId } from '../muscles';
 import type { ExerciseRow } from '../exercise';
 import type {
   ExerciseStat,
@@ -285,6 +288,27 @@ export function muscleStats(start: string, end: string): MuscleStat[] {
        GROUP BY s.body_part ORDER BY volume DESC`,
     )
     .all(start, end) as unknown as MuscleStat[];
+}
+
+/** Same session/date scope as muscleStats, including zero-weight recorded sets. */
+export function recordedMuscles(start: string, end: string): MuscleId[] {
+  const rows = getDb().prepare(`SELECT DISTINCT COALESCE(e.name, s.exercise_name) AS name,
+    COALESCE(NULLIF(e.target, ''), s.target) AS target,
+    COALESCE(NULLIF(e.body_part, ''), s.body_part) AS body_part,
+    COALESCE(e.secondary_muscles, '[]') AS secondary
+    FROM session_set s JOIN session se ON se.id = s.session_id
+    LEFT JOIN exercise e ON e.id = s.exercise_id WHERE se.date BETWEEN ? AND ?`)
+    .all(start, end) as unknown as Array<{ name: string; target: string; body_part: string; secondary: string }>;
+  const recorded = new Set<MuscleId>();
+  for (const row of rows) {
+    const matched = MUSCLES.filter((muscle) => muscleMatchesExercise(muscle, row)).map((muscle) => muscle.id);
+    for (const id of [...matched, ...idsForTarget(row.target), ...mentionedMuscles(row.name)]) recorded.add(id);
+    try {
+      const secondary = JSON.parse(row.secondary);
+      if (Array.isArray(secondary)) for (const target of secondary) for (const id of idsForTarget(String(target))) recorded.add(id);
+    } catch { /* An absent secondary list does not invalidate primary-muscle records. */ }
+  }
+  return [...recorded];
 }
 
 export function exerciseStats(start: string, end: string, limit = 6): ExerciseStat[] {

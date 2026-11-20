@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import atlasRegions from '@/lib/athlete-regions.json';
 import { getDb } from '@/lib/db';
 import { MUSCLES, muscleById, muscleMatchesExercise } from '@/lib/muscles';
+import { sculptureGroup, sculptureGroupMatches } from '@/lib/sculpture-groups';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,6 +23,10 @@ interface Row {
 export async function GET(req: Request) {
   const sp = new URL(req.url).searchParams;
   const muscleId = sp.get('muscle') ?? '';
+  // Model selections use the union of the linked fine groups. Existing muscle=
+  // and region= callers keep their precise semantics.
+  const group = sculptureGroup(sp.get('group'));
+  if (sp.has('group') && !group) return NextResponse.json({ error: '未知肌群' }, { status: 400 });
   const limit = Math.min(100, Math.max(1, Number(sp.get('limit')) || 40));
   // steps=1：字典页要动作要点（数据集里的中文分步说明）
   const withSteps = sp.get('steps') === '1';
@@ -49,7 +54,7 @@ export async function GET(req: Request) {
 
       }
     }
-    if (regionalIds ? regionalIds.has(r.id) : def && muscleMatchesExercise(def, r)) {
+    if (group ? sculptureGroupMatches(group.id, r) : regionalIds ? regionalIds.has(r.id) : def && muscleMatchesExercise(def, r)) {
       total++;
       if (items.length < limit) items.push(r);
     }
@@ -57,8 +62,8 @@ export async function GET(req: Request) {
 
   return NextResponse.json({
     counts,
-    muscle: def?.id ?? null,
-    label: region?.label ?? def?.label ?? null,
+    muscle: group?.id ?? def?.id ?? null,
+    label: group?.label ?? region?.label ?? def?.label ?? null,
     total,
     items: items.map((x) => {
       let steps: string[] = [];

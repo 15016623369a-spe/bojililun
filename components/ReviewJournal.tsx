@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { humanDate } from '@/lib/date';
 import type { JournalEntry } from '@/lib/journal';
 import { MUSCLES, type MuscleId } from '@/lib/muscles';
+import { canonicalMuscle, recordedInGroup, sculptureGroup } from '@/lib/sculpture-groups';
 import ReviewBody from './ReviewBody';
 import JournalTimeline from './JournalTimeline';
 
@@ -15,14 +16,15 @@ export default function ReviewJournal({ days, period = 'week' }: {
 }) {
   const [selected, setSelected] = useState<MuscleId | null>(null);
   const available = new Set(days.flatMap(({ entries }) => entries.flatMap((entry) => entry.muscles ?? [])));
-  const muscles = MUSCLES.filter((muscle) => available.has(muscle.id));
-  const recorded = muscles.map((muscle) => muscle.id);
+  const recorded = MUSCLES.filter((muscle) => available.has(muscle.id)).map((muscle) => muscle.id);
+  const muscles = [...new Set(recorded.map((id) => canonicalMuscle(id) ?? id))].map((id) =>
+    sculptureGroup(id) ?? MUSCLES.find((muscle) => muscle.id === id)!);
   // 记录主要在哪一面，3D 就先转哪一面过来；转过之后随便转。
   const front = muscles.filter((muscle) => muscle.side === 'front').length;
   const back = muscles.filter((muscle) => muscle.side === 'back').length;
   const initialSide = front > back ? 'front' : 'back';
   const filtered = days
-    .map(({ date, entries }) => ({ date, entries: selected ? entries.filter((entry) => entry.muscles?.includes(selected)) : entries }))
+    .map(({ date, entries }) => ({ date, entries: selected ? entries.filter((entry) => recordedInGroup(entry.muscles ?? [], selected)) : entries }))
     .filter(({ entries }) => entries.length > 0);
 
   function inspect(muscle: MuscleId | null) {
@@ -30,7 +32,7 @@ export default function ReviewJournal({ days, period = 'week' }: {
       setSelected(null);
       return;
     }
-    if (!available.has(muscle)) return;
+    if (!recordedInGroup(recorded, muscle)) return;
     setSelected((current) => current === muscle ? null : muscle);
   }
 
