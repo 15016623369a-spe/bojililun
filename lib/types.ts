@@ -185,13 +185,20 @@ export interface MuscleStat {
   records: number;
 }
 
-export interface ExerciseStat {
-  exercise_id: string;
-  exercise_name: string;
-  volume: number;
-  sets: number;
-  best_weight: number;
-  best_reps: number;
+export interface ExercisePerformanceSet {
+  value: number;
+  weight: number;
+  reps: number;
+  date: string;
+}
+
+export interface ExercisePerformance {
+  id: string;
+  name: string;
+  image: string | null;
+  pr: ExercisePerformanceSet | null;
+  growth: ExercisePerformanceSet | null;
+  endurance: ExercisePerformanceSet | null;
 }
 
 export interface TrendPoint {

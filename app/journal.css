@@ -35,6 +35,9 @@
 }
 .journal-date, .journal-muted, .journal-kicker { color: var(--quiet); }
 .journal-date { margin: 0 0 23px; font-size: 15px; }
+.stats-time-summary { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 0 0 16px; }
+.stats-time-summary dt { color: var(--quiet); font-size: 13px; }
+.stats-time-summary dd { margin: 4px 0 0; font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .stats-body-views { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .stats-body-view { margin: 0; min-width: 0; border: 1px solid var(--line); border-radius: 16px; padding: 8px; }
 .stats-body-view figcaption { text-align: center; font-size: 13px; font-weight: 650; margin-top: 5px; }
@@ -798,3 +801,93 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
   background: color-mix(in srgb, var(--forest) 12%, transparent);
   color: var(--forest); font-size: 10px; font-weight: 600; vertical-align: 1px;
 }
+
+.muscle-compare-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 4px; margin-bottom: 12px; border-radius: 12px; background: var(--sage); }
+.muscle-compare-tabs button { padding: 7px 4px; border-radius: 8px; font-size: 13px; }
+.muscle-compare-tabs button[aria-pressed="true"] { color: white; background: var(--forest); }
+.muscle-compare-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.muscle-compare-card { min-width: 0; background: var(--sage); border: 1px solid var(--line); border-radius: 14px; padding: 10px; }
+.muscle-compare-card header { display: flex; justify-content: space-between; align-items: baseline; gap: 4px; }
+.muscle-compare-card h3 { margin: 0; font-size: 15px; }
+.muscle-compare-card header span, .muscle-compare-total { color: var(--quiet); font-size: 11px; }
+.muscle-compare-bars { display: grid; gap: 2px; margin-top: 10px; }
+.muscle-compare-column { min-width: 0; text-align: center; color: var(--quiet); padding: 0; border: 0; background: none; cursor: pointer; }
+.muscle-compare-track { height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; font-size: 10px; }
+.muscle-compare-track i { width: min(65%, 20px); background: var(--forest); border-radius: 3px 3px 0 0; }
+.muscle-compare-column small { font-size: 10px; }
+.muscle-compare-total { margin: 7px 0 0; padding-top: 5px; border-top: 1px solid var(--line); text-align: right; }
+.muscle-compare-total strong { color: var(--forest); font-variant-numeric: tabular-nums; }
+
+.muscle-compare-disclosure { margin-top: 12px; border: 1px solid var(--line); border-radius: 16px; }
+.muscle-compare-disclosure > summary {
+  display: flex; align-items: center; gap: 12px; padding: 12px;
+  border-radius: 15px; background: var(--sage); color: var(--forest);
+  cursor: pointer; list-style: none;
+}
+.muscle-compare-disclosure > summary::-webkit-details-marker { display: none; }
+.muscle-compare-disclosure > summary:hover { background: color-mix(in srgb, var(--forest) 8%, var(--sage)); }
+.muscle-compare-disclosure[open] > summary { border-radius: 15px 15px 0 0; border-bottom: 1px solid var(--line); }
+.muscle-compare-icon { display: grid; place-items: center; width: 38px; height: 38px; flex: none; border-radius: 10px; background: var(--paper); }
+.muscle-compare-icon svg { width: 19px; height: 19px; }
+.muscle-compare-label { display: grid; flex: 1; gap: 3px; font-size: 14px; }
+.muscle-compare-label small { color: var(--quiet); font-size: 11px; }
+.muscle-compare-chevron { width: 8px; height: 8px; margin: 0 5px; border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.muscle-compare-disclosure[open] .muscle-compare-chevron { transform: rotate(225deg); }
+.muscle-compare-disclosure:not([open]) .muscle-compare-open,
+.muscle-compare-disclosure[open] .muscle-compare-closed { display: none; }
+.muscle-compare-content { padding: 12px; }
+.muscle-compare-collapse { display: block; margin: 8px auto 0; padding: 10px; color: var(--forest); font-size: 13px; }
+.muscle-compare-grid[data-wide="true"] { grid-template-columns: 1fr; }
+.muscle-compare-column[aria-pressed="true"] { background: var(--paper); border-radius: 4px; }
+.muscle-compare-column[aria-pressed="true"] small { font-weight: 700; color: var(--forest); }
+@media (max-width: 375px) {
+  .muscle-compare-grid { grid-template-columns: 1fr; }
+}
+
+.exercise-performance-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 13px; background: var(--sage); }
+.exercise-performance-tabs button { display: grid; gap: 3px; padding: 8px 2px; border-radius: 9px; font-size: 14px; }
+.exercise-performance-tabs button[aria-pressed="true"] { color: white; background: var(--forest); }
+.exercise-performance-tabs small, .exercise-performance-note, .exercise-performance-card p { font-size: 11px; }
+.exercise-performance-note, .exercise-performance-card p { color: var(--quiet); }
+.exercise-performance-note { margin: 8px 0 12px; }
+.exercise-performance-note-with-help { display: flex; align-items: center; gap: 5px; }
+.exercise-performance-help { display: grid; place-items: center; flex: none; width: 32px; height: 32px; color: var(--forest); position: relative; padding: 0; font-weight: 700; }
+.exercise-performance-help::before { content: ""; position: absolute; inset: 7px; border: 1px solid currentColor; border-radius: 50%; }
+.exercise-performance-help:hover::before, .exercise-performance-help[aria-expanded="true"]::before { background: color-mix(in srgb, var(--forest) 12%, transparent); }
+.exercise-performance-formula { margin: 0 0 12px; padding: 11px 13px; border: 1px solid var(--line); border-radius: 12px; background: var(--sage); font-size: 12px; line-height: 1.5; }
+.exercise-performance-formula p { margin: 4px 0 0; }
+.exercise-performance-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.exercise-performance-card { min-width: 0; padding: 11px; border: 1px solid var(--line); border-radius: 14px; background: var(--sage); }
+.exercise-performance-card header { display: flex; align-items: center; gap: 8px; }
+.exercise-performance-thumb { display: grid; place-items: center; flex: none; width: 38px; height: 38px; overflow: hidden; border-radius: 10px; background: white; color: var(--forest); }
+.exercise-performance-thumb img { width: 100%; height: 100%; object-fit: contain; }
+.exercise-performance-card h3 { margin: 0; font-size: 13px; overflow-wrap: anywhere; }
+.exercise-performance-value { display: block; margin-top: 8px; color: var(--forest); font-size: 18px; font-variant-numeric: tabular-nums; }
+.exercise-performance-card p { margin: 4px 0 0; overflow-wrap: anywhere; }
+
+.review-overview {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center;
+  gap: 12px; margin: 12px 0 20px; padding: 12px;
+  border: 1px solid var(--line); border-radius: 18px;
+  background: linear-gradient(110deg, var(--sage), var(--paper) 70%);
+}
+.review-overview .review-figure { min-width: 0; margin: 0; }
+.review-overview .review-body { width: 100%; height: 174px; aspect-ratio: auto; }
+.review-overview figcaption { display: block; min-height: auto; font-size: 11px; }
+.review-overview .review-spin-hint { display: none; }
+.review-overview-metrics { border-inline-start: 1px solid var(--line); padding-inline-start: 12px; min-width: 0; }
+.review-overview-metrics h2, .review-recent h2 { margin: 0 0 12px; font-size: 17px; }
+.review-overview-metrics dl { display: grid; gap: 10px; margin: 0; }
+.review-overview-metrics dl > div { display: flex; flex-direction: column-reverse; gap: 2px; }
+.review-overview-metrics dt { color: var(--quiet); font-size: 11px; }
+.review-overview-metrics dd { margin: 0; font-size: clamp(15px, 4vw, 21px); font-weight: 750; color: var(--forest); font-variant-numeric: tabular-nums; }
+.review-recent ul { list-style: none; margin: 0; padding: 0 10px; border: 1px solid var(--line); border-radius: 14px; }
+.review-recent li + li { border-top: 1px solid var(--line); }
+.review-recent li a { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 9px; padding: 9px 0; min-height: 44px; text-decoration: none; }
+.review-recent li a:hover { color: var(--forest); }
+.review-recent li strong { border-radius: 7px; padding: 5px 6px; background: var(--sage); color: var(--forest); font-size: 11px; white-space: nowrap; }
+.review-recent li span { color: var(--quiet); font-size: 12px; }
+.review-recent li .review-recent-arrow { color: var(--forest); font-size: 18px; }
+.review-all-dates { display: flex; align-items: center; gap: 6px; padding: 10px 0; color: var(--forest); font-size: 13px; text-decoration: none; }
+.review-all-dates svg { width: 17px; height: 17px; }
+.review-all-dates span { margin-inline-start: auto; font-size: 18px; }

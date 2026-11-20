@@ -5,7 +5,7 @@ import ReviewJournal from '@/components/ReviewJournal';
 import { getProfileRow } from '@/lib/core/meals';
 import { sculptureVariant } from '@/lib/sculpture-groups';
 import { recordedJournalForDate } from '@/lib/core/journal';
-import { todayStr } from '@/lib/core/workout';
+import { todayStr, trainingTimeByDate } from '@/lib/core/workout';
 import { addDays, periodRange, shiftMonth, validDate } from '@/lib/period';
 
 export const runtime = 'nodejs';
@@ -31,6 +31,8 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
     const entries = recordedJournalForDate(date);
     if (entries.length) days.push({ date, entries });
   }
+  const duration = period === 'day' ? 0 : trainingTimeByDate(start, end).reduce((sum, row) => sum + row.seconds, 0);
+  const calendarHref = `/history/calendar?date=${anchor}&period=${period}`;
   return <JournalShell active="review" title="回顾" today={today}>
     <nav className="review-period" aria-label="回顾范围">
       {periods.map(({ key, label }) => <Link href={href(key, anchor)} key={key} aria-current={key === period ? 'page' : undefined}>{label}</Link>)}
@@ -40,11 +42,13 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
       <Link className="review-calendar-link" href={`/history/calendar?date=${anchor}&period=${period}`}
         aria-label={`打开月历，${start === end ? dateLabel(start) : `${dateLabel(start)}至${dateLabel(end)}`}`}>
         <JournalIcon name="calendar" />
-        {start === end ? dateLabel(start) : `${dateLabel(start)} — ${dateLabel(end)}`}
+        {period === 'month' ? `${start.slice(0, 4)} 年 ${Number(start.slice(5, 7))} 月`
+          : start === end ? dateLabel(start) : `${dateLabel(start)} — ${dateLabel(end)}`}
       </Link>
       <Link className="journal-icon-button" href={href(period, step(1))} aria-label="下一段时间">›</Link>
     </div>
-    <ReviewJournal key={period + anchor} days={days} period={period} variant={sculptureVariant(getProfileRow()?.sex)} />
+    <ReviewJournal key={period + anchor} days={days} period={period} variant={sculptureVariant(getProfileRow()?.sex)}
+      duration={duration} calendarHref={calendarHref} anchor={anchor} />
     <div className="journal-links"><Link href="/stats">训练统计</Link><Link href="/me">个人资料</Link></div>
   </JournalShell>;
 }

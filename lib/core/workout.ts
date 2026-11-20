@@ -5,7 +5,7 @@ import { mentionedMuscles } from '../journal';
 import { MUSCLES, muscleMatchesExercise, type MuscleId } from '../muscles';
 import type { ExerciseRow } from '../exercise';
 import type {
-  ExerciseStat,
+  ExercisePerformance,
   MuscleStat,
   PlanItem,
   SessionRow,
@@ -467,18 +467,18 @@ export function muscleStats(start: string, end: string): MuscleStat[] {
 }
 
 /** 每个动作的容量只计入一个主要目标肌群。 */
-export function muscleVolumeStats(start: string, end: string) {
+export function primaryMuscleActivity(start: string, end: string) {
   const rows = getDb().prepare(`
-    SELECT COALESCE(NULLIF(e.name, ''), s.exercise_name) AS name,
+    SELECT se.date, se.id AS sessionId, COALESCE(NULLIF(e.name, ''), s.exercise_name) AS name,
       COALESCE(NULLIF(e.target, ''), s.target) AS target,
       COALESCE(NULLIF(e.body_part, ''), s.body_part) AS body_part,
-      SUM(s.weight * s.reps) AS volume
+      SUM(s.weight * s.reps) AS volume, COUNT(*) AS sets, SUM(s.duration_sec) AS seconds
     FROM session_set s JOIN session se ON se.id = s.session_id
     LEFT JOIN exercise e ON e.id = s.exercise_id
     WHERE se.date BETWEEN ? AND ?
-    GROUP BY 1, 2, 3
-  `).all(start, end) as { name: string; target: string; body_part: string; volume: number }[];
-  const stats = new Map<MuscleId, number>();
+    GROUP BY 1, 2, 3, 4, 5
+  `).all(start, end) as { date: string; sessionId: number; name: string; target: string; body_part: string; volume: number; sets: number; seconds: number }[];
+  const activity: { id: MuscleId; date: string; sessionId: number; volume: number; sets: number; seconds: number }[] = [];
   for (const row of rows) {
     const matches = MUSCLES.filter((muscle) => muscleMatchesExercise(muscle, row));
     const candidates = idsForTarget(row.target);
@@ -486,9 +486,9 @@ export function muscleVolumeStats(start: string, end: string) {
       ?? (candidates.includes('delt_side') ? 'delt_side' : candidates[0])
       ?? mentionedMuscles(row.name)[0];
     if (!id) continue;
-    stats.set(id, (stats.get(id) ?? 0) + row.volume);
+    activity.push({ id, date: row.date, sessionId: row.sessionId, volume: row.volume, sets: row.sets, seconds: row.seconds });
   }
-  return stats;
+  return activity;
 }
 
 /** Same session/date scope as muscleStats, including zero-weight recorded sets. */
@@ -512,20 +512,35 @@ export function recordedMuscles(start: string, end: string): MuscleId[] {
   return [...recorded];
 }
 
-export function exerciseStats(start: string, end: string, limit = 6): ExerciseStat[] {
-  return getDb()
-    .prepare(
-      `SELECT s.exercise_id AS exercise_id,
-              MAX(s.exercise_name) AS exercise_name,
-              COALESCE(SUM(s.weight * s.reps), 0) AS volume,
-              COUNT(*) AS sets,
-              MAX(s.weight) AS best_weight,
-              MAX(s.reps) AS best_reps
-       FROM session_set s JOIN session se ON se.id = s.session_id
-       WHERE se.date BETWEEN ? AND ?
-       GROUP BY s.exercise_id ORDER BY volume DESC LIMIT ?`,
-    )
-    .all(start, end, limit) as unknown as ExerciseStat[];
+export function exercisePerformance(start: string, end: string): ExercisePerformance[] {
+  const rows = getDb().prepare(`
+    SELECT s.exercise_id AS id, s.exercise_name AS name, e.image,
+      s.weight, s.reps, se.date
+    FROM session_set s JOIN session se ON se.id = s.session_id
+    LEFT JOIN exercise e ON e.id = s.exercise_id
+    WHERE se.date BETWEEN ? AND ?
+    ORDER BY se.date DESC, s.id DESC
+  `).all(start, end) as { id: string; name: string; image: string | null; weight: number; reps: number; date: string }[];
+  const exercises = new Map<string, ExercisePerformance>();
+
+  for (const { id, name, image, weight, reps, date } of rows) {
+    const exercise = exercises.get(id) ?? { id, name, image, pr: null, growth: null, endurance: null };
+    exercises.set(id, exercise);
+    if (reps <= 0 || reps > 15) continue;
+
+    if (weight > 0) {
+      const estimate = reps === 1 ? weight : weight * (1 + reps / 30);
+      if (exercise.pr === null || estimate > exercise.pr.value) exercise.pr = { value: estimate, weight, reps, date };
+    }
+    // 12 次属于两个区间。每档保留该范围内实际完成的最重一组。
+    if (reps >= 8 && reps <= 12 && (exercise.growth === null || weight > exercise.growth.value)) {
+      exercise.growth = { value: weight, weight, reps, date };
+    }
+    if (reps >= 12 && (exercise.endurance === null || weight > exercise.endurance.value)) {
+      exercise.endurance = { value: weight, weight, reps, date };
+    }
+  }
+  return [...exercises.values()];
 }
 
 export function trendStats(start: string, end: string): TrendPoint[] {
@@ -539,6 +554,17 @@ export function trendStats(start: string, end: string): TrendPoint[] {
        GROUP BY se.date ORDER BY se.date ASC`,
     )
     .all(start, end) as unknown as TrendPoint[];
+}
+
+export function trainingTimeByDate(start: string, end: string) {
+  return getDb().prepare(`
+    SELECT s.date, COUNT(*) AS sessions,
+      SUM(ROUND((julianday(s.ended_at) - julianday(s.started_at)) * 86400)) AS seconds
+    FROM session s
+    WHERE s.date BETWEEN ? AND ? AND julianday(s.ended_at) > julianday(s.started_at)
+      AND EXISTS (SELECT 1 FROM session_set WHERE session_id = s.id)
+    GROUP BY s.date ORDER BY s.date
+  `).all(start, end) as { date: string; sessions: number; seconds: number }[];
 }
 
 /* ------------------------------ 历史 ------------------------------ */
