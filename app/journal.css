@@ -891,3 +891,13 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
 .review-all-dates { display: flex; align-items: center; gap: 6px; padding: 10px 0; color: var(--forest); font-size: 13px; text-decoration: none; }
 .review-all-dates svg { width: 17px; height: 17px; }
 .review-all-dates span { margin-inline-start: auto; font-size: 18px; }
+
+.review-overview { margin-bottom: 0; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); padding: 14px 16px; }
+.review-overview-metrics h2 { font-weight: 750; letter-spacing: -.025em; }
+.review-overview-metrics dd { font-size: clamp(17px, 4.5vw, 24px); }
+.review-overview-metrics dd small { font-size: .65em; }
+.review-heat-legend { display: flex; justify-content: center; align-items: center; gap: 6px; margin: 10px 0 20px; color: var(--quiet); font-size: 11px; }
+.review-heat-legend i { width: 19px; height: 9px; border-radius: 2px; background: #deddd4; }
+.review-heat-legend i:nth-of-type(2) { background: #b3c3a7; }
+.review-heat-legend i:nth-of-type(3) { background: #729778; }
+.review-heat-legend i:nth-of-type(4) { background: #2f6a45; }

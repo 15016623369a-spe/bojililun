@@ -31,6 +31,21 @@ export default function ReviewJournal({ days, period = 'week', variant = 'male',
   anchor: string;
 }) {
   const [filter, setFilter] = useState<MuscleId | null>(null);
+  const trainingDays = days.filter(({ entries }) => entries.some((entry) => entry.kind === 'training'));
+  const heatLevels = period === 'day' ? undefined : new Map<MuscleId, number>();
+  if (heatLevels && trainingDays.length) {
+    const counts = new Map<MuscleId, number>();
+    for (const { entries } of trainingDays) {
+      const groups = new Set(entries.flatMap(trainedMuscles).map(canonicalMuscle));
+      for (const group of groups) {
+        if (group) counts.set(group, (counts.get(group) ?? 0) + 1);
+      }
+    }
+    for (const [group, count] of counts) {
+      const frequency = count / trainingDays.length;
+      heatLevels.set(group, frequency <= 1 / 3 ? .32 : frequency <= 2 / 3 ? .62 : 1);
+    }
+  }
   const available = new Set(days.flatMap(({ entries }) => entries.flatMap(trainedMuscles)));
   const recorded = MUSCLES.filter((muscle) => available.has(muscle.id)).map((muscle) => muscle.id);
   const selected = filter && recordedInGroup(recorded, filter) ? filter : null;
@@ -57,13 +72,13 @@ export default function ReviewJournal({ days, period = 'week', variant = 'male',
   }
 
   const figure = (
-    <figure className="review-figure">
-      <ReviewBody recorded={recorded} selected={selected} initialSide={initialSide} onInspect={inspect} variant={variant} />
-      <figcaption>
+    <figure className="review-figure" aria-label={periodCaption[period]}>
+      <ReviewBody recorded={recorded} heatLevels={heatLevels} selected={selected} initialSide={initialSide} onInspect={inspect} variant={variant} />
+      {period === 'day' && <figcaption>
         <span aria-hidden="true" />
         <span>{periodCaption[period]}</span>
         <span className="review-spin-hint">拖动旋转</span>
-      </figcaption>
+      </figcaption>}
       {muscles.length > 0 && <details className="review-muscles">
         <summary>{selected ? muscles.find((muscle) => muscle.id === selected)?.label : '筛选部位'}</summary>
         <div className="review-filters">
@@ -78,7 +93,6 @@ export default function ReviewJournal({ days, period = 'week', variant = 'male',
   );
 
   if (period !== 'day') {
-    const trainingDays = days.filter(({ entries }) => entries.some((entry) => entry.kind === 'training')).length;
     const minutes = Math.round(duration / 60);
     const hours = Math.floor(minutes / 60);
     const timeLabel = hours ? `${hours} 小时${minutes % 60 ? ` ${minutes % 60} 分钟` : ''}`
@@ -90,11 +104,14 @@ export default function ReviewJournal({ days, period = 'week', variant = 'male',
         <div className="review-overview-metrics">
           <h2>{period === 'month' ? '本月概览' : '本周概览'}</h2>
           <dl>
-            <div><dt>训练天数</dt><dd>{trainingDays} 天</dd></div>
+            <div><dt>训练天数</dt><dd>{trainingDays.length} <small>天</small></dd></div>
             <div><dt>累计训练</dt><dd>{timeLabel}</dd></div>
           </dl>
         </div>
       </section>
+      <div className="review-heat-legend" role="img" aria-label="色阶按训练日占比：未训练、三分之一以内、三分之二以内、超过三分之二">
+        <span>未训练</span><i /><i /><i /><i /><span>频次高</span>
+      </div>
       <section className="review-recent">
         <h2>{period === 'month' ? '最近记录' : '本周记录'}</h2>
         {recent.length ? <ul>
