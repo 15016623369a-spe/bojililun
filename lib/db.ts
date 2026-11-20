@@ -8,7 +8,7 @@ const DB_PATH = path.resolve(process.env.FITCHECK_DB_PATH || path.join(DATA_DIR,
 export const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
 
 // Increment when the schema or column migrations change. Next.js keeps globalThis across hot reloads.
-const SCHEMA_REVISION = 1;
+const SCHEMA_REVISION = 6;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS profile (
@@ -113,10 +113,12 @@ CREATE TABLE IF NOT EXISTS journal_entry (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   request_id TEXT UNIQUE,
   date TEXT NOT NULL,
-  kind TEXT NOT NULL CHECK (kind IN ('meal', 'training')),
+  kind TEXT NOT NULL CHECK (kind IN ('meal', 'training', 'note', 'sleep')),
   title TEXT NOT NULL,
   detail TEXT NOT NULL,
   source_text TEXT NOT NULL,
+  merged_session_id INTEGER,
+  payload_json TEXT,
   created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_journal_entry_date ON journal_entry(date);
@@ -136,6 +138,7 @@ CREATE TABLE IF NOT EXISTS session_set (
   reps INTEGER NOT NULL DEFAULT 0,
   duration_sec INTEGER NOT NULL DEFAULT 0,
   rest_sec INTEGER NOT NULL DEFAULT 0,
+  actual_rest_sec INTEGER,
   created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_set_session ON session_set(session_id);
@@ -193,12 +196,40 @@ function ensureColumn(db: DatabaseSync, table: string, column: string, ddl: stri
   if (!cols.some((c) => c.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
 }
 
+function ensureJournalKinds(db: DatabaseSync) {
+  const table = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'journal_entry'").get() as { sql?: string } | undefined;
+  if (!table?.sql || table.sql.includes("'sleep'")) return;
+
+  // SQLite 不能修改 CHECK 约束；保留原记录和 request_id，重建一次表。
+  db.exec('DROP INDEX IF EXISTS idx_journal_entry_date');
+  db.exec('ALTER TABLE journal_entry RENAME TO journal_entry_legacy');
+  db.exec(`CREATE TABLE journal_entry (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    request_id TEXT UNIQUE,
+    date TEXT NOT NULL,
+    kind TEXT NOT NULL CHECK (kind IN ('meal', 'training', 'note', 'sleep')),
+    title TEXT NOT NULL,
+    detail TEXT NOT NULL,
+    source_text TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  )`);
+  db.exec(`INSERT INTO journal_entry (id, request_id, date, kind, title, detail, source_text, created_at)
+    SELECT id, request_id, date, kind, title, detail, source_text, created_at FROM journal_entry_legacy`);
+  db.exec('DROP TABLE journal_entry_legacy');
+  db.exec('CREATE INDEX idx_journal_entry_date ON journal_entry(date)');
+}
+
 function ensureColumns(db: DatabaseSync) {
+  ensureJournalKinds(db);
+
   ensureColumn(db, 'exercise', 'zh_name', "TEXT NOT NULL DEFAULT ''");
   ensureColumn(db, 'session', 'plan_json', 'TEXT');
   // 记录也支持挂一张照片（训练 / 餐食都当“笔记”用）
   ensureColumn(db, 'session', 'photo_path', 'TEXT');
   ensureColumn(db, 'meal_log', 'photo_path', 'TEXT');
+  ensureColumn(db, 'session_set', 'actual_rest_sec', 'INTEGER');
+  ensureColumn(db, 'journal_entry', 'merged_session_id', 'INTEGER');
+  ensureColumn(db, 'journal_entry', 'payload_json', 'TEXT');
 }
 
 /** 同步中文名：只更新和 data/exercise-zh.json 不一致的行 */

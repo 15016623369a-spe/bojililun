@@ -12,6 +12,8 @@ const paths = {
   play: 'M9 5v14l11-7z',
   pause: 'M9 5H6v14h3zM18 5h-3v14h3z',
   check: 'm5 12 4 4L19 6',
+  note: 'M4 5h16v11H9l-5 4V5Zm4 4h8M8 12h5',
+  sleep: 'M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5ZM17 3v4m-2-2h4',
 } as const;
 
 export default function JournalIcon({ name }: { name: keyof typeof paths }) {

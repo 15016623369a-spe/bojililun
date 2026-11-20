@@ -4,14 +4,13 @@
 import { chromium } from 'playwright-core';
 import fs from 'node:fs';
 import path from 'node:path';
+import { resolveChromiumShell } from './browser-path.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:3001';
 const OUT = path.resolve('docs/shots');
 fs.mkdirSync(OUT, { recursive: true });
 
-const shell = path.resolve(
-  '../.playwright/chromium_headless_shell-1255/chrome-headless-shell-mac-arm64/chrome-headless-shell',
-);
+const shell = resolveChromiumShell();
 
 const browser = await chromium.launch({ executablePath: shell });
 const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });

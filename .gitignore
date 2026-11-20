@@ -1,8 +1,10 @@
 node_modules/
 .next/
+certificates/
 data/fitness.db*
 data/uploads/
 .env
 *.log
 data/gifs/
 *.tsbuildinfo
+.DS_Store

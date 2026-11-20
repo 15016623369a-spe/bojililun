@@ -13,7 +13,7 @@ const TABS = [
 export type TabKey = 'log' | 'body' | 'review';
 
 export default function TabBar({ active }: { active: TabKey }) {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? '';
   return (
     <nav className="fc-tabs" aria-label="主导航">
       {TABS.map((t) => {
