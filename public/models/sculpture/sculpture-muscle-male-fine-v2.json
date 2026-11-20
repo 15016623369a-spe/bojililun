@@ -1,0 +1,95 @@
+{
+  "format": "uint8 SCULPTURE_ORDER, one byte per original POSITION vertex",
+  "model": "public/models/sculpture/fitcheck-sculpture-tripo-v1.glb",
+  "modelSha256": "35e266184c204bf01ea675fdc5098b3cd3d942dcf82f9191d849415de214cf2e",
+  "sourceSha256": "ace207522af5cfcf7a9b8085eeb7b49d68b4c00e57f1f98ee39b1b8e2712fcb5",
+  "binarySha256": "7a11d9df812cc0dd3163b0b02ca830ba1f61eb6b1db2708087a9bddaf55484dd",
+  "vertexCount": 154471,
+  "triangleCount": 292756,
+  "meshOrder": [
+    {
+      "node": 0,
+      "mesh": 0,
+      "primitive": 0,
+      "positionAccessor": 1,
+      "vertexOffset": 0,
+      "vertexCount": 154471
+    }
+  ],
+  "backgroundValue": 254,
+  "unassignedValue": 255,
+  "unassignedVertices": 0,
+  "sculptureOrder": [
+    "neck",
+    "traps",
+    "chest_upper",
+    "chest_mid",
+    "chest_lower",
+    "delt_front",
+    "delt_side",
+    "delt_rear",
+    "biceps",
+    "triceps",
+    "forearms",
+    "abs",
+    "obliques",
+    "serratus",
+    "upperback",
+    "lats",
+    "lowerback",
+    "glutes",
+    "quads",
+    "hamstrings",
+    "adductors",
+    "calves"
+  ],
+  "counts": {
+    "neck": 0,
+    "traps": 3508,
+    "chest_upper": 1691,
+    "chest_mid": 2570,
+    "chest_lower": 1799,
+    "delt_front": 2383,
+    "delt_side": 2246,
+    "delt_rear": 2373,
+    "biceps": 4721,
+    "triceps": 4154,
+    "forearms": 10246,
+    "abs": 4248,
+    "obliques": 4001,
+    "serratus": 1004,
+    "upperback": 3568,
+    "lats": 7778,
+    "lowerback": 2591,
+    "glutes": 9436,
+    "quads": 7815,
+    "hamstrings": 5775,
+    "adductors": 1785,
+    "calves": 16087
+  },
+  "mirrorMismatches": 0,
+  "mirrorDistanceP95": 0.001762929220422203,
+  "methods": {
+    "chest": "height quantiles 30%, 72% within prior chest",
+    "deltoid": "native forward-position quantiles 34%, 66% within prior shoulder",
+    "traps": "upper back height and midline estimate",
+    "serratus": "upper outer portion of prior obliques",
+    "adductors": "upper medial portion of prior quadriceps",
+    "other": "existing projected labels",
+    "background": "prior background retained, neck intentionally background",
+    "smoothing": "two mesh-neighbor majority rounds with mirror and seam groups"
+  },
+  "thresholds": {
+    "chestY": [
+      0.750837716616454,
+      0.7860974618841401
+    ],
+    "shoulderNativeX": [
+      -0.05127303227782249,
+      -0.008483362849801779
+    ],
+    "trapsY": 0.8264034304319503,
+    "serratusY": 0.6841211159028807
+  },
+  "limitations": "Coarse map and positional anatomical estimates. Boundaries are illustrative and require visual review, especially serratus and adductors."
+}

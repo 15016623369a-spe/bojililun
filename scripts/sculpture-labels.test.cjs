@@ -15,14 +15,18 @@ require.extensions['.ts'] = (module, filename) => {
 };
 const { SCULPTURE_METADATA: meta, SCULPTURE_GROUPS, canonicalMuscle, sculptureGroupMatches, recordedInGroup, labelAtBarycentric } = require('../lib/sculpture-groups.ts');
 const { boundaryDistances, labeledGeometry, validateLabelData } = require('../lib/sculpture-geometry.ts');
-const bytes = new Uint8Array(fs.readFileSync(path.join(__dirname, '../public/models/sculpture/sculpture-muscle-ortho-v1.bin')));
+const bytes = new Uint8Array(fs.readFileSync(path.join(__dirname, '../public/models/sculpture/sculpture-muscle-male-fine-v2.bin')));
 
-test('approved asset is unchanged, complete and uses all fourteen groups', () => {
+test('fine-v2 asset matches its metadata, covers every labelled region and rejects tampering', () => {
   assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'), meta.binarySha256);
-  assert.equal(bytes.length, 154471);
+  assert.equal(bytes.length, meta.vertexCount);
   assert.doesNotThrow(() => validateLabelData(bytes, meta));
-  assert.equal(new Set(bytes).size, 15);
-  assert.equal(SCULPTURE_GROUPS.length, 14);
+  const counts = meta.counts;
+  const labelled = meta.sculptureOrder.filter((id) => counts[id] > 0);
+  assert.equal(SCULPTURE_GROUPS.length, labelled.length);
+  const present = new Set(bytes);
+  for (const id of labelled) assert.equal(present.has(meta.sculptureOrder.indexOf(id)), true, id);
+  assert.equal(present.has(meta.sculptureOrder.indexOf('neck')), false);
   assert.equal(bytes.includes(255), false);
   assert.throws(() => validateLabelData(bytes.slice(1), meta));
   const bad = bytes.slice(); bad[0] = 255;
@@ -30,13 +34,15 @@ test('approved asset is unchanged, complete and uses all fourteen groups', () =>
   assert.throws(() => validateLabelData(bytes, { ...meta, binarySha256: 'stale' }));
 });
 
-test('fine training records light and filter their entire coarse group', () => {
-  for (const id of ['chest_upper', 'chest_mid', 'chest_lower']) assert.equal(canonicalMuscle(id), 'chest_mid');
-  for (const id of ['delt_front', 'delt_side', 'delt_rear']) assert.equal(canonicalMuscle(id), 'delt_side');
-  assert.equal(canonicalMuscle('traps'), 'upperback');
+test('fine labels resolve to their own region instead of a coarse parent', () => {
+  for (const id of ['chest_upper', 'chest_mid', 'chest_lower', 'delt_front', 'delt_side', 'delt_rear', 'serratus', 'adductors', 'traps']) {
+    assert.equal(canonicalMuscle(id), id);
+  }
   assert.equal(canonicalMuscle('neck'), null);
-  assert.equal(recordedInGroup(['chest_upper'], 'chest_mid'), true);
-  assert.equal(recordedInGroup(['delt_rear'], 'delt_side'), true);
+  assert.equal(canonicalMuscle('chest'), 'chest_mid');
+  assert.equal(recordedInGroup(['chest_upper'], 'chest_upper'), true);
+  assert.equal(recordedInGroup(['chest_upper'], 'chest_lower'), false);
+  assert.equal(recordedInGroup(['delt_rear'], 'delt_side'), false);
   assert.equal(recordedInGroup(['glutes'], 'quads'), false);
 });
 
@@ -48,6 +54,15 @@ test('coarse chest and shoulder lists include their fine variants', () => {
     assert.equal(sculptureGroupMatches('shoulders', { name, target: 'delts', body_part: 'shoulders' }), true);
   }
   assert.equal(sculptureGroupMatches('chest', { name: 'curl', target: 'biceps', body_part: 'upper arms' }), false);
+});
+
+test('fine region lists stay scoped to their own band', () => {
+  const bench = { name: 'bench press', target: 'pectorals', body_part: 'chest' };
+  assert.equal(sculptureGroupMatches('chest_mid', bench), true);
+  assert.equal(sculptureGroupMatches('chest_upper', { ...bench, name: 'incline bench press' }), true);
+  assert.equal(sculptureGroupMatches('chest_upper', bench), false);
+  assert.equal(sculptureGroupMatches('chest_lower', { ...bench, name: 'decline bench press' }), true);
+  assert.equal(sculptureGroupMatches('delt_rear', { name: 'rear delt fly', target: 'delts', body_part: 'shoulders' }), true);
 });
 
 test('categorical picking sums repeated labels and lets foreground background occlude', () => {
