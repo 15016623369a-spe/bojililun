@@ -55,11 +55,6 @@ export default function SculptureAtlas({
       )}
     </div>
     <p className="fc-dict-hintline">拖动旋转 · 点击肌肉查看对应训练动作</p>
-    <details className="sculpture-group-options">
-      <summary>按肌群选择</summary>
-      <div>{SCULPTURE_GROUPS.map((group) => <button type="button" key={group.id}
-        onClick={() => { setSpinning(false); setBack(group.side === 'back'); setSelected(group.id); }}>{group.label}</button>)}</div>
-    </details>
     <ExerciseSheet muscle={selected} grouped onClose={() => setSelected(null)} />
   </>;
 }
