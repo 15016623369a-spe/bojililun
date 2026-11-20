@@ -21,6 +21,8 @@ export default function SculptureAtlas({
   const [selected, setSelected] = useState<MuscleId | null>(null);
   const [backState, setBack] = useState(false);
   const [spinning, setSpinning] = useState(false);
+  const [body, setBody] = useState<SculptureVariant>(variant);
+  useEffect(() => { setBody(variant); }, [variant]);
   const back = backProp ?? backState;
   const recorded = heat.map((h) => h.id as MuscleId);
 
@@ -33,11 +35,12 @@ export default function SculptureAtlas({
   return <>
     <div className="fc-dict-body">
       <SculptureBody
+        key={body}
+        variant={body}
         recorded={recorded}
         selected={selected}
         side={back ? 'back' : 'front'}
         spin={spinning}
-        variant={variant}
         onPick={(id) => { setSpinning(false); setSelected((cur) => (cur === id ? null : canonicalMuscle(id))); }}
       />
       {!hideTabs && (
@@ -45,6 +48,9 @@ export default function SculptureAtlas({
           <button type="button" className={!back ? 'on' : ''} onClick={() => { setBack(false); }}>正面</button>
           <button type="button" className={back ? 'on' : ''} onClick={() => { setBack(true); }}>背面</button>
           <button type="button" className={spinning ? 'on' : ''} onClick={() => setSpinning((v) => !v)}>自转</button>
+          <span className="fc-dict-sep" aria-hidden>·</span>
+          <button type="button" className={body === 'male' ? 'on' : ''} onClick={() => { setBody('male'); setSelected(null); }}>男</button>
+          <button type="button" className={body === 'female' ? 'on' : ''} onClick={() => { setBody('female'); setSelected(null); }}>女</button>
         </div>
       )}
     </div>
