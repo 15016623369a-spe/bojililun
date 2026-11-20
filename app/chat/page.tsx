@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AssistantReply, CandidateMemory, FoodItem, TodayPayload } from '@/lib/types';
 import type { MealType } from '@/lib/date';
-import Onboarding from '@/components/Onboarding';
 import FoodCard from '@/components/FoodCard';
 import MemoryProposal from '@/components/MemoryProposal';
 import Drawer from '@/components/Drawer';
@@ -90,7 +89,6 @@ export default function Page() {
   const router = useRouter();
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [today, setToday] = useState<TodayPayload | null>(null);
-  const [needOnboarding, setNeedOnboarding] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [drawer, setDrawer] = useState(false);
@@ -112,21 +110,13 @@ export default function Page() {
   }, []);
 
   const boot = useCallback(async () => {
-    const p = (await fetch('/api/profile', { cache: 'no-store' }).then((r) => r.json())) as {
-      profile: unknown | null;
-    };
-    if (!p.profile) {
-      setNeedOnboarding(true);
-      return;
-    }
-    setNeedOnboarding(false);
     const t = (await fetch('/api/today', { cache: 'no-store' }).then((r) => r.json())) as TodayPayload;
     setToday(t);
 
     const target = t.profile?.target_kcal ?? 0;
     const protein = t.profile?.target_protein ?? 0;
     const greeting =
-      t.consumed.kcal > 0
+      !t.profile ? '可以拍照记录饮食，也可以告诉我想练哪个部位。' : t.consumed.kcal > 0
         ? `今天已摄入 ${t.consumed.kcal} kcal（目标 ${target}），还剩 ${Math.max(0, t.remainingKcal)} kcal；蛋白质 ${Math.round(
             t.consumed.protein,
           )}/${protein}g。`
@@ -554,14 +544,7 @@ export default function Page() {
         />
       )}
 
-      {needOnboarding && (
-        <Onboarding
-          onDone={() => {
-            setNeedOnboarding(false);
-            void boot();
-          }}
-        />
-      )}
+
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { exercisePerformance, primaryMuscleActivity, todayStr, trainingTimeByDat
 import type { MuscleId } from '@/lib/muscles';
 import ExercisePerformance from '@/components/ExercisePerformance';
 import StatsBodyMap from '@/components/StatsBodyMap';
-import { getProfileRow } from '@/lib/core/meals';
+import { getTrainingModelSex } from '@/lib/core/training-profile';
 import { sculptureVariant } from '@/lib/sculpture-groups';
 
 export const runtime = 'nodejs';
@@ -136,7 +136,7 @@ export default async function StatsPage({ searchParams }: { searchParams: SP }) 
           <>
             <section className="block">
               <h2 className="block-title">肌群训练分布<span>容量 · 重量 × 次数</span></h2>
-              <StatsBodyMap stats={currentMuscles} variant={sculptureVariant(getProfileRow()?.sex)} />
+              <StatsBodyMap stats={currentMuscles} variant={sculptureVariant(getTrainingModelSex())} />
               <MuscleDistribution cards={muscleCards} period={period} />
             </section>
 
@@ -178,7 +178,7 @@ export default async function StatsPage({ searchParams }: { searchParams: SP }) 
               </> : <p className="hint">所选时段还没有已完成且有时长的训练。</p>}
             </section>
 
-            <ExercisePerformance exercises={exs} />
+            <ExercisePerformance exercises={exs} periodLabel={PERIOD_LABEL[period]} />
           </>
         )}
       </div>

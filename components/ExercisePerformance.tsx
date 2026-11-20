@@ -4,6 +4,7 @@ import { useId, useState } from 'react';
 import { imageUrl } from '@/lib/exercise-label';
 import type { ExercisePerformance as Exercise } from '@/lib/types';
 import JournalIcon from './JournalIcon';
+import ExerciseProgress from './ExerciseProgress';
 
 const views = {
   pr: { label: 'PR', description: '极限重量', empty: '暂无可估算的负重组' },
@@ -14,8 +15,9 @@ type View = keyof typeof views;
 
 const format = (weight: number) => weight.toLocaleString('zh-CN', { maximumFractionDigits: 1 });
 
-export default function ExercisePerformance({ exercises }: { exercises: Exercise[] }) {
+export default function ExercisePerformance({ exercises, periodLabel }: { exercises: Exercise[]; periodLabel: string }) {
   const [view, setView] = useState<View>('pr');
+  const [expandedId, setExpandedId] = useState<string>();
   const [formulaOpen, setFormulaOpen] = useState(false);
   const formulaId = useId();
   const ranked = [...exercises].sort((a, b) => (b[view]?.value ?? -1) - (a[view]?.value ?? -1));
@@ -44,22 +46,32 @@ export default function ExercisePerformance({ exercises }: { exercises: Exercise
     {ranked.length > 0 ? <div className="exercise-performance-grid">
       {ranked.map((exercise) => {
         const best = exercise[view];
-        return <article key={exercise.id} className="exercise-performance-card">
-          <header>
+        const expanded = expandedId === exercise.id;
+        const trendId = `${formulaId}-trend-${exercise.id}`;
+        return <article key={exercise.id} className="exercise-performance-card" data-expanded={expanded}>
+          <div className="exercise-performance-intro">
+          <button type="button" className="exercise-performance-card-toggle" aria-expanded={expanded}
+            aria-controls={trendId} onClick={() => setExpandedId(expanded ? undefined : exercise.id)}>
             <span className="exercise-performance-thumb">
               {exercise.image
                 // eslint-disable-next-line @next/next/no-img-element
                 ? <img src={imageUrl(exercise.image)} loading="lazy" alt="" />
                 : <JournalIcon name="training" />}
             </span>
-            <h3>{exercise.name}</h3>
-          </header>
-          {best ? <>
+            <span className="exercise-performance-card-label">
+              <strong className="exercise-performance-name">{exercise.name}</strong>
+              {expanded && <small>{periodLabel} · {exercise.sessions.length} 次实练</small>}
+            </span>
+            <span className="exercise-performance-chevron" aria-hidden="true" />
+          </button>
+          {!expanded && (best ? <>
             <strong className="exercise-performance-value">
               {view === 'pr' && '约 '}{best.value > 0 ? `${format(best.value)} kg` : '自重'}
             </strong>
             <p>{best.weight > 0 ? `${format(best.weight)} kg` : '自重'} × {best.reps} 次 · {best.date}</p>
-          </> : <p>{views[view].empty}</p>}
+          </> : <p>{views[view].empty}</p>)}
+          </div>
+          <div id={trendId} hidden={!expanded}>{expanded && <ExerciseProgress key={view} sessions={exercise.sessions} view={view} />}</div>
         </article>;
       })}
     </div> : <p className="hint">所选时段还没有已记录的动作组。</p>}

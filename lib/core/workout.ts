@@ -515,29 +515,49 @@ export function recordedMuscles(start: string, end: string): MuscleId[] {
 export function exercisePerformance(start: string, end: string): ExercisePerformance[] {
   const rows = getDb().prepare(`
     SELECT s.exercise_id AS id, s.exercise_name AS name, e.image,
-      s.weight, s.reps, se.date
+      s.weight, s.reps, se.date, se.id AS sessionId
     FROM session_set s JOIN session se ON se.id = s.session_id
     LEFT JOIN exercise e ON e.id = s.exercise_id
     WHERE se.date BETWEEN ? AND ?
-    ORDER BY se.date DESC, s.id DESC
-  `).all(start, end) as { id: string; name: string; image: string | null; weight: number; reps: number; date: string }[];
+    ORDER BY se.date DESC, se.started_at DESC, se.id DESC, s.id DESC
+  `).all(start, end) as { id: string; name: string; image: string | null; weight: number; reps: number; date: string; sessionId: number }[];
   const exercises = new Map<string, ExercisePerformance>();
+  const sessionsByExercise = new Map<string, Map<number, ExercisePerformance['sessions'][number]>>();
 
-  for (const { id, name, image, weight, reps, date } of rows) {
-    const exercise = exercises.get(id) ?? { id, name, image, pr: null, growth: null, endurance: null };
-    exercises.set(id, exercise);
+  for (const { id, name, image, weight, reps, date, sessionId } of rows) {
+    let exercise = exercises.get(id);
+    let sessions = sessionsByExercise.get(id);
+    if (!exercise || !sessions) {
+      exercise = { id, name, image, pr: null, growth: null, endurance: null, sessions: [] };
+      exercises.set(id, exercise);
+      sessions = new Map();
+      sessionsByExercise.set(id, sessions);
+    }
+    let session = sessions.get(sessionId);
+    if (!session) {
+      session = { id: sessionId, date, pr: null, growth: null, endurance: null, weights: {} };
+      sessions.set(sessionId, session);
+      exercise.sessions.push(session);
+    }
+    if (reps > 0) session.weights[reps] = Math.max(session.weights[reps] ?? 0, weight);
     if (reps <= 0 || reps > 15) continue;
 
     if (weight > 0) {
       const estimate = reps === 1 ? weight : weight * (1 + reps / 30);
-      if (exercise.pr === null || estimate > exercise.pr.value) exercise.pr = { value: estimate, weight, reps, date };
+      const best = { value: estimate, weight, reps, date };
+      if (exercise.pr === null || estimate > exercise.pr.value) exercise.pr = best;
+      if (session.pr === null || estimate > session.pr.value) session.pr = best;
     }
     // 12 次属于两个区间。每档保留该范围内实际完成的最重一组。
-    if (reps >= 8 && reps <= 12 && (exercise.growth === null || weight > exercise.growth.value)) {
-      exercise.growth = { value: weight, weight, reps, date };
+    if (reps >= 8 && reps <= 12) {
+      const best = { value: weight, weight, reps, date };
+      if (!exercise.growth || weight > exercise.growth.value) exercise.growth = best;
+      if (!session.growth || weight > session.growth.value) session.growth = best;
     }
-    if (reps >= 12 && (exercise.endurance === null || weight > exercise.endurance.value)) {
-      exercise.endurance = { value: weight, weight, reps, date };
+    if (reps >= 12) {
+      const best = { value: weight, weight, reps, date };
+      if (!exercise.endurance || weight > exercise.endurance.value) exercise.endurance = best;
+      if (!session.endurance || weight > session.endurance.value) session.endurance = best;
     }
   }
   return [...exercises.values()];

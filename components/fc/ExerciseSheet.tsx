@@ -1,11 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { EQUIPMENT_LABEL, TARGET_LABEL, imageUrl } from '@/lib/exercise-label';
 import { muscleById, type MuscleId } from '@/lib/muscles';
 import { sculptureGroup } from '@/lib/sculpture-groups';
 import JournalIcon from '@/components/JournalIcon';
+import type { ExercisePreference } from '@/lib/core/exercise-preferences';
 
 interface DictItem {
   id: string;
@@ -16,12 +17,14 @@ interface DictItem {
   image: string;
   steps: string[];
   desc: string;
+  preference: ExercisePreference | null;
 }
 
 interface DictResult {
   label: string | null;
   total: number;
   items: DictItem[];
+  nextOffset: number | null;
 }
 
 export type ExerciseChoice = { id: string; name: string };
@@ -42,6 +45,12 @@ const FILTERS: { key: string; label: string; equip: string[] }[] = [
   { key: 'body', label: '自重', equip: ['body weight'] },
 ];
 
+async function fetchExercises(url: string, signal: AbortSignal): Promise<DictResult> {
+  const res = await fetch(url, { signal, cache: 'no-store' });
+  if (!res.ok) throw new Error('动作列表加载失败，请重试');
+  return res.json();
+}
+
 export default function ExerciseSheet({ muscle, onClose, grouped = false, onChooseExercise, selection }: {
   muscle: MuscleId | null;
   onClose: () => void;
@@ -52,12 +61,25 @@ export default function ExerciseSheet({ muscle, onClose, grouped = false, onChoo
   const router = useRouter();
   const [data, setData] = useState<DictResult | null>(null);
   const [busyList, setBusyList] = useState(false);
+  const [busyMore, setBusyMore] = useState(false);
+  const [listError, setListError] = useState('');
+  const [reload, setReload] = useState(0);
   const [filter, setFilter] = useState<string>('all');
   const [active, setActive] = useState<DictItem | null>(null);
   const [state, setState] = useState<Record<string, 'busy' | 'done' | 'err'>>({});
   const [toast, setToast] = useState('');
   const list = useRef<HTMLDivElement>(null);
   const listScroll = useRef(0);
+  const listRequest = useRef<AbortController | null>(null);
+  const moreRequest = useRef<AbortController | null>(null);
+  const query = new URLSearchParams({
+    [grouped ? 'group' : 'muscle']: muscle ?? '',
+    limit: '100', steps: '1', order: 'plan',
+  });
+  for (const equipment of FILTERS.find((item) => item.key === filter)?.equip ?? []) {
+    query.append('equipment', equipment);
+  }
+  const listUrl = `/api/exercises?${query}`;
 
   function showDetails(item: DictItem) {
     listScroll.current = list.current?.scrollTop ?? 0;
@@ -69,28 +91,50 @@ export default function ExerciseSheet({ muscle, onClose, grouped = false, onChoo
   }, [active]);
 
   useEffect(() => {
-    if (!muscle) return;
     listScroll.current = 0;
-    let cancelled = false;
-    setBusyList(true);
     setFilter('all');
     setActive(null);
+  }, [muscle, grouped]);
+
+  useEffect(() => {
+    if (!muscle) return;
+    const request = new AbortController();
+    listRequest.current = request;
+    setBusyList(true);
+    setBusyMore(false);
+    setListError('');
     setData(null);
-    fetch(`/api/exercises?${grouped ? 'group' : 'muscle'}=${muscle}&limit=100&steps=1`)
-      .then((r) => r.json())
-      .then((json: DictResult) => {
-        if (!cancelled) setData(json);
+    fetchExercises(listUrl, request.signal)
+      .then((json) => {
+        if (!request.signal.aborted) setData(json);
       })
       .catch(() => {
-        if (!cancelled) setData({ label: null, total: 0, items: [] });
+        if (!request.signal.aborted) setListError('动作列表加载失败，请重试');
       })
       .finally(() => {
-        if (!cancelled) setBusyList(false);
+        if (!request.signal.aborted) setBusyList(false);
       });
     return () => {
-      cancelled = true;
+      request.abort();
     };
-  }, [muscle, grouped]);
+  }, [muscle, listUrl, reload]);
+
+  async function loadMore() {
+    const request = listRequest.current;
+    if (!request || request.signal.aborted || moreRequest.current === request || data?.nextOffset == null) return;
+    moreRequest.current = request;
+    setBusyMore(true);
+    setListError('');
+    try {
+      const page = await fetchExercises(`${listUrl}&offset=${data.nextOffset}`, request.signal);
+      if (!request.signal.aborted) setData({ ...page, items: [...data.items, ...page.items] });
+    } catch {
+      if (!request.signal.aborted) setListError('加载更多动作失败，请重试');
+    } finally {
+      if (moreRequest.current === request) moreRequest.current = null;
+      if (!request.signal.aborted) setBusyMore(false);
+    }
+  }
 
   useEffect(() => {
     if (!muscle) return;
@@ -105,40 +149,7 @@ export default function ExerciseSheet({ muscle, onClose, grouped = false, onChoo
     return () => clearTimeout(timer);
   }, [toast]);
 
-  const items = useMemo(() => {
-    const rank: Record<string, number> = {
-      barbell: 0,
-      'olympic barbell': 0,
-      'ez barbell': 1,
-      dumbbell: 2,
-      kettlebell: 3,
-      cable: 4,
-      'smith machine': 5,
-      'leverage machine': 6,
-      'sled machine': 6,
-      'body weight': 7,
-      band: 8,
-    };
-    const CLASSIC = ['高位下拉', '引体', '划船', '硬拉', '深蹲', '卧推', '推举', '飞鸟', '侧平举', '弯举', '腿举', '下拉'];
-    const classicScore = (name: string) => {
-      const i = CLASSIC.findIndex((k) => name.includes(k));
-      return i === -1 ? 99 : i;
-    };
-    const eq = FILTERS.find((f) => f.key === filter)?.equip ?? [];
-
-    return (data?.items ?? [])
-      .filter((it) => !/stretch|mobility|yoga|foam roll/i.test(it.name))
-      .filter((it) => (eq.length ? eq.includes(it.equipment) : true))
-      .sort((a, b) => {
-        const ca = classicScore(a.zh_name);
-        const cb = classicScore(b.zh_name);
-        if (ca !== cb) return ca - cb;
-        const ra = rank[a.equipment] ?? 9;
-        const rb = rank[b.equipment] ?? 9;
-        if (ra !== rb) return ra - rb;
-        return (a.zh_name || a.name).localeCompare(b.zh_name || b.name, 'zh-CN');
-      });
-  }, [data, filter]);
+  const items = data?.items ?? [];
 
   const markDone = useCallback(
     async (it: DictItem) => {
@@ -280,7 +291,11 @@ export default function ExerciseSheet({ muscle, onClose, grouped = false, onChoo
                     key={f.key}
                     type="button"
                     className={filter === f.key ? 'on' : ''}
-                    onClick={() => setFilter(f.key)}
+                    onClick={() => {
+                      listScroll.current = 0;
+                      if (list.current) list.current.scrollTop = 0;
+                      setFilter(f.key);
+                    }}
                   >
                     {f.label}
                   </button>
@@ -297,11 +312,13 @@ export default function ExerciseSheet({ muscle, onClose, grouped = false, onChoo
                     const preview = <>
                       <span className="fc-dict-gif">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={imageUrl(it.image)} alt="" />
+                        <img src={imageUrl(it.image)} alt="" loading="lazy" />
                       </span>
                       <span className="fc-dict-item-body">
                         <b>{name}</b>
-                        <em>{EQUIPMENT_LABEL[it.equipment] ?? it.equipment} · {TARGET_LABEL[it.target] ?? it.target}</em>
+                        <em>{EQUIPMENT_LABEL[it.equipment] ?? it.equipment} · {TARGET_LABEL[it.target] ?? it.target}
+                          {it.preference === 'liked' ? ' · 常练' : it.preference === 'disliked' ? ' · 不喜欢' : ''}
+                        </em>
                       </span>
                     </>;
 
@@ -320,7 +337,12 @@ export default function ExerciseSheet({ muscle, onClose, grouped = false, onChoo
                       </button>
                     </div>;
                   })}
-                {!busyList && items.length === 0 && <p className="fc-note">这个筛选下没有动作，换个器械试试。</p>}
+                {!busyList && !listError && items.length === 0 && <p className="fc-note">这个筛选下没有动作，换个器械试试。</p>}
+                {listError && <p className="fc-note" role="alert">{listError}</p>}
+                {listError && !data && <button type="button" className="fc-btn ghost" onClick={() => setReload((value) => value + 1)}>重新加载</button>}
+                {data?.nextOffset != null && <button type="button" className="fc-btn ghost" disabled={busyMore} onClick={() => void loadMore()}>
+                  {busyMore ? '正在加载…' : '加载更多动作'}
+                </button>}
               </div>
               {selection && <div className="fc-dict-actions">
                 {selection.error && <p className="fc-note" role="alert">{selection.error}</p>}

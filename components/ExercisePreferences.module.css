@@ -1,0 +1,32 @@
+.panel { display: grid; gap: 12px; }
+.hint, .count, .error { margin: 0; font-size: 13px; color: var(--quiet); line-height: 1.5; }
+.tabs, .parts, .search { display: flex; gap: 6px; }
+.tabs { padding: 4px; border-radius: 12px; background: var(--sage); }
+.tabs button { flex: 1; min-width: 0; padding: 8px 2px; border-radius: 9px; white-space: nowrap; font-size: 13px; font-weight: 650; }
+.tabs button[aria-pressed='true'] { color: #fff; background: var(--forest); }
+.search input {
+  flex: 1; min-width: 0; padding: 8px 12px; border: 1px solid var(--line);
+  border-radius: 9px; background: var(--paper); color: inherit; font: inherit;
+}
+.search button, .parts button, .actions button, .empty button, .error button, .more {
+  padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; color: var(--forest); font-size: 12px;
+}
+.parts { flex-wrap: wrap; }
+.parts button { padding-inline: 11px; }
+.parts button[aria-pressed='true'], .actions button[aria-pressed='true'] { border-color: var(--forest); font-weight: 700; background: var(--sage); }
+.actions button:nth-child(2)[aria-pressed='true'] { border-color: #76685e; background: #ece8e1; color: #51463e; }
+.list { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.row, .empty { border: 1px solid var(--line); border-radius: 11px; padding: 8px; background: var(--paper); }
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.detail { display: flex; flex: 1 1 125px; align-items: center; gap: 8px; min-width: 0; text-decoration: none; color: inherit; }
+.detail strong { display: block; font-size: 13px; overflow-wrap: anywhere; }
+.detail small { display: block; margin-top: 2px; color: var(--quiet); font-size: 11px; }
+.thumb { display: grid; place-items: center; width: 40px; height: 40px; flex: none; overflow: hidden; border-radius: 7px; background: #fff; }
+.thumb img { width: 100%; height: 100%; object-fit: contain; }
+.actions { display: flex; gap: 4px; margin-inline-start: auto; }
+.actions button { white-space: nowrap; padding: 6px; }
+.empty { display: grid; justify-items: start; gap: 8px; padding: 12px; }
+.empty p { margin: 0; color: var(--quiet); font-size: 13px; }
+.error { color: #8b3b24; }
+.error button { margin-inline-start: 8px; }
+.more { justify-self: center; }

@@ -199,6 +199,14 @@ export interface ExercisePerformance {
   pr: ExercisePerformanceSet | null;
   growth: ExercisePerformanceSet | null;
   endurance: ExercisePerformanceSet | null;
+  sessions: {
+    id: number;
+    date: string;
+    pr: ExercisePerformanceSet | null;
+    growth: ExercisePerformanceSet | null;
+    endurance: ExercisePerformanceSet | null;
+    weights: Record<number, number>;
+  }[];
 }
 
 export interface TrendPoint {

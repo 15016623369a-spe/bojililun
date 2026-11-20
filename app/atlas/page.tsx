@@ -3,7 +3,7 @@ import SculptureAtlas from '@/components/fc/SculptureAtlas';
 import TabBar from '@/components/fc/TabBar';
 import { LeafIcon } from '@/components/fc/icons';
 import { todayMuscles } from '@/lib/log';
-import { getProfileRow } from '@/lib/core/meals';
+import { getTrainingModelSex } from '@/lib/core/training-profile';
 import { sculptureVariant, type SculptureVariant } from '@/lib/sculpture-groups';
 
 export const runtime = 'nodejs';
@@ -17,7 +17,7 @@ export default async function BodyPage({ searchParams }: { searchParams: Promise
   const heat = todayMuscles();
   const sp = await searchParams;
   const forced = sp.body === 'male' || sp.body === 'female' ? (sp.body as SculptureVariant) : null;
-  const variant = forced ?? sculptureVariant(getProfileRow()?.sex);
+  const variant = forced ?? sculptureVariant(getTrainingModelSex());
 
   return (
     <div className="fc">
