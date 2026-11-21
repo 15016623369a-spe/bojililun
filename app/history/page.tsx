@@ -1,19 +1,21 @@
 import Link from 'next/link';
-import JournalIcon from '@/components/JournalIcon';
 import JournalShell from '@/components/JournalShell';
 import ReviewJournal from '@/components/ReviewJournal';
+import BigDate from '@/components/ui/BigDate';
+import Icon from '@/components/ui/Icon';
 import { getTrainingModelSex } from '@/lib/core/training-profile';
 import { sculptureVariant } from '@/lib/sculpture-groups';
 import { recordedJournalForDate } from '@/lib/core/journal';
-import { todayStr, trainingTimeByDate } from '@/lib/core/workout';
-import { mealNutritionLabel } from '@/lib/journal';
+import { primaryMuscleActivity, todayStr, trainingTimeByDate, trendStats } from '@/lib/core/workout';
 import { addDays, periodRange, shiftMonth, validDate } from '@/lib/period';
+import type { MuscleId } from '@/lib/muscles';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const metadata = { title: '回顾 · FitCheck' };
 
 const periods = [{ key: 'day', label: '日' }, { key: 'week', label: '周' }, { key: 'month', label: '月' }] as const;
+const short = (date: string) => `${date.slice(5, 7)}.${date.slice(8)}`;
 
 export default async function HistoryPage({ searchParams }: { searchParams: Promise<{ period?: string; date?: string; month?: string }> }) {
   const params = await searchParams;
@@ -22,7 +24,6 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
   const anchor = validDate(params.date) ? params.date : validDate(monthDate) ? monthDate : today;
   const period = params.period === 'day' || params.period === 'week' || params.period === 'month' ? params.period : monthDate ? 'month' : 'week';
   const { start, end } = period === 'day' ? { start: anchor, end: anchor } : periodRange(period, anchor);
-  const dateLabel = (date: string) => `${Number(date.slice(5, 7))}月${Number(date.slice(8))}日`;
   const href = (key: string, date: string) => `/history?period=${key}&date=${date}`;
   const step = (direction: number) => period === 'month'
     ? shiftMonth(anchor.slice(0, 7), direction) + '-01'
@@ -32,34 +33,41 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
     const entries = recordedJournalForDate(date);
     if (entries.length) days.push({ date, entries });
   }
-  const mealSummary = mealNutritionLabel(days.flatMap(({ entries }) => entries.flatMap((entry) =>
-    entry.kind === 'meal' && entry.payload ? [entry.payload] : [])));
   const duration = period === 'day' ? 0 : trainingTimeByDate(start, end).reduce((sum, row) => sum + row.seconds, 0);
+  const volumeByDate = new Map(trendStats(start, end).map((row) => [row.date, row.volume]));
+  const bars = [];
+  if (period !== 'day') for (let date = start; date <= end; date = addDays(date, 1)) bars.push({ date, volume: volumeByDate.get(date) ?? 0 });
+  const perMuscle = new Map<MuscleId, number>();
+  if (period !== 'day') for (const row of primaryMuscleActivity(start, end)) perMuscle.set(row.id, (perMuscle.get(row.id) ?? 0) + row.volume);
   const calendarHref = `/history/calendar?date=${anchor}&period=${period}`;
-  return <JournalShell active="review" title="回顾" today={today}
-    headerAction={<Link href="/me" className="journal-icon-button review-profile-link" aria-label="我的个人资料" title="我的">
-      <JournalIcon name="profile" />
-    </Link>}>
-    <nav className="review-period" aria-label="回顾范围">
-      {periods.map(({ key, label }) => <Link href={href(key, anchor)} key={key} aria-current={key === period ? 'page' : undefined}>{label}</Link>)}
-    </nav>
-    <div className="review-dates">
-      <Link className="journal-icon-button" href={href(period, step(-1))} aria-label="上一段时间">‹</Link>
-      <Link className="review-calendar-link" href={`/history/calendar?date=${anchor}&period=${period}`}
-        aria-label={`打开月历，${start === end ? dateLabel(start) : `${dateLabel(start)}至${dateLabel(end)}`}`}>
-        <JournalIcon name="calendar" />
-        {period === 'month' ? `${start.slice(0, 4)} 年 ${Number(start.slice(5, 7))} 月`
-          : start === end ? dateLabel(start) : `${dateLabel(start)} — ${dateLabel(end)}`}
-      </Link>
-      <Link className="journal-icon-button" href={href(period, step(1))} aria-label="下一段时间">›</Link>
-    </div>
-    {mealSummary && <p className="hint">饮食合计 · {mealSummary}</p>}
+  const rangeLabel = period === 'month' ? `${start.slice(0, 4)}.${start.slice(5, 7)}`
+    : start === end ? short(start) : `${short(start)} — ${short(end)}`;
+  const daySummary = period === 'day' ? (() => {
+    const entries = days[0]?.entries ?? [];
+    const meals = entries.filter((entry) => entry.kind === 'meal' && !entry.payload?.planned).length;
+    const workouts = entries.filter((entry) => entry.kind === 'training').length;
+    return `${meals} 餐 · ${workouts} 项训练`;
+  })() : '';
+
+  return <JournalShell active="review" title="回顾" today={today} className="is-review"
+    headerAction={<div className="journal-head-actions">
+      <span className="journal-head-label">回顾</span>
+      <Link href="/me" className="journal-head-circle" aria-label="我的个人资料"><Icon name="user" size={18} /></Link>
+    </div>}
+    hero={<>
+      <div className="review-range">
+        <Link className="range-step" href={href(period, step(-1))} aria-label="上一段时间"><Icon name="chevron-left" size={18} stroke={2} /></Link>
+        <Link className="range-label" href={calendarHref} aria-label={`打开月历，当前 ${rangeLabel}`}>{rangeLabel}</Link>
+        <Link className="range-step" href={href(period, step(1))} aria-label="下一段时间"><Icon name="chevron-right" size={18} stroke={2} /></Link>
+        <nav className="vseg small" aria-label="回顾范围">
+          {periods.map(({ key, label }) => <Link href={href(key, anchor)} key={key} className={key === period ? 'on' : ''}
+            aria-current={key === period ? 'page' : undefined}>{label}</Link>)}
+        </nav>
+      </div>
+      {period === 'day' && <BigDate date={anchor} note={daySummary} />}
+    </>}>
     <ReviewJournal key={period + anchor} days={days} period={period} variant={sculptureVariant(getTrainingModelSex())}
-      duration={duration} calendarHref={calendarHref} anchor={anchor} />
-    <Link href="/stats" className="review-stats-link">
-      <span className="review-stats-icon"><JournalIcon name="review" /></span>
-      <strong>训练统计</strong>
-      <span className="review-stats-arrow" aria-hidden="true">›</span>
-    </Link>
+      duration={duration} calendarHref={calendarHref} anchor={anchor} today={today} bars={bars}
+      muscleVolume={[...perMuscle].map(([id, volume]) => ({ id, volume }))} />
   </JournalShell>;
 }

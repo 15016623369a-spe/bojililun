@@ -16,7 +16,7 @@ FitCheck 是以手机为主的中文健身记录应用。用户在人体模型�
 | 计划 | `/body` 是主导航的计划页。首屏是点阵人体，拖动旋转，点肌群后推近到该部位的石膏姿势和雾银抽屉；「动作库」「我的动作库」里可连续点动作、再点取消，点「完成」才统一写入今日计划；「开始训练」直接开练。讲解有独立入口。常练动作排在前，不喜欢的动作靠后。见 [PlanBody](components/fc/PlanBody.tsx)、[PlanDetail](components/fc/PlanDetail.tsx)、[ExerciseSheet](components/fc/ExerciseSheet.tsx)。 |
 | 训练 | `/train` 配置今日动作、组次、重量和休息；`/train/[id]` 记录实练组。计划完成后再次开始可确认加练，追加动作有火花标记。见 [今日计划](components/TodayPlan.tsx)、[训练执行](components/TrainingRunner.tsx)、[训练数据](lib/core/workout.ts)。 |
 | 记录 | `/` 是「记录」首页：大号日期、一天的时间刻度和按时间排开的横向记录卡，下方是可折叠的待练。按住说话进入点阵计时与珊瑚色转写的语音态，上滑取消。文字、语音输入可生成训练或饮食记录，饮食另有拍照识别和确认流程。见 [RecordToday](components/RecordToday.tsx)、[RecordDeck](components/RecordDeck.tsx)、[VoiceOverlay](components/VoiceOverlay.tsx)、[日记数据](lib/core/journal.ts)、[饮食数据](lib/core/meals.ts)。 |
-| 回顾 | `/history` 切日、周、月。周月显示身体模型、概况与横条式日期记录；点日期进详情，月历在 `/history/calendar`。「查看全部日期」下方进入统计，右上角头像进入「我的」。见 [回顾入口](app/history/page.tsx)、[ReviewJournal](components/ReviewJournal.tsx)。 |
+| 回顾 | `/history` 切日、周、月。周月显示本期容量大字、每日容量柱（选中日柠檬黄）、可切频次／容量的肌群热力图与横条式日期记录；日视图沿用记录页的时间刻度和横向卡片；点日期进详情，月历在 `/history/calendar`。「查看全部日期」下方进入统计，右上角头像进入「我的」。见 [回顾入口](app/history/page.tsx)、[ReviewJournal](components/ReviewJournal.tsx)。 |
 | 训练统计 | `/stats` 共用周、月、季、年筛选。当前页面依次展示概况、正反面肌群图与可折叠对比、容量趋势、运动时间、动作表现。见 [统计入口](app/stats/page.tsx)、[人体标注](components/StatsBodyMap.tsx)、[动作表现](components/ExercisePerformance.tsx)。设计稿中的「总览／肌群／动作」是拟议的页内导航。 |
 
 ## 11 月 21 日的视觉方向
@@ -31,14 +31,14 @@ FitCheck 是以手机为主的中文健身记录应用。用户在人体模型�
 | 记录与回顾 | 记录页以日期大字、时间刻度和横向训练／饮食卡定位一天。语音态出现点阵计时、随音量变化的波形及珊瑚色转写区。回顾页用一根高亮柱对应选中日期，最近记录维持横条列表。 |
 | 统计与动效 | 总览切容量／时间时，保留日期位置，联动柱高、读数、单位和强调色。肌群页用项目模型的二维正反面，点选后展开该区读数与对比。动作页保留图片和折线，切 RM 档位同时切指标、数值与曲线。跨视图采用短距离横移，详情沿模型下缘展开。 |
 
-**落地进度。** 新版视觉分四个阶段实施，每个阶段一个 PR：① 全局色系、导航和计划页（已实施）；② 训练流程（已实施）；③ 记录（已实施）与回顾；④ 统计。新样式集中在 [visual.css](app/visual.css) 和按页面拆分的 `app/v-*.css`，通用部件在 [components/ui](components/ui/)，色彩令牌在 [globals.css](app/globals.css) 的 `:root`。部位姿势图男女共用。各阶段的实现位置和取舍见 [视觉复刻规格](docs/design/2026-11-21/visual-handoff.md) 的「实施进度与代码位置」。
+**落地进度。** 新版视觉分四个阶段实施，每个阶段一个 PR：① 全局色系、导航和计划页（已实施）；② 训练流程（已实施）；③ 记录与回顾（已实施）；④ 统计。新样式集中在 [visual.css](app/visual.css) 和按页面拆分的 `app/v-*.css`，通用部件在 [components/ui](components/ui/)，色彩令牌在 [globals.css](app/globals.css) 的 `:root`。部位姿势图男女共用。各阶段的实现位置和取舍见 [视觉复刻规格](docs/design/2026-11-21/visual-handoff.md) 的「实施进度与代码位置」。
 
 **接手时先对齐的产品选择。** 讨论过让新用户预选各部位的常用动作，也讨论过缩短首次填写流程。现有动作偏好可在「我的」中维护；是否前移到建档、能否跳过，以及计划页最终采用哪种面板，实施时向用户确认。今天的示例动效和摆姿只作为视觉参考。
 
 ## 模型热力图与统计口径
 
 - **现有回顾热图**用于 `/history` 的 3D 模型。周／月频次等于「本期练到该肌群的不同日期数 ÷ 本期训练日数」，同一肌群同一天计一次；当前色阶分界为三分之一和三分之二。日视图标出当天实练部位。复用 [ReviewBody](components/ReviewBody.tsx)、[肌群与男女模型映射](lib/sculpture-groups.ts) 和 [模型材质](components/fc/SculptureBody.tsx)，沿真实肌肉分区着色，保留雕塑光影。
-- **回顾新版提案，待用户确认。** 周／月默认看频次，也可切换到容量。频次图用同一蓝色从浅到深，容量图用同一珊瑚色从浅到深。建议容量深浅按本期有负重记录的肌群最高值归一，图例写清「本期最高」，点肌群显示实际 kg。纯自重或缺重量的训练仍可计入频次；无可计算负重时标「无负重数据」。同一批虚构记录可见 [回顾热图提案](docs/design/2026-11-21/review-heat-proposal.png)。实施前确认默认指标与容量色阶的参照范围。
+- **回顾新版热图，用户已于 11 月 21 日确认并已实施。** 周／月默认看频次，也可切换到容量。频次图用同一蓝色从浅到深，容量图用同一珊瑚色从浅到深。建议容量深浅按本期有负重记录的肌群最高值归一，图例写清「本期最高」，点肌群显示实际 kg。纯自重或缺重量的训练仍可计入频次；无可计算负重时标「无负重数据」。同一批虚构记录可见 [回顾热图提案](docs/design/2026-11-21/review-heat-proposal.png)。已确认：默认指标为频次，容量色阶按本期最高的肌群归一。
 - **统计肌群图**使用项目男女雕塑的二维正反面图，资源在 [sculpture](public/models/sculpture/)。容量按实练组的「重量 × 次数」累计，复用 `primaryMuscleActivity`，每个动作只归入一个主要肌群。肌群对比支持组数、容量、训练次数与时长；周和月按天，季按三个月，年按十二个月。见 [肌群汇总](lib/muscle-distribution.ts)。
 - **动作表现**根据本周期的实练组自动更新。PR 对 1–15 次的负重组取最高估算 1RM，单次用实举重量，其余用 `重量 × (1 + 次数 / 30)`，问号在原处展开公式。8–12 RM 与 12–15 RM 分别显示对应次数范围内实际完成的最重一组；12 次可计入两档。曲线随档位变化。样例中的 80 kg、60 kg 等数字仅用于展示。
 

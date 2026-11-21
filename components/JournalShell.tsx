@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { todayStr, WORKOUT_TIME_ZONE } from '@/lib/core/workout';
 import DailyRefresh from './DailyRefresh';
 import JournalIcon from './JournalIcon';
+import Icon from './ui/Icon';
 import JournalNav from './JournalNav';
 
 export default function JournalShell({ active, title, subtitle, subtitleAside, children, footer, back, headerAction, today = todayStr(), className, hero }: {
@@ -26,7 +27,7 @@ export default function JournalShell({ active, title, subtitle, subtitleAside, c
       {headerAction}
     </header>
     <main className="journal-content">
-      {back && <Link className="journal-back" href={back.href}>‹ {back.label}</Link>}
+      {back && <Link className="journal-back" href={back.href}><Icon name="chevron-left" size={18} stroke={2} />{back.label}</Link>}
       {hero ? <><h1 className="sr-only">{title}</h1>{hero}</> : <>
         <h1>{title}</h1>
         {subtitle && <p className="journal-date">{subtitle}{subtitleAside && <small>{subtitleAside}</small>}</p>}

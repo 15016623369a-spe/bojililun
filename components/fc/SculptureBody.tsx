@@ -77,7 +77,7 @@ async function verifyHash(bytes: ArrayBuffer, expected: string) {
   if (actual !== expected) throw new Error('人体资源版本不匹配');
 }
 
-export default function SculptureBody({ recorded = [], selected = null, side = 'front', onPick, spin = false, variant = 'male', heatLevels, look = 'sculpture', anchor = null }: {
+export default function SculptureBody({ recorded = [], selected = null, side = 'front', onPick, spin = false, variant = 'male', heatLevels, heatTint, look = 'sculpture', anchor = null }: {
   recorded?: MuscleId[];
   selected?: MuscleId | null;
   side?: 'front' | 'back';
@@ -85,6 +85,8 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
   spin?: boolean;
   variant?: SculptureVariant;
   heatLevels?: ReadonlyMap<MuscleId, number>;
+  /** 着色的目标色：回顾频次用雾蓝、容量用珊瑚；不传时为选中色 */
+  heatTint?: string;
   /** halftone：计划首屏的点阵人体；sculpture：回顾等页面的石膏 + 热力着色 */
   look?: 'sculpture' | 'halftone';
   /** 跟随模型转动的柠檬黄锚点；转到背面被遮挡时隐藏 */
@@ -92,12 +94,12 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
 }) {
   const mount = useRef<HTMLDivElement>(null);
   const anchorEl = useRef<HTMLDivElement>(null);
-  const latest = useRef({ recorded, selected, side, onPick, spin, heatLevels, anchor });
-  latest.current = { recorded, selected, side, onPick, spin, heatLevels, anchor };
+  const latest = useRef({ recorded, selected, side, onPick, spin, heatLevels, heatTint, anchor });
+  latest.current = { recorded, selected, side, onPick, spin, heatLevels, heatTint, anchor };
   const api = useRef<{ refresh: () => void; setSide: (side: 'front' | 'back') => void; anchor: () => void } | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [hovered, setHovered] = useState<MuscleId | null>(null);
-  useEffect(() => { api.current?.refresh(); }, [recorded, selected, heatLevels]);
+  useEffect(() => { api.current?.refresh(); }, [recorded, selected, heatLevels, heatTint]);
   useEffect(() => { api.current?.setSide(side); }, [side]);
   useEffect(() => { api.current?.anchor(); }, [anchor?.muscle]);
 
@@ -134,8 +136,8 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
       const rim = new THREE.DirectionalLight(0xffffff, 1.1);
       rim.position.set(3.5, 1.5, -3); scene.add(rim);
     } else {
-      scene.add(new THREE.HemisphereLight(0xfffaf4, 0xc9beb2, 1.1));
-      const key = new THREE.DirectionalLight(0xfff7ed, 2.4);
+      scene.add(new THREE.HemisphereLight(0xffffff, 0xb9bab4, 1.05));
+      const key = new THREE.DirectionalLight(0xffffff, 2.4);
       key.position.set(-3, 4, 5); scene.add(key);
       const fill = new THREE.DirectionalLight(0xffffff, 1.0);
       fill.position.set(3, 2, -4); scene.add(fill);
@@ -181,7 +183,10 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
     let hover: MuscleId | null = null;
     let subject: THREE.Group | null = null;
     let dirty = true;
+    const DEFAULT_TINT = halftone ? '#8c8d88' : '#D9503C';
+    const tint = { value: new THREE.Color(DEFAULT_TINT) };
     const refresh = () => {
+      tint.value.set(latest.current.heatTint ?? DEFAULT_TINT);
       const active = new Set(latest.current.recorded.map(canonicalMuscle));
       const selectedId = canonicalMuscle(latest.current.selected);
       heatData.fill(0);
@@ -202,13 +207,13 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
       renderer.domElement.style.cursor = next ? 'pointer' : 'grab';
     };
     refresh();
-    const material = new THREE.MeshStandardMaterial({ color: halftone ? 0xe4e4e1 : 0xf3ede4, roughness: .88, metalness: 0, side: THREE.DoubleSide });
+    const material = new THREE.MeshStandardMaterial({ color: halftone ? 0xe4e4e1 : 0xe9e8e3, roughness: .88, metalness: 0, side: THREE.DoubleSide });
     material.customProgramCacheKey = () => halftone ? 'sculpture-halftone-v1' : 'sculpture-ortho-feather-v1';
     material.onBeforeCompile = (shader) => {
       shader.uniforms.uMuscleHeat = { value: heat };
       // 点阵模式下选中/悬停只把该区压暗，圆点随之变大变深，不另上色
-      shader.uniforms.uMuscleGreen = { value: new THREE.Color(halftone ? '#8c8d88' : '#2F6A45') };
-      shader.uniforms.uMuscleHover = { value: new THREE.Color(halftone ? '#b3b4af' : '#8FAE94') };
+      shader.uniforms.uMuscleGreen = tint;
+      shader.uniforms.uMuscleHover = { value: new THREE.Color(halftone ? '#b3b4af' : '#b6b7b1') };
       shader.vertexShader = shader.vertexShader.replace('#include <common>', `#include <common>
         attribute vec3 muscleIds;
         attribute vec2 muscleBary;

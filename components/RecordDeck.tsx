@@ -49,8 +49,10 @@ function cardText(entry: JournalEntry) {
  * 记录页的一天：上方时间刻度标出每条记录的时刻，下方横向卡片按时间排开。
  * 点刻度上的标记会滑到对应卡片，滑动卡片时刻度跟着高亮。
  */
-export default function RecordDeck({ entries: given, isToday, freshId, onSaved, onDeleted }: {
+export default function RecordDeck({ entries: given, isToday, freshId, onSaved, onDeleted, emptyHint }: {
   entries: JournalEntry[];
+  /** 没有记录时卡片上的说明；不传时提示按住说话 */
+  emptyHint?: string;
   isToday: boolean;
   freshId?: string;
   onSaved?: (entry: JournalEntry) => void;
@@ -134,7 +136,7 @@ export default function RecordDeck({ entries: given, isToday, freshId, onSaved, 
     }
   }
 
-  return <section className="day-deck" aria-label="今天的记录">
+  return <section className="day-deck" aria-label={isToday ? '今天的记录' : '当天的记录'}>
     <div className="day-ruler">
       <div className="day-ruler-ticks" aria-hidden="true">
         {Array.from({ length: ticks }, (_, i) => <i key={i} className={i % 6 === 0 ? 'hour' : undefined} />)}
@@ -157,10 +159,10 @@ export default function RecordDeck({ entries: given, isToday, freshId, onSaved, 
 
     <div className="deck" ref={deck} onScroll={onScroll}>
       {entries.length === 0 && <div className="deck-card empty">
-        <span className="deck-kind"><Icon name="mic" size={17} />开始记录</span>
+        <span className="deck-kind"><Icon name={emptyHint ? 'note' : 'mic'} size={17} />{emptyHint ? '空白的一天' : '开始记录'}</span>
         <b className="big-num">--:--</b>
-        <strong>今天还没有记录</strong>
-        <small>按住下方说话，比如「午饭牛肉面加一个卤蛋」</small>
+        <strong>{emptyHint ?? '今天还没有记录'}</strong>
+        {!emptyHint && <small>按住下方说话，比如「午饭牛肉面加一个卤蛋」</small>}
       </div>}
       {entries.map((entry, i) => {
         const text = cardText(entry);
