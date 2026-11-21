@@ -76,7 +76,10 @@ test('每天第一次（乱序输入）、七个自然日、区间之前的测�
   );
   assert.deepEqual(t.points, [{ date: day, weight_kg: 70, days: 2, average7: 71 }]);
 });
-test('混合拆单、事务、重试、导出', async () => {
+test('混合拆单、事务、重试、导出', async (t) => {
+  const key=process.env.DEEPSEEK_API_KEY;
+  delete process.env.DEEPSEEK_API_KEY;
+  t.after(()=>{if(key)process.env.DEEPSEEK_API_KEY=key;});
   const db = setup();
   const p = await parseInput('卧推四组，练完喝了牛奶，早上称了70公斤', undefined, 'voice');
   assert.deepEqual(
