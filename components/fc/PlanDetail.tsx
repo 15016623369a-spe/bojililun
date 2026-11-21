@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import JournalIcon from '@/components/JournalIcon';
 import type { MuscleId } from '@/lib/muscles';
@@ -28,6 +28,34 @@ export default function PlanDetail({ muscle, muscleLabel, region, pose, planCoun
   const [counts, setCounts] = useState<{ all?: number; liked?: number }>({});
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState('');
+  // 下拉抽屉关闭：跟手位移，人物同时轻微下沉放大，松手按距离或速度决定关闭还是回弹
+  const [drag, setDrag] = useState<{ dy: number; live: boolean }>({ dy: 0, live: false });
+  const dragStart = useRef<{ y: number; t: number; id: number } | null>(null);
+  const moved = useRef(false);
+
+  function onDragStart(event: PointerEvent<HTMLElement>) {
+    if ((event.target as HTMLElement).closest('.plan-drawer-rows, .plan-start')) return;
+    dragStart.current = { y: event.clientY, t: performance.now(), id: event.pointerId };
+    moved.current = false;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDrag({ dy: 0, live: true });
+  }
+  function onDragMove(event: PointerEvent<HTMLElement>) {
+    const start = dragStart.current;
+    if (!start || start.id !== event.pointerId) return;
+    const raw = event.clientY - start.y;
+    if (Math.abs(raw) > 4) moved.current = true;
+    setDrag({ dy: raw > 0 ? raw : raw * .22, live: true });
+  }
+  function onDragEnd(event: PointerEvent<HTMLElement>) {
+    const start = dragStart.current;
+    if (!start || start.id !== event.pointerId) return;
+    dragStart.current = null;
+    const dy = event.clientY - start.y;
+    const speed = dy / Math.max(1, performance.now() - start.t);
+    if (dy > 120 || (dy > 40 && speed > .7)) { onClose(); setDrag({ dy, live: false }); }
+    else setDrag({ dy: 0, live: false });
+  }
 
   useEffect(() => {
     const request = new AbortController();
@@ -71,7 +99,10 @@ export default function PlanDetail({ muscle, muscleLabel, region, pose, planCoun
   const startMeta = activeSession ? '继续上一节' : planCount ? `今日 ${planCount} 个动作` : '先挑动作';
 
   return (
-    <div className="plan-detail" data-closing={closing || undefined} role="dialog" aria-modal="true" aria-label={`${region} · ${muscleLabel}`}>
+    <div className="plan-detail" data-closing={closing || undefined} data-dragging={drag.live || undefined}
+      style={{ '--drag': `${drag.dy.toFixed(1)}px` } as CSSProperties}
+      role="dialog" aria-modal="true" aria-label={`${region} · ${muscleLabel}`}>
+      <div className="plan-detail-dots" aria-hidden="true" />
       <header className="plan-detail-head">
         <div className="journal-brand"><JournalIcon name="brand" />FitCheck</div>
         <div className="journal-head-actions">
@@ -87,8 +118,9 @@ export default function PlanDetail({ muscle, muscleLabel, region, pose, planCoun
         <img src={`/plan-poses/${pose}.jpg`} alt={`${region}展示姿势`} draggable={false} />
       </figure>
 
-      <section className="plan-drawer">
-        <button type="button" className="plan-drawer-grab" onClick={onClose} aria-label="收起" />
+      <section className="plan-drawer" onPointerDown={onDragStart} onPointerMove={onDragMove}
+        onPointerUp={onDragEnd} onPointerCancel={onDragEnd}>
+        <button type="button" className="plan-drawer-grab" onClick={() => { if (!moved.current) onClose(); }} aria-label="收起" />
         <p className="plan-kicker"><i aria-hidden="true" />已选部位 · {region}</p>
         <h2 className="plan-drawer-title">{muscleLabel}</h2>
         <div className="plan-drawer-rows">

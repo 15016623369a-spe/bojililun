@@ -74,7 +74,7 @@ tone = max(0, (252 - 原图 R 通道) / 128)
 | 悬浮胶囊导航 | 已实施。[JournalNav](../../../components/JournalNav.tsx) 只留文字，底部有一层与页面同色的渐隐。 |
 | 计划首屏点阵 | 已实施。[SculptureBody](../../../components/fc/SculptureBody.tsx) 的 `look="halftone"` 在 GPU 上做两遍：中性灰雕塑渲染进纹理，再按 3 CSS px 的格子采样亮度画圆点，算法与上文原稿一致。只绕竖轴转，禁止缩放。背景点阵由 CSS 画，固定在屏幕上。回顾页仍用默认的 `look="sculpture"`。 |
 | 柠檬黄锚点 | 已实施。点到哪里就落在命中的表面点上，存成模型坐标，转身时跟着走，法线背向镜头时隐藏。未点选时提示在胸部。 |
-| 点选后的姿势详情 | 已实施。[PlanDetail](../../../components/fc/PlanDetail.tsx)：点阵人体以锚点为中心推近淡出，石膏姿势图由模糊放大落定，雾银抽屉从下方弹出。手机返回手势可关闭。肌群到姿势的对应在 [plan-poses.ts](../../../lib/plan-poses.ts)，图片在 [public/plan-poses](../../../public/plan-poses/)，由 [plan-poses](plan-poses/) 的成稿裁出人物区。 |
+| 点选后的姿势详情 | 已实施。[PlanDetail](../../../components/fc/PlanDetail.tsx)：点阵人体以锚点为中心推近淡出，石膏姿势图由模糊放大落定，雾银抽屉从下方弹出。抽屉是半透明毛玻璃（`backdrop-filter`），上沿透出点阵和人物；可以下拉关闭，人物跟着轻微下沉放大。手机返回手势也可关闭。肌群到姿势的对应在 [plan-poses.ts](../../../lib/plan-poses.ts)，图片在 [public/plan-poses](../../../public/plan-poses/)，由 [plan-poses](plan-poses/) 的成稿裁出人物区。 |
 | 抽屉三个入口 | 「动作库」打开该肌群的多选动作抽屉，「我的动作库」只列常练动作（`preference=liked`），完成后统一写入今日计划。「开始训练」有进行中的训练就继续，有计划就新开一节，没有计划就先打开动作库。 |
 | 加练选动作 | `/train/extra` 暂用旧的 [BodyPicker](../../../components/fc/BodyPicker.tsx)，训练阶段重做。 |
 | 触感 | Android 用 `navigator.vibrate`；iOS Safari 网页没有振动接口，靠锚点落点、勾选回弹等视觉反馈代替。 |
