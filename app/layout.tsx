@@ -3,6 +3,7 @@ import './globals.css';
 import './journal.css';
 import './replica.css';
 import './visual.css';
+import './v-train.css';
 
 export const metadata: Metadata = {
   title: 'FitCheck · 健身记录',
