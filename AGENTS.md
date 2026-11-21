@@ -12,7 +12,7 @@ FitCheck 是以手机为主的中文健身记录应用。用户在人体模型�
 
 | 用户入口 | 当前行为与接手位置 |
 | --- | --- |
-| 新用户建档、我的 | `/setup` 建立训练档案，有旧资料或记录的用户可直接进入。`/me` 管理训练目标、体重、伤病与限制、营养设置；`/me/exercises` 管理动作偏好。资料中的性别联动默认男女模型。见 [档案与旧数据判定](lib/core/training-profile.ts)、[个人页面](components/TrainingProfileDashboard.tsx)。 |
+| 新用户建档、我的 | `/setup` 一屏一问建立训练档案（目标必选，其余可跳过，最后可挑常练动作），有旧资料或记录的用户可直接进入。`/me` 管理训练目标、体重、伤病与限制、营养设置；`/me/exercises` 管理动作偏好。资料中的性别联动默认男女模型。见 [档案与旧数据判定](lib/core/training-profile.ts)、[建档流程](components/SetupFlow.tsx)、[个人页面](components/TrainingProfileDashboard.tsx)。 |
 | 计划 | `/body` 是主导航的计划页。首屏是点阵人体，拖动旋转，点肌群后推近到该部位的石膏姿势和雾银抽屉；「动作库」「我的动作库」里可连续点动作、再点取消，点「完成」才统一写入今日计划；「开始训练」直接开练。讲解有独立入口。常练动作排在前，不喜欢的动作靠后。见 [PlanBody](components/fc/PlanBody.tsx)、[PlanDetail](components/fc/PlanDetail.tsx)、[ExerciseSheet](components/fc/ExerciseSheet.tsx)。 |
 | 训练 | `/train` 配置今日动作、组次、重量和休息；`/train/[id]` 记录实练组。计划完成后再次开始可确认加练，追加动作有火花标记。见 [今日计划](components/TodayPlan.tsx)、[训练执行](components/TrainingRunner.tsx)、[训练数据](lib/core/workout.ts)。 |
 | 记录 | `/` 是「记录」首页：大号日期、一天的时间刻度和按时间排开的横向记录卡，下方是可折叠的待练。按住说话进入点阵计时与珊瑚色转写的语音态，上滑取消。文字、语音输入可生成训练或饮食记录，饮食另有拍照识别和确认流程。见 [RecordToday](components/RecordToday.tsx)、[RecordDeck](components/RecordDeck.tsx)、[VoiceOverlay](components/VoiceOverlay.tsx)、[日记数据](lib/core/journal.ts)、[饮食数据](lib/core/meals.ts)。 |
@@ -31,9 +31,9 @@ FitCheck 是以手机为主的中文健身记录应用。用户在人体模型�
 | 记录与回顾 | 记录页以日期大字、时间刻度和横向训练／饮食卡定位一天。语音态出现点阵计时、随音量变化的波形及珊瑚色转写区。回顾页用一根高亮柱对应选中日期，最近记录维持横条列表。 |
 | 统计与动效 | 总览切容量／时间时，保留日期位置，联动柱高、读数、单位和强调色。肌群页用项目模型的二维正反面，点选后展开该区读数与对比。动作页保留图片和折线，切 RM 档位同时切指标、数值与曲线。跨视图采用短距离横移，详情沿模型下缘展开。 |
 
-**落地进度。** 新版视觉分四个阶段实施，每个阶段一个 PR：① 全局色系、导航和计划页（已实施）；② 训练流程（已实施）；③ 记录与回顾（已实施）；④ 统计（已实施）。「我的」、建档和加练选动作还沿用旧版式。新样式集中在 [visual.css](app/visual.css) 和按页面拆分的 `app/v-*.css`，通用部件在 [components/ui](components/ui/)，色彩令牌在 [globals.css](app/globals.css) 的 `:root`。部位姿势图男女共用。各阶段的实现位置和取舍见 [视觉复刻规格](docs/design/2026-11-21/visual-handoff.md) 的「实施进度与代码位置」。
+**落地进度。** 新版视觉分四个阶段实施，每个阶段一个 PR：① 全局色系、导航和计划页（已实施）；② 训练流程（已实施）；③ 记录与回顾（已实施）；④ 统计（已实施）；之后补了「我的」、动作偏好和建档。加练选动作和饮食拍照确认还沿用旧版式。新样式集中在 [visual.css](app/visual.css) 和按页面拆分的 `app/v-*.css`，通用部件在 [components/ui](components/ui/)，色彩令牌在 [globals.css](app/globals.css) 的 `:root`。部位姿势图男女共用。各阶段的实现位置和取舍见 [视觉复刻规格](docs/design/2026-11-21/visual-handoff.md) 的「实施进度与代码位置」。
 
-**接手时先对齐的产品选择。** 讨论过让新用户预选各部位的常用动作，也讨论过缩短首次填写流程。现有动作偏好可在「我的」中维护；是否前移到建档、能否跳过，以及计划页最终采用哪种面板，实施时向用户确认。今天的示例动效和摆姿只作为视觉参考。
+**已对齐的产品选择。** 建档改为一屏一问：训练目标必选，性别、体重、伤病限制可跳过；最后一步可按部位挑常练动作写入「我的动作库」，也可跳过（用户 11 月 22 日确认）。动作偏好仍可在「我的」中维护。计划页详情采用雾银毛玻璃面板。
 
 ## 模型热力图与统计口径
 
