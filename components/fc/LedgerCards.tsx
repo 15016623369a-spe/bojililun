@@ -4,6 +4,29 @@ import { useRouter } from 'next/navigation';
 import type { CardPick } from '@/lib/ledger';
 import type { Card } from '@/lib/export';
 import { calcMealTotals, formatDisplayKcal, formatWorkoutSummary } from '@/lib/calculations';
+import { DumbbellIcon, MealIcon, PencilIcon } from './icons';
+
+const cardKinds = {
+  meal: { label: '饮食', Icon: MealIcon },
+  workout: { label: '训练', Icon: DumbbellIcon },
+  plan_draft: { label: '轻计划', Icon: PencilIcon },
+  body_metrics: { label: '体重', Icon: PencilIcon },
+};
+
+function RecordStamp({ kind, loggedAt }: { kind: Card['entry_type']; loggedAt: string }) {
+  const { label, Icon } = cardKinds[kind];
+  return (
+    <small className="fc-ledger-stamp">
+      <span className="fc-ledger-kind" role="img" aria-label={label} title={label}>
+        <Icon />
+      </span>
+      <time dateTime={loggedAt}>
+        {new Date(loggedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+      </time>
+    </small>
+  );
+}
+
 export default function LedgerCards({
   cards,
   picks,
@@ -37,10 +60,7 @@ export default function LedgerCards({
     <section className="fc-ledger-list" aria-label="今天的记录">
       {cards.map((c) => (
         <article className="fc-card fc-ledger-card" data-kind={c.entry_type} key={c.id}>
-          <small className="fc-ledger-stamp">
-            {new Date(c.logged_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })} ·{' '}
-            {c.entry_type === 'meal' ? '饮食' : c.entry_type === 'workout' ? '训练' : '轻计划'}
-          </small>
+          <RecordStamp kind={c.entry_type} loggedAt={c.logged_at} />
           <h3>{c.summary_title}</h3>
           {c.entry_type === 'meal' && (
             <button
