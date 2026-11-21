@@ -34,10 +34,10 @@ export default function LedgerCards({
     }
   }
   return (
-    <section aria-label="今天的记录">
+    <section className="fc-ledger-list" aria-label="今天的记录">
       {cards.map((c) => (
-        <article className="fc-card" style={{ marginBlock: 12, paddingBottom: 12 }} key={c.id}>
-          <small>
+        <article className="fc-card fc-ledger-card" data-kind={c.entry_type} key={c.id}>
+          <small className="fc-ledger-stamp">
             {new Date(c.logged_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })} ·{' '}
             {c.entry_type === 'meal' ? '饮食' : c.entry_type === 'workout' ? '训练' : '轻计划'}
           </small>
@@ -68,7 +68,7 @@ export default function LedgerCards({
                 </small>
               );
             })}
-          {c.note && <p>{c.note}</p>}
+          {c.note && <p className="fc-ledger-note">{c.note}</p>}
           {picks[c.id] && (
             <fieldset className="fc-quick-pick">
               <legend>{picks[c.id]?.question}</legend>
@@ -86,7 +86,7 @@ export default function LedgerCards({
               </div>
             </fieldset>
           )}
-          <details>
+          <details className="fc-ledger-edit">
             <summary>编辑</summary>
             <form
               onSubmit={(e) => {

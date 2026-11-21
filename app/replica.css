@@ -4,25 +4,25 @@
    ============================================================ */
 
 .fc {
-  --paper: #fbf6f3;
-  --paper-2: #f7f1ed;
-  --ink: #1a1a19;
-  --ink-2: #3d3d38;
-  --muted: #9a9a92;
-  --muted-2: #7d7d75;
-  --hair: #e3ddd4;
-  --hair-2: #d8d2c8;
-  --green: #115133;
-  --green-ink: #1c632e;
-  --green-soft: #f4f5ee;
-  --green-line: #a9c0a5;
-  --sage: #ebede5;
-  --orange: #dc7709;
+  --paper: var(--silver-2);
+  --paper-2: var(--panel-2);
+  --ink: var(--ink-0);
+  --ink-2: #3a3c37;
+  --muted: var(--gray-2);
+  --muted-2: var(--gray-1);
+  --hair: #d2d3cd;
+  --hair-2: #c6c7c1;
+  --green: var(--ink-0);
+  --green-ink: var(--ink-0);
+  --green-soft: var(--panel-2);
+  --green-line: #b9bbb5;
+  --sage: #dadbd6;
+  --orange: var(--coral);
   --radius: 16px;
 
   background: var(--paper);
   color: var(--ink);
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro SC', 'PingFang SC', 'Hiragino Sans GB',
+  font-family: 'Helvetica Neue', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB',
     'Microsoft YaHei', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   min-height: 100dvh;

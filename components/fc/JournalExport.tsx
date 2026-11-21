@@ -7,7 +7,7 @@ export default function JournalExport({ today }: { today: string }) {
     [message, setMessage] = useState('');
   const url = '/api/ledger?' + new URLSearchParams({ start, end });
   return (
-    <details>
+    <details className="fc-export-panel">
       <summary>导出手账</summary>
       <div className="fc-examples">
         {[7, 30].map((n) => (
@@ -30,7 +30,7 @@ export default function JournalExport({ today }: { today: string }) {
         至 <input type="date" min={start} value={end} onChange={(e) => setEnd(e.target.value)} />
       </label>
       {start && end && end >= start && (
-        <p>
+        <p className="fc-export-actions">
           <a download href={url + '&download&format=json'}>
             下载 JSON
           </a>{' '}

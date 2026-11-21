@@ -44,7 +44,7 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
   );
   return (
     <div className="fc">
-      <div className="fc-shell review">
+      <div className="fc-shell review fc-ledger-review">
         <header>
           <div className="fc-brand">
             <LeafIcon />
@@ -71,21 +71,27 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
         <p className="fc-range">
           {start} — {today}
         </p>
-        <BodyHeat
-          heat={Object.entries(heat)
-            .filter(([, v]) => v.level > 0)
-            .map(([id, v]) => ({ id, level: v.level / 3 }))}
-        />
+        <div className="fc-heat-panel">
+          <BodyHeat
+            heat={Object.entries(heat)
+              .filter(([, v]) => v.level > 0)
+              .map(([id, v]) => ({ id, level: v.level / 3 }))}
+          />
+        </div>
         {trend.latest !== null && (
-          <p>
-            晨重 {trend.latest} kg · 区间变化 {trend.change} kg · 7 日均重 {trend.points.at(-1)?.average7} kg
-          </p>
+          <div className="fc-weight-summary">
+            <span>
+              晨重 <strong>{trend.latest} kg</strong>
+            </span>
+            <span>区间变化 {trend.change} kg</span>
+            <span>7 日均重 {trend.points.at(-1)?.average7} kg</span>
+          </div>
         )}
         {days
           .filter((d) => d.entries.length || d.body_metrics.length)
           .reverse()
           .map((d) => (
-            <section key={d.date}>
+            <section key={d.date} className="fc-review-day">
               <h2 className="fc-day">{d.date}</h2>
               {d.entries.map((c) => (
                 <p key={c.id}>{c.summary_title}</p>

@@ -4,27 +4,47 @@
 
 :root {
   color-scheme: light;
-  --paper: #faf8f3;
-  --ink: #18221c;
-  --forest: #15573c;
-  --sage: #e8efe6;
-  --quiet: #59655c;
-  --hairline: #dedfd5;
-  --meal: #9a460b;
-  --canvas: #eae8e0;
+  /* 2026-11 视觉：雾银灰铺底、墨黑文字，亮色各司其职（见 docs/design/2026-11-21/visual-handoff.md） */
+  --silver: #e7e8e4;          /* 计划首屏 */
+  --silver-2: #e2e3df;        /* 其他屏幕 */
+  --silver-3: #dcddda;        /* 姿势详情、深一档的底 */
+  --mist-panel: #eeeeec;      /* 雾银抽屉 */
+  --ink-0: #151613;
+  --ink-2: #3a3c37;
+  --gray-1: #6b6d67;
+  --gray-2: #8d8f89;
+  --dot: #b5b9b4;
+  --olive: #a9af79;
+  --lemon: #f2ed21;
+  --mist: #91bce8;
+  --coral: #f06351;
+  --lilac: #bdadf0;
+  --font-num: 'Helvetica Neue', 'SF Pro Display', -apple-system, 'PingFang SC', system-ui, sans-serif;
+  --ease-out: cubic-bezier(.2, .8, .2, 1);
+  --ease-spring: cubic-bezier(.32, 1.25, .4, 1);
+
+  /* 旧变量名保留，映射到新色系 */
+  --paper: var(--silver-2);
+  --ink: var(--ink-0);
+  --forest: var(--ink-0);
+  --sage: #d6d7d2;
+  --quiet: var(--gray-1);
+  --hairline: #cfd0ca;
+  --meal: #c4462f;
+  --canvas: #d5d6d2;
   --bg: var(--paper);
-  --panel: #f1eee6;
-  --panel-2: #f5f2ea;
+  --panel: #dadbd6;
+  --panel-2: #ebece8;
   --line: var(--hairline);
   --text: var(--ink);
   --muted: var(--quiet);
   --accent: var(--forest);
-  --accent-2: #477653;
-  --accent-rgb: 21 87 60;
+  --accent-2: var(--ink-2);
+  --accent-rgb: 21 22 19;
   --warn: var(--meal);
-  --warn-rgb: 154 70 11;
-  --danger: #a03930;
-  --danger-rgb: 160 57 48;
+  --warn-rgb: 196 70 47;
+  --danger: #b8402e;
+  --danger-rgb: 184 64 46;
   --radius: 16px;
 }
 
@@ -37,7 +57,7 @@ body {
 body {
   background: var(--canvas);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro SC', 'PingFang SC', 'Hiragino Sans GB',
+  font-family: 'Helvetica Neue', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB',
     'Microsoft YaHei', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: none;

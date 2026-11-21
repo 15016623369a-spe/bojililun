@@ -23,21 +23,25 @@ export default function LogPage() {
 
   return (
     <div className="fc">
-      <div className="fc-shell">
+      <div className="fc-shell fc-ledger-shell">
         <header>
           <div className="fc-brand">
             <LeafIcon />
             FitCheck
           </div>
           <h1 className="fc-h1">今天</h1>
+          <div className="fc-hero-date" aria-hidden="true">
+            {today.slice(5, 7)}
+            <span>.{today.slice(8)}</span>
+          </div>
           <p className="fc-sub">{label}</p>
         </header>
 
-        <main style={{ marginTop: 4 }}>
+        <main className="fc-ledger-main">
           <LedgerCards cards={day.entries} picks={picks} />
           {day.body_metrics.map((m) => (
-            <p key={m.logged_at}>
-              {m.weight_kg} kg · {m.note || '体重记录'}
+            <p key={m.logged_at} className="fc-metric-note">
+              <strong>{m.weight_kg} kg</strong> · {m.note || '体重记录'}
             </p>
           ))}
           <LogScreen ledgerHasRecords={!!(day.entries.length || day.body_metrics.length)} />
