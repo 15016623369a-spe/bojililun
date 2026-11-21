@@ -13,7 +13,8 @@
     "shot": "node scripts/shot.mjs",
     "shot:library": "node scripts/shot-library.mjs",
     "shot:training": "node scripts/shot-training.mjs",
-    "shot:body": "node scripts/shot-body.mjs"
+    "shot:body": "node scripts/shot-body.mjs",
+    "test:ledger": "node --test tests/ledger.cjs"
   },
   "dependencies": {
     "next": "15.5.29",

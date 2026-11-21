@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import './journal.css';
 import './replica.css';
+import './visual.css';
+import './plan-visual.css';
 
 export const metadata: Metadata = {
   title: 'FitCheck · 健身记录',
@@ -11,7 +13,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#f9f7f2',
+  themeColor: '#e2e3df',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -1,0 +1,410 @@
+/* Silver / ink visual system adapted from FitCheck PR #5. */
+.fc,
+.journal-shell {
+  --visual-dock-fade: rgb(226 227 223 / 95%);
+}
+
+.journal-brand,
+.fc-brand {
+  color: var(--ink-0);
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.fc-h1,
+.journal-content h1 {
+  font-size: clamp(32px, 9vw, 40px);
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+}
+
+.journal-footer,
+.fc-dock {
+  background: linear-gradient(to top, var(--visual-dock-fade) 65%, transparent);
+}
+
+.fc-dock {
+  --visual-dock-fade: rgb(226 227 223 / 95%);
+}
+
+.journal-footer {
+  display: grid;
+  justify-items: center;
+  pointer-events: none;
+  padding-bottom: calc(14px + env(safe-area-inset-bottom));
+}
+
+.journal-footer > *,
+.fc-dock-inner > * {
+  pointer-events: auto;
+}
+
+.fc-dock-inner,
+.fc-dock-inner.nav-only {
+  display: grid;
+  justify-items: center;
+  padding: 18px 20px 14px;
+  pointer-events: none;
+}
+
+.fc-tabs,
+.journal-shell .journal-nav,
+.journal-shell:has(.plan-atlas) .journal-nav {
+  display: inline-flex;
+  justify-content: center;
+  gap: 2px;
+  width: max-content;
+  max-width: 100%;
+  padding: 5px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink-0);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 8%),
+    0 10px 24px -14px rgb(21 22 19 / 60%);
+}
+
+.fc-tabs .fc-tab,
+.journal-shell .journal-nav a {
+  display: grid;
+  place-items: center;
+  flex: 0 1 auto;
+  min-width: clamp(64px, 20vw, 83px);
+  height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  color: #d2d4cd;
+  font-size: 14px;
+  letter-spacing: 0.025em;
+  text-decoration: none;
+}
+
+.fc-tabs .fc-tab.on,
+.journal-shell .journal-nav a[aria-current] {
+  background: linear-gradient(#f1f2ee, #e4e5e0);
+  color: var(--ink-0);
+  font-weight: 650;
+}
+
+.fc-tabs .fc-tab svg,
+.journal-shell .journal-nav svg,
+.fc-tabs .fc-tab .u {
+  display: none;
+}
+
+.journal-shell .journal-nav a[aria-current] span {
+  padding: 0;
+  border: 0;
+}
+
+.fc-tabs a:focus-visible,
+.journal-shell .journal-nav a:focus-visible {
+  outline: 2px solid var(--lemon);
+  outline-offset: -2px;
+}
+
+.fc .fc-speak {
+  height: 49px;
+  background: var(--ink-0);
+  color: #f4f5f0;
+  box-shadow: none;
+  font-size: 16px;
+}
+
+.fc .fc-speak.rec,
+.fc .fc-speak:active {
+  background: var(--coral);
+  color: var(--ink-0);
+  box-shadow: none;
+}
+
+.fc .fc-ledger-type {
+  min-height: 44px;
+  margin: 0;
+  padding: 0 12px;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.fc-speak ~ .fc-tabs {
+  margin-top: 2px;
+}
+
+.fc-ledger-shell {
+  padding-bottom: calc(198px + env(safe-area-inset-bottom));
+}
+
+.fc-hero-date {
+  margin-top: 7px;
+  font: 700 clamp(54px, 18vw, 78px) / 1 var(--font-num);
+  letter-spacing: -0.08em;
+  font-variant-numeric: tabular-nums;
+}
+
+.fc-hero-date span {
+  color: #696d63;
+}
+
+.fc-ledger-shell .fc-sub {
+  margin: 6px 0 0;
+  color: var(--muted-2);
+  font-size: 13px;
+}
+
+.fc-ledger-main {
+  margin-top: 20px;
+}
+
+.fc-ledger-list {
+  display: grid;
+  gap: 12px;
+}
+
+.fc-ledger-list:empty {
+  display: none;
+}
+
+.fc-ledger-card {
+  padding: 15px 16px 13px;
+  border: 1px solid var(--hair);
+  border-radius: 20px;
+  background: var(--mist-panel);
+  overflow-wrap: anywhere;
+}
+
+.fc-ledger-card[data-kind='workout'] {
+  border-color: #c9c57d;
+  background: color-mix(in srgb, var(--lemon) 28%, var(--silver));
+}
+
+.fc-ledger-card[data-kind='plan_draft'] {
+  border-style: dashed;
+  background: transparent;
+}
+
+.fc-ledger-card h3 {
+  margin: 6px 0 8px;
+  font-size: 20px;
+  line-height: 1.27;
+  letter-spacing: -0.025em;
+}
+
+.fc-ledger-card small,
+.fc-ledger-note {
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.fc-ledger-card .fc-ledger-stamp {
+  color: var(--ink-0);
+  font: 650 14px/1.4 var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+.fc-ledger-note {
+  margin: 8px 0;
+}
+
+.fc .fc-examples button {
+  min-height: 44px;
+  background: var(--panel-2);
+  border-color: var(--hair-2);
+  color: var(--ink-0);
+}
+
+.fc .fc-examples button:active {
+  background: var(--lemon);
+  border-color: var(--ink-0);
+}
+
+.fc-quick-pick {
+  border-top: 1px solid var(--hair-2);
+  padding-top: 6px;
+}
+
+.fc-quick-pick legend {
+  padding-right: 8px;
+  color: var(--ink-2);
+}
+
+.fc-ledger-edit summary,
+.fc-export-panel summary {
+  display: list-item;
+  padding: 10px 0;
+  min-height: 44px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.fc-ledger-edit form {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.fc-ledger-edit label,
+.fc-export-panel label {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.fc-ledger-edit input,
+.fc-ledger-edit select,
+.fc-export-panel input {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 4px;
+  border: 1px solid var(--hair-2);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: var(--paper-2);
+  color: var(--ink);
+  font: inherit;
+}
+
+.fc .fc-ledger-edit form > button,
+.fc .fc-export-actions > :is(button, a) {
+  justify-self: start;
+  display: inline-grid;
+  place-items: center;
+  min-height: 44px;
+  padding: 7px 13px;
+  border: 1px solid var(--hair-2);
+  border-radius: 999px;
+  background: var(--paper-2);
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.fc-metric-note {
+  margin: 12px 0 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--mist) 23%, var(--silver));
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+.fc-ledger-review .fc-seg {
+  background: var(--silver-3);
+}
+
+.fc-ledger-review .fc-range {
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.fc-review-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.fc-ledger-review .fc-sculpture-overview {
+  background: linear-gradient(110deg, var(--sage), var(--paper-2) 70%);
+  border-color: var(--hair);
+}
+
+.fc-ledger-review .sculpture-hover {
+  color: var(--ink-0);
+  background: color-mix(in srgb, var(--mist) 55%, var(--mist-panel));
+  border: 1px solid color-mix(in srgb, var(--mist), var(--hair-2));
+}
+
+.fc-ledger-review .review-heat-legend i {
+  flex: none;
+  background: color-mix(in srgb-linear, var(--silver-3), var(--review-heat, var(--lemon)) var(--heat, 0%));
+}
+
+.fc-ledger-review .review-heat-legend i:nth-of-type(2) { --heat: 33%; }
+.fc-ledger-review .review-heat-legend i:nth-of-type(3) { --heat: 67%; }
+.fc-ledger-review .review-heat-legend i:nth-of-type(4) { --heat: 100%; }
+
+.fc-ledger-review[data-heat-palette='ink'] {
+  --review-heat: var(--ink-0);
+}
+
+.fc-ledger-review[data-heat-palette='ink'] .sculpture-hover {
+  background: var(--silver-3);
+  border-color: var(--hair-2);
+}
+
+.fc-review-records-title {
+  margin: 14px 0 8px;
+  font-size: 17px;
+}
+
+.fc-review-day,
+.fc-export-panel,
+.fc-weight-summary {
+  border-top: 1px solid var(--hair-2);
+  padding: 12px 0;
+}
+
+.fc-review-day h2,
+.fc-review-day p {
+  margin: 4px 0;
+}
+
+.fc-weight-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 14px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.fc-weight-summary strong {
+  font: 700 24px/1 var(--font-num);
+  color: var(--ink-0);
+}
+
+.fc-export-panel label {
+  display: inline-grid;
+  max-width: 100%;
+  margin: 4px 8px 0 0;
+}
+
+.fc-export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.fc-plan-stage,
+.fc-atlas-hd + main,
+.fc-ledger-shell .fc-pill {
+  background-image: radial-gradient(circle, rgb(107 109 103 / 21%) 0.7px, transparent 1px);
+  background-size: 6px 6px;
+}
+
+.fc .fc-plan-view,
+.fc .fc-map-tabs {
+  background: var(--mist-panel);
+}
+
+.fc-ledger-shell .fc-pill {
+  background-color: color-mix(in srgb, var(--coral) 40%, var(--silver));
+}
+
+.fc-rec-card {
+  background: var(--ink-0);
+}
+
+.fc-rec-dot {
+  background: var(--coral);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fc-tabs .fc-tab,
+  .journal-shell .journal-nav a,
+  .fc .fc-speak {
+    transition: none;
+  }
+}

@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useRef, useState, type FormEvent } from 'react';
-import PlanBody from './fc/PlanBody';
+import BodyPicker from './fc/BodyPicker';
 import type { ExerciseChoice } from './fc/ExerciseSheet';
 import type { SculptureVariant } from '@/lib/sculpture-groups';
 import type { SupplementalExercise } from '@/lib/types';
@@ -51,7 +51,7 @@ export default function SupplementalWorkout({ variant }: { variant: SculptureVar
   }
 
   return <>
-    <PlanBody heat={[]} variant={variant} onChooseExercise={chooseExercise} />
+    <BodyPicker heat={[]} variant={variant} onChooseExercise={chooseExercise} />
     {exercises.length > 0 && <section className="day-panel">
       <h2 className="day-heading">加练动作 <span>{exercises.length} 个动作</span></h2>
       <form className="plan-config" onSubmit={start}>

@@ -12,8 +12,8 @@ export interface HeatItem {
   level: number;
 }
 
-const COLD = new THREE.Color('#d3dfcd');
-const HOT = new THREE.Color('#2c6746');
+const COLD = new THREE.Color('#c3d6e9');
+const HOT = new THREE.Color('#47759e');
 
 function heatColor(level: number): THREE.Color {
   return COLD.clone().lerp(HOT, Math.max(0, Math.min(1, level)));
@@ -81,8 +81,8 @@ export default function BodyHeat({ heat }: { heat: HeatItem[] }) {
     controls.rotateSpeed = 0.65;
     controls.autoRotate = false;
 
-    const base = new THREE.MeshStandardMaterial({ color: 0xe6ddd4, roughness: 0.86, metalness: 0.02 });
-    const dim = new THREE.MeshStandardMaterial({ color: 0xf0e9e2, roughness: 0.94, metalness: 0.01 });
+    const base = new THREE.MeshStandardMaterial({ color: 0xdaddd8, roughness: 0.86, metalness: 0.02 });
+    const dim = new THREE.MeshStandardMaterial({ color: 0xecede9, roughness: 0.94, metalness: 0.01 });
     const groupMats = new Map<string, THREE.MeshStandardMaterial>();
 
     const meshes: THREE.Mesh[] = [];
@@ -130,7 +130,7 @@ export default function BodyHeat({ heat }: { heat: HeatItem[] }) {
           obj.userData.groupId = group?.id ?? null;
           obj.material = group ? base : dim;
           if (group && !groupMats.has(group.id)) {
-            groupMats.set(group.id, new THREE.MeshStandardMaterial({ color: 0xe6ddd4, roughness: 0.72, metalness: 0.02 }));
+            groupMats.set(group.id, new THREE.MeshStandardMaterial({ color: 0xdaddd8, roughness: 0.72, metalness: 0.02 }));
           }
           meshes.push(obj);
         });
@@ -144,7 +144,7 @@ export default function BodyHeat({ heat }: { heat: HeatItem[] }) {
         scene.add(wrapper);
 
         if (!headBox.isEmpty()) {
-          const headMat = new THREE.MeshStandardMaterial({ color: 0xe5dbd0, roughness: 0.97, metalness: 0.01 });
+          const headMat = new THREE.MeshStandardMaterial({ color: 0xd8d9d5, roughness: 0.97, metalness: 0.01 });
           const head = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 28), headMat);
           head.position.set(0, totalBox.max.y - totalSize.y * 0.072 - center.y, -totalSize.z * 0.012);
           head.scale.set(totalSize.y * 0.054, totalSize.y * 0.066, totalSize.y * 0.058);
@@ -229,7 +229,7 @@ export default function BodyHeat({ heat }: { heat: HeatItem[] }) {
         continue;
       }
       if (level <= 0.01) {
-        mat.color.set(0xe6ddd4);
+        mat.color.set(0xdaddd8);
         mat.emissive.set(0x000000);
         mat.emissiveIntensity = 0;
       } else {

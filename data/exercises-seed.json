@@ -1,0 +1,558 @@
+[
+  {
+    "id": "barbell-bench-press",
+    "legacy_id": "0025",
+    "name_zh": "杠铃卧推",
+    "aliases": [
+      "卧推"
+    ],
+    "primary_muscles": [
+      "chest_mid"
+    ],
+    "secondary_muscles": [
+      "triceps",
+      "delt_front"
+    ],
+    "gif_url": "/api/gif/0025",
+    "cues": [
+      "平躺在长凳上，双脚平放在地上，背部紧贴长凳。",
+      "正手握住杠铃，握距略宽于肩宽。"
+    ]
+  },
+  {
+    "id": "barbell-incline-bench-press",
+    "legacy_id": "0047",
+    "name_zh": "上斜卧推",
+    "aliases": [
+      "上斜推胸"
+    ],
+    "primary_muscles": [
+      "chest_upper"
+    ],
+    "secondary_muscles": [
+      "triceps"
+    ],
+    "gif_url": "/api/gif/0047",
+    "cues": [
+      "设置一个 45 度角的上斜凳。",
+      "躺在长凳上，双脚平放在地上。"
+    ]
+  },
+  {
+    "id": "dumbbell-bench-press",
+    "legacy_id": "0289",
+    "name_zh": "哑铃卧推",
+    "aliases": [
+      "哑铃推胸"
+    ],
+    "primary_muscles": [
+      "chest_mid"
+    ],
+    "secondary_muscles": [
+      "triceps"
+    ],
+    "gif_url": "/api/gif/0289",
+    "cues": [
+      "平躺在长凳上，双脚平放在地上，背部紧贴长凳。",
+      "双手各握一个哑铃，手掌朝前，双臂伸至胸部上方。"
+    ]
+  },
+  {
+    "id": "push-up",
+    "legacy_id": "0662",
+    "name_zh": "俯卧撑",
+    "aliases": [
+      "伏地挺身"
+    ],
+    "primary_muscles": [
+      "chest_mid"
+    ],
+    "secondary_muscles": [
+      "triceps"
+    ],
+    "gif_url": "/api/gif/0662",
+    "cues": [
+      "从高位平板支撑开始，双手分开略宽于肩宽，双脚并拢。",
+      "弯曲肘部，调动核心力量，将身体压向地面，保持身体呈一条直线。"
+    ]
+  },
+  {
+    "id": "dumbbell-fly",
+    "legacy_id": "0308",
+    "name_zh": "哑铃飞鸟",
+    "aliases": [
+      "飞鸟"
+    ],
+    "primary_muscles": [
+      "chest_mid"
+    ],
+    "secondary_muscles": [
+      "delt_front"
+    ],
+    "gif_url": "/api/gif/0308",
+    "cues": [
+      "平躺在长凳上，双手各握一个哑铃，手掌相对。",
+      "将手臂伸直越过胸部，肘部稍微弯曲。"
+    ]
+  },
+  {
+    "id": "cable-pulldown",
+    "legacy_id": "0198",
+    "name_zh": "高位下拉",
+    "aliases": [
+      "下拉"
+    ],
+    "primary_muscles": [
+      "lats"
+    ],
+    "secondary_muscles": [
+      "biceps"
+    ],
+    "gif_url": "/api/gif/0198",
+    "cues": [
+      "调整拉索下拉机，使座椅处于舒适的高度并固定护膝。",
+      "坐在座位上，背部挺直，双脚平放在地面上。"
+    ]
+  },
+  {
+    "id": "pull-up",
+    "legacy_id": "0652",
+    "name_zh": "引体向上",
+    "aliases": [
+      "引体"
+    ],
+    "primary_muscles": [
+      "lats"
+    ],
+    "secondary_muscles": [
+      "biceps"
+    ],
+    "gif_url": "/api/gif/0652",
+    "cues": [
+      "悬挂在引体向上杆上，手掌背向自己，手臂完全伸展。",
+      "启动你的核心并将肩胛骨挤压在一起。"
+    ]
+  },
+  {
+    "id": "cable-seated-row",
+    "legacy_id": "0861",
+    "name_zh": "坐姿划船",
+    "aliases": [
+      "划船"
+    ],
+    "primary_muscles": [
+      "upperback"
+    ],
+    "secondary_muscles": [
+      "lats",
+      "biceps"
+    ],
+    "gif_url": "/api/gif/0861",
+    "cues": [
+      "坐在电缆划船机上，双脚平放在脚踏板上，膝盖稍微弯曲。",
+      "正手握住手柄，保持背部挺直，肩膀放松。"
+    ]
+  },
+  {
+    "id": "barbell-bent-over-row",
+    "legacy_id": "0027",
+    "name_zh": "杠铃划船",
+    "aliases": [
+      "俯身划船"
+    ],
+    "primary_muscles": [
+      "upperback"
+    ],
+    "secondary_muscles": [
+      "lats"
+    ],
+    "gif_url": "/api/gif/0027",
+    "cues": [
+      "站立，双脚分开与肩同宽，膝盖稍微弯曲。",
+      "臀部向前弯曲，同时保持背部挺直、挺胸。"
+    ]
+  },
+  {
+    "id": "dumbbell-one-arm-bent-over-row",
+    "legacy_id": "0292",
+    "name_zh": "单臂哑铃划船",
+    "aliases": [
+      "单臂划船"
+    ],
+    "primary_muscles": [
+      "lats"
+    ],
+    "secondary_muscles": [
+      "biceps"
+    ],
+    "gif_url": "/api/gif/0292",
+    "cues": [
+      "双脚分开与肩同宽站立，一手握住哑铃，手掌朝向身体。",
+      "稍微弯曲膝盖，髋部向前转动，保持背部挺直，核心肌群参与。"
+    ]
+  },
+  {
+    "id": "barbell-full-squat",
+    "legacy_id": "0043",
+    "name_zh": "杠铃深蹲",
+    "aliases": [
+      "深蹲"
+    ],
+    "primary_muscles": [
+      "quads"
+    ],
+    "secondary_muscles": [
+      "glutes"
+    ],
+    "gif_url": "/api/gif/0043",
+    "cues": [
+      "站立，双脚分开与肩同宽，脚趾稍微向外。",
+      "将杠铃放在上背部，将其放在斜方肌或三角肌后束上。"
+    ]
+  },
+  {
+    "id": "sled-45-leg-press",
+    "legacy_id": "1463",
+    "name_zh": "腿举",
+    "aliases": [
+      "蹬腿"
+    ],
+    "primary_muscles": [
+      "quads"
+    ],
+    "secondary_muscles": [
+      "glutes"
+    ],
+    "gif_url": "/api/gif/1463",
+    "cues": [
+      "调整雪橇机的座椅，使双脚放在踏板上时膝盖呈90度角。",
+      "坐在雪橇机上，背部平放在靠背上，双脚与肩同宽放在踏板上。"
+    ]
+  },
+  {
+    "id": "lever-leg-extension",
+    "legacy_id": "0585",
+    "name_zh": "腿屈伸",
+    "aliases": [
+      "伸腿"
+    ],
+    "primary_muscles": [
+      "quads"
+    ],
+    "secondary_muscles": [],
+    "gif_url": "/api/gif/0585",
+    "cues": [
+      "调整机器的座椅高度和靠背以适合您的身体。",
+      "坐在机器上，背部靠在靠背上，双脚放在脚垫上。"
+    ]
+  },
+  {
+    "id": "lever-lying-leg-curl",
+    "legacy_id": "0586",
+    "name_zh": "俯卧腿弯举",
+    "aliases": [
+      "腿弯举"
+    ],
+    "primary_muscles": [
+      "hamstrings"
+    ],
+    "secondary_muscles": [],
+    "gif_url": "/api/gif/0586",
+    "cues": [
+      "调整机器以适合您的身体并选择所需的重量。",
+      "面朝下躺在机器上，双腿伸直，脚跟靠在带衬垫的杠杆上。"
+    ]
+  },
+  {
+    "id": "barbell-romanian-deadlift",
+    "legacy_id": "0085",
+    "name_zh": "罗马尼亚硬拉",
+    "aliases": [
+      "罗马尼亚拉"
+    ],
+    "primary_muscles": [
+      "hamstrings"
+    ],
+    "secondary_muscles": [
+      "glutes"
+    ],
+    "gif_url": "/api/gif/0085",
+    "cues": [
+      "站立，双脚分开与肩同宽，脚趾指向前方。",
+      "正手握住杠铃，双手分开略宽于肩宽。"
+    ]
+  },
+  {
+    "id": "dumbbell-lunge",
+    "legacy_id": "0336",
+    "name_zh": "哑铃弓步",
+    "aliases": [
+      "弓步蹲"
+    ],
+    "primary_muscles": [
+      "glutes"
+    ],
+    "secondary_muscles": [
+      "quads"
+    ],
+    "gif_url": "/api/gif/0336",
+    "cues": [
+      "双脚分开与肩同宽站立，每只手各握一个哑铃。",
+      "右脚向前迈出一步，将身体降低至弓步位置。"
+    ]
+  },
+  {
+    "id": "dumbbell-shoulder-press",
+    "legacy_id": "0405",
+    "name_zh": "哑铃推举",
+    "aliases": [
+      "推举"
+    ],
+    "primary_muscles": [
+      "delt_front"
+    ],
+    "secondary_muscles": [
+      "triceps"
+    ],
+    "gif_url": "/api/gif/0405",
+    "cues": [
+      "坐在长凳上，每只手各拿一个哑铃，放在大腿上。",
+      "将哑铃举至肩高，手掌朝前。"
+    ]
+  },
+  {
+    "id": "dumbbell-lateral-raise",
+    "legacy_id": "0334",
+    "name_zh": "侧平举",
+    "aliases": [
+      "哑铃侧平举"
+    ],
+    "primary_muscles": [
+      "delt_side"
+    ],
+    "secondary_muscles": [],
+    "gif_url": "/api/gif/0334",
+    "cues": [
+      "双脚分开与肩同宽站立，双手各握一个哑铃，手掌朝向身体。",
+      "保持背部挺直并启动核心肌群。"
+    ]
+  },
+  {
+    "id": "dumbbell-front-raise",
+    "legacy_id": "0310",
+    "name_zh": "前平举",
+    "aliases": [
+      "哑铃前平举"
+    ],
+    "primary_muscles": [
+      "delt_front"
+    ],
+    "secondary_muscles": [],
+    "gif_url": "/api/gif/0310",
+    "cues": [
+      "双脚分开与肩同宽站立，双手各握一个哑铃，手掌朝向大腿。",
+      "保持双臂伸直，呼气并将哑铃举至身前，直至与肩齐平。"
+    ]
+  },
+  {
+    "id": "dumbbell-rear-lateral-raise",
+    "legacy_id": "0380",
+    "name_zh": "反向飞鸟",
+    "aliases": [
+      "俯身飞鸟"
+    ],
+    "primary_muscles": [
+      "delt_rear"
+    ],
+    "secondary_muscles": [
+      "upperback"
+    ],
+    "gif_url": "/api/gif/0380",
+    "cues": [
+      "双脚分开与肩同宽站立，双手各握一个哑铃，手掌朝向身体。",
+      "稍微弯曲膝盖，髋部向前转动，保持背部挺直，核心参与。"
+    ]
+  },
+  {
+    "id": "barbell-shrug",
+    "legacy_id": "0095",
+    "name_zh": "杠铃耸肩",
+    "aliases": [
+      "耸肩"
+    ],
+    "primary_muscles": [
+      "traps"
+    ],
+    "secondary_muscles": [],
+    "gif_url": "/api/gif/0095",
+    "cues": [
+      "双脚分开与肩同宽站立，正手握住杠铃。",
+      "在整个练习过程中保持手臂伸直和背部挺直。"
+    ]
+  },
+  {
+    "id": "barbell-curl",
+    "legacy_id": "0031",
+    "name_zh": "杠铃弯举",
+    "aliases": [
+      "弯举"
+    ],
+    "primary_muscles": [
+      "biceps"
+    ],
+    "secondary_muscles": [
+      "forearms"
+    ],
+    "gif_url": "/api/gif/0031",
+    "cues": [
+      "站直，双脚分开与肩同宽，反手握住杠铃，手掌朝前。",
+      "保持肘部靠近躯干，在弯举哑铃时呼气，同时收缩二头肌。"
+    ]
+  },
+  {
+    "id": "dumbbell-hammer-curl",
+    "legacy_id": "0313",
+    "name_zh": "锤式弯举",
+    "aliases": [
+      "锤举"
+    ],
+    "primary_muscles": [
+      "biceps"
+    ],
+    "secondary_muscles": [
+      "forearms"
+    ],
+    "gif_url": "/api/gif/0313",
+    "cues": [
+      "站直，双手各持一个哑铃，手掌朝向躯干。",
+      "保持肘部靠近躯干，并旋转手掌，直到手掌朝前。"
+    ]
+  },
+  {
+    "id": "cable-pushdown",
+    "legacy_id": "0201",
+    "name_zh": "绳索下压",
+    "aliases": [
+      "下压"
+    ],
+    "primary_muscles": [
+      "triceps"
+    ],
+    "secondary_muscles": [],
+    "gif_url": "/api/gif/0201",
+    "cues": [
+      "将直杆连接到高滑轮电缆机上。",
+      "面向机器站立，双脚分开与肩同宽，膝盖稍微弯曲。"
+    ]
+  },
+  {
+    "id": "bench-dip",
+    "legacy_id": "0129",
+    "name_zh": "凳上臂屈伸",
+    "aliases": [
+      "凳上撑"
+    ],
+    "primary_muscles": [
+      "triceps"
+    ],
+    "secondary_muscles": [
+      "chest_lower"
+    ],
+    "gif_url": "/api/gif/0129",
+    "cues": [
+      "坐在长凳或椅子的边缘，双手抓住臀部旁边的边缘。",
+      "将臀部从长凳上滑下来，在身前伸直双腿，脚后跟保持在地面上。"
+    ]
+  },
+  {
+    "id": "dumbbell-kickback",
+    "legacy_id": "0333",
+    "name_zh": "哑铃臂屈伸",
+    "aliases": [
+      "俯身臂屈伸"
+    ],
+    "primary_muscles": [
+      "triceps"
+    ],
+    "secondary_muscles": [],
+    "gif_url": "/api/gif/0333",
+    "cues": [
+      "双脚分开与肩同宽站立，每只手各握一个哑铃。",
+      "稍微弯曲膝盖，髋部向前转动，保持背部挺直。"
+    ]
+  },
+  {
+    "id": "plank",
+    "legacy_id": null,
+    "name_zh": "平板支撑",
+    "aliases": [
+      "平板"
+    ],
+    "primary_muscles": [
+      "abs"
+    ],
+    "secondary_muscles": [
+      "obliques"
+    ],
+    "gif_url": null,
+    "cues": [
+      "前臂撑地，双肘置于肩膀下方。",
+      "收紧腹部，保持肩、髋和脚跟在一条直线上。"
+    ]
+  },
+  {
+    "id": "crunch-floor",
+    "legacy_id": "0274",
+    "name_zh": "卷腹",
+    "aliases": [
+      "地板卷腹"
+    ],
+    "primary_muscles": [
+      "abs"
+    ],
+    "secondary_muscles": [],
+    "gif_url": "/api/gif/0274",
+    "cues": [
+      "平躺，膝盖弯曲，双脚平放在地上。",
+      "将双手放在脑后，肘部朝外。"
+    ]
+  },
+  {
+    "id": "russian-twist",
+    "legacy_id": "0687",
+    "name_zh": "俄罗斯转体",
+    "aliases": [
+      "转体"
+    ],
+    "primary_muscles": [
+      "obliques"
+    ],
+    "secondary_muscles": [
+      "abs"
+    ],
+    "gif_url": "/api/gif/0687",
+    "cues": [
+      "坐在地上，膝盖弯曲，双脚平放在地板上。",
+      "稍微向后倾斜，同时保持背部挺直并且核心参与。"
+    ]
+  },
+  {
+    "id": "hanging-leg-raise",
+    "legacy_id": "0472",
+    "name_zh": "悬垂举腿",
+    "aliases": [
+      "悬挂举腿"
+    ],
+    "primary_muscles": [
+      "abs"
+    ],
+    "secondary_muscles": [
+      "obliques"
+    ],
+    "gif_url": "/api/gif/0472",
+    "cues": [
+      "悬挂在引体向上杆上，双臂完全伸展，手掌背向自己。",
+      "启动你的核心并将双腿抬起到你面前，保持伸直。"
+    ]
+  }
+]

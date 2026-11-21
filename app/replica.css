@@ -4,25 +4,25 @@
    ============================================================ */
 
 .fc {
-  --paper: #fbf6f3;
-  --paper-2: #f7f1ed;
-  --ink: #1a1a19;
-  --ink-2: #3d3d38;
-  --muted: #9a9a92;
-  --muted-2: #7d7d75;
-  --hair: #e3ddd4;
-  --hair-2: #d8d2c8;
-  --green: #115133;
-  --green-ink: #1c632e;
-  --green-soft: #f4f5ee;
-  --green-line: #a9c0a5;
-  --sage: #ebede5;
-  --orange: #dc7709;
+  --paper: var(--silver-2);
+  --paper-2: var(--panel-2);
+  --ink: var(--ink-0);
+  --ink-2: #3a3c37;
+  --muted: var(--gray-2);
+  --muted-2: var(--gray-1);
+  --hair: #d2d3cd;
+  --hair-2: #c6c7c1;
+  --green: var(--ink-0);
+  --green-ink: var(--ink-0);
+  --green-soft: var(--panel-2);
+  --green-line: #b9bbb5;
+  --sage: #dadbd6;
+  --orange: var(--coral);
   --radius: 16px;
 
   background: var(--paper);
   color: var(--ink);
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro SC', 'PingFang SC', 'Hiragino Sans GB',
+  font-family: 'Helvetica Neue', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB',
     'Microsoft YaHei', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   min-height: 100dvh;
@@ -1975,4 +1975,203 @@ h3.fc-dict-name {
 .fc-plan-view button.on.fc-plan-sep {
   background: none;
   color: var(--hair);
+}
+
+/* ------------------------------ 语音长按录音 ------------------------------ */
+/* 遮罩 portal 到 body，不吃 .fc 作用域，颜色用 var() 兜底 */
+
+.fc-rec-tab {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.fc-rec {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+}
+
+.fc-rec-mask {
+  position: absolute;
+  inset: 0;
+  background: rgba(14, 20, 16, 0.62);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  animation: fc-fade 0.16s ease;
+}
+
+.fc-rec-card {
+  position: absolute;
+  left: 50%;
+  top: 26%;
+  transform: translateX(-50%);
+  width: min(286px, 76vw);
+  padding: 26px 22px 18px;
+  border-radius: 28px;
+  background: var(--green, #115133);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.34);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  transition: background 0.18s ease;
+}
+
+.fc-rec-card.warn {
+  background: #8d2418;
+}
+
+.fc-rec-bars {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 58px;
+  width: 100%;
+}
+
+.fc-rec-bars i {
+  display: block;
+  width: 3.5px;
+  height: 8px;
+  border-radius: 3px;
+  background: #fff;
+  opacity: 0.92;
+}
+
+.fc-rec-time {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 16px;
+  letter-spacing: 0.6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.fc-rec-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ff9d86;
+  box-shadow: 0 0 0 3px rgba(255, 157, 134, 0.2);
+  animation: fc-rec-blink 1.2s ease-in-out infinite;
+}
+
+.fc-rec-dot.off {
+  background: #ffd9d2;
+  animation: none;
+}
+
+@keyframes fc-rec-blink {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+
+.fc-rec-cancel {
+  position: absolute;
+  left: 50%;
+  bottom: 182px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 11px;
+}
+
+.fc-rec-x {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 27px;
+  line-height: 1;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.16);
+  transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease;
+}
+
+.fc-rec-cancel.on .fc-rec-x {
+  transform: scale(1.16);
+  background: #fff;
+  color: #b0261b;
+}
+
+.fc-rec-cancel p {
+  font-size: 16px;
+  letter-spacing: 0.2px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.fc-rec-cancel.on p {
+  color: #ffd9d2;
+}
+
+.fc-rec-press {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 118%;
+  height: 134px;
+  background: #efe9e3;
+  border-radius: 50% 50% 0 0 / 78px 78px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--green, #115133);
+}
+
+.fc-rec-press svg {
+  width: 30px;
+  height: 30px;
+}
+
+.fc-rec-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 150px;
+  transform: translateX(-50%);
+  z-index: 95;
+  padding: 11px 18px;
+  border-radius: 999px;
+  background: rgba(26, 26, 25, 0.9);
+  color: #fff;
+  font-size: 15px;
+  white-space: nowrap;
+  animation: fc-fade 0.16s ease;
+}
+
+.fc-ledger-type {
+  display: block;
+  margin: 8px auto 0;
+  min-height: 32px;
+  color: var(--muted-2);
+}
+
+.fc-quick-pick {
+  margin: 10px 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
+}
+.fc-quick-pick legend {
+  color: var(--muted-2);
+  font-size: 13px;
+}
+.fc-quick-pick .fc-examples {
+  margin: 4px 0 0;
+}
+
+.fc-meal-item-edit {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--hair);
+}
+.fc-meal-item-edit h4 {
+  margin: 0 0 6px;
 }

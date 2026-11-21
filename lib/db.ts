@@ -1,3 +1,5 @@
+import {installBridge,flushLegacy} from './ledger-legacy';
+import { initLedger } from './ledger';
 import fs from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -8,7 +10,7 @@ const DB_PATH = path.resolve(process.env.FITCHECK_DB_PATH || path.join(DATA_DIR,
 export const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
 
 // Increment when the schema or column migrations change. Next.js keeps globalThis across hot reloads.
-const SCHEMA_REVISION = 8;
+const SCHEMA_REVISION = 11;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS profile (
@@ -330,6 +332,9 @@ function initialize(db: DatabaseSync): void {
     throw error;
   }
 
+  initLedger(db);
+  installBridge(db);
+  flushLegacy(db);
   seedFoods(db);
   seedExercises(db);
   backfillZhNames(db);
@@ -343,6 +348,7 @@ const g = globalThis as unknown as {
 export function getDb(): DatabaseSync {
   const cached = g.__fitDbSchema;
   if (cached && cached.database === g.__fitDb && cached.path === DB_PATH && cached.revision === SCHEMA_REVISION) {
+    flushLegacy(cached.database);
     return cached.database;
   }
 
