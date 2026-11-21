@@ -5,7 +5,7 @@ import DailyRefresh from './DailyRefresh';
 import JournalIcon from './JournalIcon';
 import JournalNav from './JournalNav';
 
-export default function JournalShell({ active, title, subtitle, subtitleAside, children, footer, back, headerAction, today = todayStr() }: {
+export default function JournalShell({ active, title, subtitle, subtitleAside, children, footer, back, headerAction, today = todayStr(), className }: {
   active: 'plan' | 'record' | 'review';
   title: string;
   subtitle?: string;
@@ -15,8 +15,9 @@ export default function JournalShell({ active, title, subtitle, subtitleAside, c
   back?: { href: string; label: string };
   headerAction?: ReactNode;
   today?: string;
+  className?: string;
 }) {
-  return <div className="journal-shell">
+  return <div className={className ? `journal-shell ${className}` : 'journal-shell'}>
     <DailyRefresh date={today} timeZone={WORKOUT_TIME_ZONE} />
     <header className="journal-head">
       <div className="journal-brand"><JournalIcon name="brand" />FitCheck</div>
