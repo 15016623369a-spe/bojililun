@@ -11,7 +11,7 @@
 | 训练计时 | [计划与休息三屏](plan-and-rest.png)的右图。左图也可看首屏与计时的整体搭配，中间的黄抽屉属于早期配色。 |
 | 今日清单、记录一组、完成小结 | [训练执行三屏](concept-training-flow.png)。记一组时整屏柠檬黄，重量用黑色刻度尺调。 |
 | 动作库、日详情、月历 | [动作库与回顾详情](concept-library-review.png)。动作库抽屉已在计划页实施。 |
-| 建档、我的、饮食确认 | [建档、我的与饮食确认](concept-profile-meal.png)。建档能否跳过仍待用户确认。 |
+| 建档、我的、饮食确认 | [建档、我的与饮食确认](concept-profile-meal.png)。建档规则已确认：目标必选，其余可跳过，并加一步挑常练动作。饮食拍照确认尚未重做。 |
 | 色系、字与数、组件、动效与触感 | [视觉系统与动效](concept-system-motion.png)，可编辑源文件为 [concept-boards.html](concept-boards.html)。 |
 | 记录、语音、回顾 | [记录与回顾三屏](record-and-review.png)。 |
 | 训练统计 | [总览、肌群、动作三屏](training-stats.png)、[切换动效](training-stats-motion.mp4)。[回顾热图对照](review-heat-proposal.png)是单独的提案。 |
@@ -89,6 +89,9 @@ tone = max(0, (252 - 原图 R 通道) / 128)
 | 回顾 · 日详情 | [history/[date]](../../../app/history/[date]/page.tsx)：大号日期、时间刻度与卡片、训练读数（容量柠檬黄）、每节训练一张卡（动作和组次沿用可编辑的 ExerciseRecord），饮食表格放进雾白卡片。 |
 | 回顾 · 月历 | [history/calendar](../../../app/history/calendar/page.tsx)：「11 月」大字，每天一个 3×3 点阵，点数表示当日容量（有训练没负重 1 点，有负重按本月最高日折算 2–9 点），今天柠檬黄底、选中珊瑚描边、右上珊瑚小点表示有饮食。 |
 | 训练统计 | 已实施。[StatsBoard](../../../components/StatsBoard.tsx)：底部胶囊换成页内导航「总览／肌群／动作」，视图横移切换，当前视图写进地址栏 `view=`。总览：本期容量大字、每日（季年为每月）容量柱、次数／天数／组数，下方「训练容量」柠檬黄卡和「运动时间」雾蓝卡，点卡片切换指标时保留选中日期，柱高、读数、单位和强调色一起换。肌群：项目男女雕塑的二维正反面，练过的肌群有圆点，选中为珊瑚；下方珊瑚面板显示该肌群本期容量、占比刻度和组数，「查看肌群对比」展开按组数／容量／次数／时长的逐日对比。动作：PR／8–12 RM／12–15 RM 切换，淡紫卡里是数值和曲线，PR 的问号原处展开 Epley 公式，下面列出其他动作。 |
+| 我的 | 已实施。[TrainingProfileDashboard](../../../components/TrainingProfileDashboard.tsx)：点阵底的雕塑小像、名字和目标／限制／常练标签；体重用大号分段数字、近 30 天变化和点柱趋势，「更新体重」原处展开刻度尺（0.1 kg 吸附）。训练目标、伤病与限制在行内展开编辑；动作偏好进二级页，营养目标沿用原来的估算弹层。 |
+| 动作偏好 | [ExercisePreferences](../../../components/ExercisePreferences.tsx) 逻辑不变，样式换成墨黑胶囊分段、横条列表，「喜欢」选中为墨黑底柠檬黄字。 |
+| 建档 | 已实施，用户已确认规则。[SetupFlow](../../../components/SetupFlow.tsx) 一屏一问共 5 步：默认模型、训练目标（必选）、体重（刻度尺）、伤病限制、挑常练动作。除目标外每步右上角可「跳过，稍后填写」；最后一步按部位列出动作，选中的写入「我的动作库」。 |
 | 图标 | 统一用 [Icon](../../../components/ui/Icon.tsx) 的线性 SVG（24 网格、1.8 描边），替换 ‹ › → ✓ + 等文字符号，后续页面沿用。 |
 | 触感 | Android 用 `navigator.vibrate`；iOS Safari 网页没有振动接口，靠锚点落点、勾选回弹等视觉反馈代替。 |
 

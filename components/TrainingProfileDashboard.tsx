@@ -1,45 +1,95 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { getTrainingProfile } from '@/lib/core/training-profile';
 import { TRAINING_GOALS } from '@/lib/training-goals';
 import type { Memory } from '@/lib/types';
-import { humanDate } from '@/lib/date';
 import Onboarding, { type OnboardingInitial } from './Onboarding';
-import JournalIcon from './JournalIcon';
-import TrainingProfileForm, { MODEL_IMAGES, type ProfileFormMode } from './TrainingProfileForm';
+import TrainingProfileForm, { MODEL_IMAGES } from './TrainingProfileForm';
+import Icon from './ui/Icon';
+import TickRuler from './ui/TickRuler';
 
 type Nutrition = OnboardingInitial & { target_kcal: number; target_protein: number };
-type Editor = Exclude<ProfileFormMode, 'setup'>;
+type Row = 'identity' | 'goal' | 'restriction' | null;
 
-export default function TrainingProfileDashboard({ profile, restrictions, nutrition, today }: {
+const short = (date: string) => `${date.slice(5, 7)}.${date.slice(8)}`;
+
+function daysBetween(a: string, b: string) {
+  return Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
+}
+
+/** 更新体重：大号读数 + 刻度尺，日期默认今天 */
+function WeightEditor({ initial, today, onClose }: { initial: number; today: string; onClose: () => void }) {
+  const router = useRouter();
+  const [value, setValue] = useState(initial);
+  const [date, setDate] = useState(today);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [int, dec] = value.toFixed(1).split('.');
+
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (saving) return;
+    setSaving(true);
+    setError('');
+    try {
+      const response = await fetch('/api/training-profile', {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ weight: value, date }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || '保存失败，请重试');
+      try { navigator.vibrate?.(12); } catch { /* 无振动 */ }
+      onClose();
+      router.refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return <form className="weight-editor" onSubmit={save}>
+    <div className="weight-editor-num" aria-live="polite"><b className="big-num">{int}<span className="dim">.{dec}</span></b><em>kg</em></div>
+    <TickRuler value={value} min={30} max={180} step={0.1} major={10} label="体重刻度尺" unit="kg" onChange={setValue} />
+    <label className="weight-editor-date">记录日期<input type="date" value={date} max={today} required onChange={(event) => setDate(event.target.value)} /></label>
+    {error && <p className="form-err" role="alert">{error}</p>}
+    <div className="me-actions">
+      <button type="button" className="chip" onClick={onClose} disabled={saving}>取消</button>
+      <button type="submit" className="ink-pill" disabled={saving}>{saving ? '保存中…' : '记下体重'}<Icon name="check" size={18} stroke={2.2} /></button>
+    </div>
+  </form>;
+}
+
+export default function TrainingProfileDashboard({ profile, restrictions, nutrition, today, preferences }: {
   profile: ReturnType<typeof getTrainingProfile>;
   restrictions: Memory[];
   nutrition: Nutrition | null;
   today: string;
+  preferences: { liked: number; disliked: number };
 }) {
   const router = useRouter();
-  const [editor, setEditor] = useState<Editor>();
+  const [open, setOpen] = useState<Row>(null);
+  const [weighing, setWeighing] = useState(false);
   const [nutritionOpen, setNutritionOpen] = useState(false);
   const [updating, setUpdating] = useState<number>();
   const [restrictionError, setRestrictionError] = useState('');
-  const weight = profile.weights[0];
+  const latest = profile.weights[0];
   const model = profile.sex ?? 'male';
   const active = restrictions.filter((item) => item.status === 'active');
   const archived = restrictions.filter((item) => item.status !== 'active');
-  const chronological = [...profile.weights].reverse();
-  const low = weight ? Math.min(...profile.weights.map((entry) => entry.weight)) : 0;
-  const range = weight ? Math.max(1, Math.max(...profile.weights.map((entry) => entry.weight)) - low) : 1;
+  // 30 天变化：取 30 天前（含）最近的一条作为基准
+  const base = latest ? profile.weights.find((entry) => daysBetween(entry.date, latest.date) >= 30) ?? profile.weights.at(-1) : undefined;
+  const change = latest && base && base !== latest ? latest.weight - base.weight : null;
+  const span = latest && base ? Math.max(1, daysBetween(base.date, latest.date)) : 0;
+  const trend = [...profile.weights].slice(0, 16).reverse();
+  const lo = Math.min(...trend.map((e) => e.weight)), hi = Math.max(...trend.map((e) => e.weight));
+  const [int, dec] = (latest?.weight ?? 0).toFixed(1).split('.');
 
-  function edit(mode: Editor, label: string) {
-    return <button type="button" className="training-profile-edit" aria-expanded={editor === mode}
-      onClick={() => setEditor(editor === mode ? undefined : mode)}>{label}</button>;
-  }
-
-  function form(mode: Editor) {
-    return editor === mode && <TrainingProfileForm key={mode} mode={mode} today={today} initial={profile} onClose={() => setEditor(undefined)} />;
+  function toggle(row: Row) {
+    try { navigator.vibrate?.(4); } catch { /* 无振动 */ }
+    setOpen(open === row ? null : row);
   }
 
   async function archive(id: number) {
@@ -57,67 +107,89 @@ export default function TrainingProfileDashboard({ profile, restrictions, nutrit
     }
   }
 
-  return <div className="training-profile-dashboard">
-    <section className="training-profile-card training-profile-identity">
-      <div className="training-profile-header">
-        <div className="training-profile-person">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={MODEL_IMAGES[model]} alt="" />
-          <div><h2>{profile.name}</h2><p className="training-profile-hint">
-            {profile.sex ? `${profile.sex === 'female' ? '女' : '男'} · 默认使用${profile.sex === 'female' ? '女性' : '男性'}模型` : '性别未填写 · 默认使用男性模型'}
-          </p></div>
+  const rows: { key: Exclude<Row, null> | 'prefs' | 'nutrition'; label: string; value: string }[] = [
+    { key: 'goal', label: '训练目标', value: profile.goal ? TRAINING_GOALS[profile.goal] : '尚未设置' },
+    { key: 'restriction', label: '伤病与限制', value: active.length ? (active.length === 1 ? active[0].content : `${active.length} 项`) : '暂无' },
+    { key: 'prefs', label: '动作偏好', value: `常练 ${preferences.liked} · 不喜欢 ${preferences.disliked}` },
+    { key: 'nutrition', label: '营养目标', value: nutrition ? `${nutrition.target_kcal.toLocaleString('en-US')} kcal · 蛋白 ${nutrition.target_protein} g` : '按需设置' },
+  ];
+
+  return <div className="me">
+    <section className="me-identity">
+      <span className="me-avatar" aria-hidden="true">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={MODEL_IMAGES[model]} alt="" />
+      </span>
+      <div className="me-identity-main">
+        <h2>{profile.name}</h2>
+        <p>{profile.sex ? `${profile.sex === 'female' ? '女' : '男'} · 默认${profile.sex === 'female' ? '女性' : '男性'}模型` : '性别未填 · 默认男性模型'}</p>
+        <div className="me-tags">
+          {profile.goal && <span className="tag ink">{TRAINING_GOALS[profile.goal]}</span>}
+          {active.length > 0 && <span className="tag">{active.length} 项限制</span>}
+          {preferences.liked > 0 && <span className="tag">常练 {preferences.liked}</span>}
         </div>
-        {edit('identity', '编辑资料')}
       </div>
-      {form('identity')}
+      <button type="button" className="chip" aria-expanded={open === 'identity'} onClick={() => toggle('identity')}>编辑</button>
     </section>
-    <section className="training-profile-card">
-      <div className="training-profile-header"><h2>训练目标</h2>{edit('goal', '修改')}</div>
-      <strong className="training-profile-metric">{profile.goal ? TRAINING_GOALS[profile.goal] : '尚未设置'}</strong>
-      {form('goal')}
+    <div className="me-expand" data-open={open === 'identity' || undefined}><div>
+      {open === 'identity' && <TrainingProfileForm mode="identity" today={today} initial={profile} onClose={() => setOpen(null)} />}
+    </div></div>
+
+    <section className="me-weight">
+      <div className="me-weight-head"><span>体重</span><span>{latest ? `${short(latest.date)} 更新` : '还没有记录'}</span></div>
+      {!weighing ? <>
+        <div className="me-weight-row">
+          {latest ? <div className="me-weight-num"><b className="big-num">{int}<span className="dim">.{dec}</span></b><em>kg</em></div>
+            : <div className="me-weight-num empty"><b className="big-num">--.-</b><em>kg</em></div>}
+          {change !== null && <span className="me-weight-change">{span} 天 {change > 0 ? '+' : change < 0 ? '−' : '±'}{Math.abs(change).toFixed(1)}</span>}
+        </div>
+        {trend.length > 1 && <div className="me-weight-dots" role="img" aria-label={`最近 ${trend.length} 次体重，从 ${trend[0].weight} 到 ${trend.at(-1)!.weight} kg`}>
+          {trend.map((entry, i) => {
+            const n = Math.max(1, Math.round(1 + (entry.weight - lo) / Math.max(.5, hi - lo) * 7));
+            return <span key={entry.date} title={`${entry.date} ${entry.weight} kg`}>
+              {Array.from({ length: n }, (_, k) => <i key={k} data-last={i === trend.length - 1 || undefined} />)}
+            </span>;
+          })}
+        </div>}
+        <button type="button" className="me-weight-btn" onClick={() => setWeighing(true)}>
+          <Icon name="plus" size={16} stroke={2.2} />{latest ? '更新体重' : '记录体重'}
+        </button>
+      </> : <WeightEditor initial={latest?.weight ?? 70} today={today} onClose={() => setWeighing(false)} />}
     </section>
-    <section className="training-profile-card">
-      <div className="training-profile-header"><h2>体重记录</h2>{edit('weight', weight ? '更新体重' : '记录体重')}</div>
-      {weight ? <>
-        <strong className="training-profile-metric">{weight.weight.toFixed(1)} <small>kg</small></strong>
-        <p className="training-profile-hint">{humanDate(weight.date)}{profile.weights.length === 1 ? ' · 首条记录' : ' · 最近记录'}</p>
-        <details className="training-profile-details">
-          <summary>查看体重趋势</summary>
-          {chronological.length > 1 && <svg className="training-weight-plot" viewBox="0 0 300 85" role="img" aria-label="按日期排列的体重趋势">
-            <polyline fill="none" stroke="currentColor" strokeWidth="2"
-              points={chronological.map(({ weight }, i) => `${8 + i * 284 / (chronological.length - 1)},${75 - (weight - low) / range * 65}`).join(' ')} />
-          </svg>}
-          <ul className="training-profile-history">
-            {profile.weights.map(({ date, weight }) => <li key={date}><span>{date}</span><strong>{weight.toFixed(1)} kg</strong></li>)}
-          </ul>
-        </details>
-      </> : <p className="training-profile-hint">还没有体重记录</p>}
-      {form('weight')}
-    </section>
-    <section className="training-profile-card">
-      <div className="training-profile-header"><h2>伤病与限制</h2>{edit('restriction', '添加限制')}</div>
-      {active.length ? <ul className="training-profile-history">
-        {active.map(({ id, content }) => <li key={id}><span>{content}</span>
-          <button type="button" className="training-profile-edit" disabled={updating !== undefined} onClick={() => void archive(id)}>结束限制</button>
-        </li>)}
-      </ul> : <p className="training-profile-hint">还未添加当前训练限制</p>}
-      {restrictionError && <p className="journal-error" role="alert">{restrictionError}</p>}
-      {form('restriction')}
-      {archived.length > 0 && <details className="training-profile-details">
-        <summary>查看过往限制</summary>
-        <ul className="training-profile-history">{archived.map(({ id, content }) => <li key={id}>{content}</li>)}</ul>
-      </details>}
-    </section>
-    <Link className="training-profile-card training-profile-link" href="/me/exercises">
-      <JournalIcon name="training" /><strong>动作偏好</strong><span>我的动作库</span><b aria-hidden="true">›</b>
-    </Link>
-    <button type="button" className="training-profile-card training-profile-link" onClick={() => setNutritionOpen(true)}>
-      <JournalIcon name="meal" /><strong>每日营养目标</strong>
-      <span>{nutrition ? `${nutrition.target_kcal.toLocaleString('zh-CN')} kcal · ${nutrition.target_protein} g` : '按需设置'}</span><b aria-hidden="true">›</b>
-    </button>
+
+    <ul className="me-rows">
+      {rows.map((row) => {
+        const expandable = row.key === 'goal' || row.key === 'restriction';
+        const inner = <>
+          <span className="me-row-label">{row.label}</span>
+          <span className="me-row-value">{row.value}</span>
+          <Icon name={expandable && open === row.key ? 'chevron-down' : 'chevron-right'} size={18} className="row-chev" />
+        </>;
+        return <li key={row.key}>
+          {row.key === 'prefs' ? <Link className="me-row" href="/me/exercises">{inner}</Link>
+            : row.key === 'nutrition' ? <button type="button" className="me-row" onClick={() => setNutritionOpen(true)}>{inner}</button>
+              : <button type="button" className="me-row" aria-expanded={open === row.key} onClick={() => toggle(row.key as Row)}>{inner}</button>}
+          {expandable && <div className="me-expand" data-open={open === row.key || undefined}><div>
+            {open === 'goal' && row.key === 'goal' && <TrainingProfileForm mode="goal" today={today} initial={profile} onClose={() => setOpen(null)} />}
+            {open === 'restriction' && row.key === 'restriction' && <>
+              {active.length > 0 && <ul className="me-restrictions">
+                {active.map(({ id, content }) => <li key={id}><span>{content}</span>
+                  <button type="button" className="chip" disabled={updating !== undefined} onClick={() => void archive(id)}>结束限制</button>
+                </li>)}
+              </ul>}
+              {restrictionError && <p className="form-err" role="alert">{restrictionError}</p>}
+              <TrainingProfileForm mode="restriction" today={today} initial={profile} onClose={() => setOpen(null)} />
+              {archived.length > 0 && <details className="me-archived"><summary>过往限制 {archived.length} 项</summary>
+                <ul>{archived.map(({ id, content }) => <li key={id}>{content}</li>)}</ul></details>}
+            </>}
+          </div></div>}
+        </li>;
+      })}
+    </ul>
+
     {nutritionOpen && <Onboarding purpose="nutrition" initial={{
       ...nutrition, name: profile.name, sex: nutrition?.sex ?? profile.sex ?? undefined,
-      weight_kg: nutrition?.weight_kg ?? weight?.weight,
+      weight_kg: nutrition?.weight_kg ?? latest?.weight,
     }} onCancel={() => setNutritionOpen(false)} onDone={() => { setNutritionOpen(false); router.refresh(); }} />}
   </div>;
 }
