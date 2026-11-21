@@ -2,7 +2,14 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import TabBar from '@/components/fc/TabBar';
 import { LeafIcon } from '@/components/fc/icons';
-import { reviewData, reviewOverview, type ReviewPeriod } from '@/lib/log';
+import { type ReviewPeriod } from '@/lib/log';
+import { getDb } from '@/lib/db';
+import { exportJournal } from '@/lib/export';
+import { calcMuscleHeatmap, calcWeightTrend } from '@/lib/calculations';
+import { localDay } from '@/lib/ledger';
+import { periodRange } from '@/lib/period';
+import BodyHeat from '@/components/fc/BodyHeat';
+import JournalExport from '@/components/fc/JournalExport';
 import type { TimelineEntry } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -18,40 +25,23 @@ const SEGMENTS: Array<{ key: ReviewPeriod; label: string }> = [
   { key: 'month', label: '月' },
 ];
 
-const PERIOD_WORD: Record<ReviewPeriod, string> = { day: '这天', week: '本周', month: '本月' };
-
-function ReviewRow({ e }: { e: TimelineEntry }) {
-  if (e.kind === 'meal') {
-    return (
-      <div className="fc-lrow">
-        <i className="fc-dot meal" />
-        <div className="fc-lrow-b">
-          <div>
-            {e.label} · {e.items.join('、')}
-          </div>
-        </div>
-      </div>
-    );
-  }
-  return (
-    <Link href={`/log/training/${e.id}`} className="fc-lrow">
-      <i className="fc-dot" />
-      <div className="fc-lrow-b">
-        <div>
-          {e.region} · {e.exercises.length ? e.exercises.join('、') : '训练'}
-        </div>
-        <div className="muted">{e.minutes > 0 ? `${e.minutes} 分钟` : '进行中'}</div>
-      </div>
-    </Link>
-  );
-}
-
 export default async function ReviewPage({ searchParams }: { searchParams: Promise<{ period?: string }> }) {
   const sp = await searchParams;
   const period: ReviewPeriod = sp.period === 'day' || sp.period === 'month' ? sp.period : 'week';
-  const data = reviewData(period);
-  const ov = reviewOverview(period);
-
+  const today = localDay(new Date().toISOString());
+  const start = period === 'day' ? today : periodRange(period, today).start;
+  const lookback = new Date(Date.parse(start) - 6 * 86400000).toISOString().slice(0, 10);
+  const book = exportJournal(getDb(), 'local', lookback, today);
+  const days = book.days.filter((d) => d.date >= start);
+  const heat = calcMuscleHeatmap(
+    days.flatMap((d) => d.entries),
+    period,
+  );
+  const trend = calcWeightTrend(
+    book.days.flatMap((d) => d.body_metrics),
+    start,
+    today,
+  );
   return (
     <div className="fc">
       <div className="fc-shell review">
@@ -78,60 +68,34 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
           ))}
         </div>
 
-        <p className="fc-range">{data.label}</p>
-
-        <section className="fc-ov">
-          <div className="fc-ov-line">
-            {PERIOD_WORD[period]}记录 <b>{ov.days}</b> 天 · 训练 <b>{ov.sessions}</b> 次 · 饮食 <b>{ov.meals}</b> 餐
-          </div>
-
-          {ov.week && (
-            <div className="fc-ov-days">
-              {ov.week.map((d) => (
-                <div key={d.date} className={`fc-ov-day${d.has ? ' has' : ''}${d.today ? ' today' : ''}`}>
-                  <i>{d.label}</i>
-                  <span>{d.dow}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {ov.parts.length > 0 && (
-            <div className="fc-ov-parts">
-              {ov.parts.map((p) => (
-                <span key={p.part}>
-                  {p.label} ×{p.count}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {ov.days > 0 && (
-            <div className="fc-ov-foot">
-              共 {ov.sets} 组 · {ov.volume.toLocaleString('zh-CN')} kg · {ov.minutes} 分钟
-            </div>
-          )}
-        </section>
-
-        <div className="fc-hair" />
-
-        {data.days.length === 0 && (
-          <div className="fc-empty">
-            <b>这段时间还没有记录。</b>
-            <br />
-            去「记录」里按住说话，或者在「身体」里点一下肌肉直接打卡。
-          </div>
+        <p className="fc-range">
+          {start} — {today}
+        </p>
+        <BodyHeat
+          heat={Object.entries(heat)
+            .filter(([, v]) => v.level > 0)
+            .map(([id, v]) => ({ id, level: v.level / 3 }))}
+        />
+        {trend.latest !== null && (
+          <p>
+            晨重 {trend.latest} kg · 区间变化 {trend.change} kg · 7 日均重 {trend.points.at(-1)?.average7} kg
+          </p>
         )}
-
-        {data.days.map((day) => (
-          <section key={day.date}>
-            <h2 className="fc-day">{day.label}</h2>
-            {day.entries.map((e) => (
-              <ReviewRow key={`${e.kind}-${e.id}`} e={e} />
-            ))}
-          </section>
-        ))}
-
+        {days
+          .filter((d) => d.entries.length || d.body_metrics.length)
+          .reverse()
+          .map((d) => (
+            <section key={d.date}>
+              <h2 className="fc-day">{d.date}</h2>
+              {d.entries.map((c) => (
+                <p key={c.id}>{c.summary_title}</p>
+              ))}
+              <small>
+                {d.daily_summary.totalSets} 组 · {d.daily_summary.totalVolumeKg} kg
+              </small>
+            </section>
+          ))}
+        <JournalExport today={today} />
         <div className="fc-more">
           <Link href="/train">训练计划</Link>
           <Link href="/exercises">动作库</Link>

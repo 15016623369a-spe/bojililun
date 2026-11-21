@@ -1,7 +1,11 @@
+import LedgerCards from '@/components/fc/LedgerCards';
+import { getDb } from '@/lib/db';
+import { exportJournal } from '@/lib/export';
+import { getLastExerciseRecord } from '@/lib/ledger';
 import type { Metadata } from 'next';
 import LogScreen from '@/components/fc/LogScreen';
 import { LeafIcon } from '@/components/fc/icons';
-import { dayText, dayTimeline, todayStr } from '@/lib/log';
+import { dayText, todayStr } from '@/lib/log';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,7 +17,16 @@ export const metadata: Metadata = {
 export default function LogPage() {
   const today = todayStr();
   const { label } = dayText(today);
-  const entries = dayTimeline(today);
+  const db = getDb(),
+    day = exportJournal(db, 'local', today, today).days[0];
+  const history: Record<string, string> = {};
+  for (const c of day.entries)
+    c.exercises.forEach((m, index) => {
+      if (!m.sets.length && m.exercise_id) {
+        const last = getLastExerciseRecord(db, 'local', m.exercise_id, c.logged_at);
+        if (last) history[c.id + ':' + index] = last.label.replace(/^上次 · /, '');
+      }
+    });
 
   return (
     <div className="fc">
@@ -28,7 +41,13 @@ export default function LogPage() {
         </header>
 
         <main style={{ marginTop: 4 }}>
-          <LogScreen entries={entries} />
+          <LedgerCards cards={day.entries} history={history} />
+          {day.body_metrics.map((m) => (
+            <p key={m.logged_at}>
+              {m.weight_kg} kg · {m.note || '体重记录'}
+            </p>
+          ))}
+          <LogScreen ledgerHasRecords={!!(day.entries.length || day.body_metrics.length)} />
         </main>
       </div>
     </div>

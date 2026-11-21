@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
+import { getRecognizerCtor, type Recognizer } from '@/lib/browser-recognition';
+import AskSheet from './AskSheet';
 import { MicIcon } from './icons';
 import VoiceOverlay, { type VoicePhase } from './VoiceOverlay';
 
@@ -36,6 +38,32 @@ export default function RecordTab({
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
   const [toast, setToast] = useState('');
 
+  const recognition = useRef<Recognizer | null>(null);
+  const transcript = useRef('');
+  const [question, setQuestion] = useState<string | null>(null);
+  const sendVoice = async (text: string) => {
+    if (!text) {
+      showToast('没有识别到文字，可轻点记录后打字');
+      return;
+    }
+    try {
+      const response = await fetch('/api/ledger', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ request_id: crypto.randomUUID(), source: 'voice', text }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw Error(result.error);
+      if (result.route === 'qa') setQuestion(result.question);
+      else {
+        router.push('/log');
+        router.refresh();
+        showToast('已记入手账');
+      }
+    } catch (e) {
+      showToast((e as Error).message);
+    }
+  };
   const phaseRef = useRef<Phase>('idle');
   const pressTimer = useRef(0);
   const msTimer = useRef(0);
@@ -94,13 +122,28 @@ export default function RecordTab({
     cleanup();
     setPhase('idle');
 
+    const speech = recognition.current;
+    if (speech && !cancelled && duration >= MIN_MS && !onAudioRecorded) {
+      const previous = speech.onend;
+      speech.onend = () => {
+        previous?.();
+        void sendVoice(transcript.current.trim());
+      };
+      try {
+        speech.stop();
+      } catch {
+        speech.onend();
+      }
+      return;
+    }
+    speech?.abort();
     if (cancelled) return;
     if (duration < MIN_MS) {
       showToast('说话时间太短');
       return;
     }
     if (onAudioRecorded) onAudioRecorded(blob, duration);
-    else showToast(`已录下 ${(duration / 1000).toFixed(1)} 秒 · 转写接口接入中`);
+    else void sendVoice(transcript.current.trim());
   }, [cleanup, onAudioRecorded, setPhase, showToast]);
 
   const start = useCallback(async () => {
@@ -144,6 +187,29 @@ export default function RecordTab({
         if (event.data.size > 0) chunks.current.push(event.data);
       };
       recorder.onstop = () => finalize();
+      transcript.current = '';
+      const Ctor = getRecognizerCtor();
+      if (Ctor && !onAudioRecorded) {
+        const speech = new Ctor();
+        speech.lang = 'zh-CN';
+        speech.continuous = true;
+        speech.interimResults = true;
+        speech.onresult = (e) => {
+          transcript.current = Array.from(
+            { length: e.results.length },
+            (_, i) => e.results[i][0]?.transcript ?? '',
+          ).join('');
+        };
+        speech.onend = () => {
+          recognition.current = null;
+        };
+        try {
+          speech.start();
+          recognition.current = speech;
+        } catch {
+          recognition.current = null;
+        }
+      }
       recorder.start(150);
       recorderRef.current = recorder;
       startedAt.current = performance.now();
@@ -247,6 +313,7 @@ export default function RecordTab({
     () => () => {
       window.clearTimeout(pressTimer.current);
       window.clearTimeout(toastTimer.current);
+      recognition.current?.abort();
       cleanup();
     },
     [cleanup],
@@ -278,7 +345,12 @@ export default function RecordTab({
         <i className="u" />
       </a>
 
-      {toast && <div className="fc-rec-toast" role="status">{toast}</div>}
+      {question && <AskSheet question={question} onClose={() => setQuestion(null)} />}
+      {toast && (
+        <div className="fc-rec-toast" role="status">
+          {toast}
+        </div>
+      )}
 
       {recording &&
         typeof document !== 'undefined' &&

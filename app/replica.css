@@ -2145,3 +2145,10 @@ h3.fc-dict-name {
   white-space: nowrap;
   animation: fc-fade 0.16s ease;
 }
+
+.fc-ledger-type {
+  display: block;
+  margin: 8px auto 0;
+  min-height: 32px;
+  color: var(--muted-2);
+}

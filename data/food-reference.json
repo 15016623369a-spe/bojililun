@@ -1,0 +1,602 @@
+[
+  {
+    "food_name": "米饭",
+    "portion_text": "一碗",
+    "estimated_grams": 200,
+    "kcal": 232,
+    "protein_g": 5.2,
+    "carbs_g": 51.8,
+    "fat_g": 0.6,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "炒饭",
+    "portion_text": "一碗",
+    "estimated_grams": 250,
+    "kcal": 450,
+    "protein_g": 12.5,
+    "carbs_g": 70,
+    "fat_g": 15,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "馒头",
+    "portion_text": "一份",
+    "estimated_grams": 100,
+    "kcal": 223,
+    "protein_g": 7,
+    "carbs_g": 47,
+    "fat_g": 1.1,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "面条",
+    "portion_text": "一碗",
+    "estimated_grams": 250,
+    "kcal": 275,
+    "protein_g": 11.25,
+    "carbs_g": 55,
+    "fat_g": 1,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "全麦面包",
+    "portion_text": "一份",
+    "estimated_grams": 60,
+    "kcal": 148,
+    "protein_g": 5.4,
+    "carbs_g": 24.6,
+    "fat_g": 2.1,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "燕麦",
+    "portion_text": "一份",
+    "estimated_grams": 40,
+    "kcal": 135,
+    "protein_g": 4.36,
+    "carbs_g": 26.4,
+    "fat_g": 2.44,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "鸡蛋",
+    "portion_text": "一份",
+    "estimated_grams": 55,
+    "kcal": 79,
+    "protein_g": 7.32,
+    "carbs_g": 1.54,
+    "fat_g": 4.84,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "鸡胸肉",
+    "portion_text": "一份",
+    "estimated_grams": 150,
+    "kcal": 200,
+    "protein_g": 36,
+    "carbs_g": 0.9,
+    "fat_g": 7.5,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "鸡腿",
+    "portion_text": "一份",
+    "estimated_grams": 120,
+    "kcal": 217,
+    "protein_g": 19.2,
+    "carbs_g": 1.56,
+    "fat_g": 14.4,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "牛肉",
+    "portion_text": "一份",
+    "estimated_grams": 120,
+    "kcal": 300,
+    "protein_g": 31.2,
+    "carbs_g": 0,
+    "fat_g": 18,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "猪里脊",
+    "portion_text": "一份",
+    "estimated_grams": 120,
+    "kcal": 186,
+    "protein_g": 24,
+    "carbs_g": 1.2,
+    "fat_g": 9.6,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "三文鱼",
+    "portion_text": "一份",
+    "estimated_grams": 120,
+    "kcal": 250,
+    "protein_g": 24,
+    "carbs_g": 0,
+    "fat_g": 15.6,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "虾",
+    "portion_text": "一份",
+    "estimated_grams": 100,
+    "kcal": 93,
+    "protein_g": 18.6,
+    "carbs_g": 2.8,
+    "fat_g": 0.8,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "牛奶",
+    "portion_text": "一杯",
+    "estimated_grams": 250,
+    "kcal": 135,
+    "protein_g": 7.5,
+    "carbs_g": 8.5,
+    "fat_g": 8,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "无糖酸奶",
+    "portion_text": "一杯",
+    "estimated_grams": 150,
+    "kcal": 108,
+    "protein_g": 5.25,
+    "carbs_g": 9,
+    "fat_g": 4.5,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "豆腐",
+    "portion_text": "一份",
+    "estimated_grams": 120,
+    "kcal": 98,
+    "protein_g": 9.72,
+    "carbs_g": 5.04,
+    "fat_g": 4.44,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "西兰花",
+    "portion_text": "一份",
+    "estimated_grams": 100,
+    "kcal": 34,
+    "protein_g": 2.8,
+    "carbs_g": 6.6,
+    "fat_g": 0.4,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "青菜",
+    "portion_text": "一份",
+    "estimated_grams": 150,
+    "kcal": 30,
+    "protein_g": 2.25,
+    "carbs_g": 4.5,
+    "fat_g": 0.45,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "土豆",
+    "portion_text": "一份",
+    "estimated_grams": 150,
+    "kcal": 116,
+    "protein_g": 3,
+    "carbs_g": 25.5,
+    "fat_g": 0.15,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "红薯",
+    "portion_text": "一份",
+    "estimated_grams": 150,
+    "kcal": 129,
+    "protein_g": 2.4,
+    "carbs_g": 30,
+    "fat_g": 0.15,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "香蕉",
+    "portion_text": "一份",
+    "estimated_grams": 120,
+    "kcal": 112,
+    "protein_g": 1.68,
+    "carbs_g": 26.4,
+    "fat_g": 0.24,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "苹果",
+    "portion_text": "一份",
+    "estimated_grams": 180,
+    "kcal": 95,
+    "protein_g": 0.36,
+    "carbs_g": 24.3,
+    "fat_g": 0.36,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "牛油果",
+    "portion_text": "一份",
+    "estimated_grams": 100,
+    "kcal": 160,
+    "protein_g": 2,
+    "carbs_g": 8.5,
+    "fat_g": 14.7,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "坚果",
+    "portion_text": "一份",
+    "estimated_grams": 25,
+    "kcal": 150,
+    "protein_g": 5,
+    "carbs_g": 5,
+    "fat_g": 12.5,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "拿铁",
+    "portion_text": "一份",
+    "estimated_grams": 300,
+    "kcal": 180,
+    "protein_g": 9,
+    "carbs_g": 15,
+    "fat_g": 9,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "可乐",
+    "portion_text": "一杯",
+    "estimated_grams": 330,
+    "kcal": 139,
+    "protein_g": 0,
+    "carbs_g": 34.98,
+    "fat_g": 0,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "薯条",
+    "portion_text": "一份",
+    "estimated_grams": 100,
+    "kcal": 312,
+    "protein_g": 3.4,
+    "carbs_g": 41,
+    "fat_g": 15,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "汉堡",
+    "portion_text": "一份",
+    "estimated_grams": 200,
+    "kcal": 590,
+    "protein_g": 30,
+    "carbs_g": 50,
+    "fat_g": 30,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "披萨",
+    "portion_text": "一份",
+    "estimated_grams": 150,
+    "kcal": 399,
+    "protein_g": 16.5,
+    "carbs_g": 49.5,
+    "fat_g": 15,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "蛋白粉",
+    "portion_text": "一份",
+    "estimated_grams": 30,
+    "kcal": 114,
+    "protein_g": 22.5,
+    "carbs_g": 2.4,
+    "fat_g": 1.5,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "火锅",
+    "portion_text": "一份",
+    "estimated_grams": 300,
+    "kcal": 450,
+    "protein_g": 30,
+    "carbs_g": 24,
+    "fat_g": 27,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "包子",
+    "portion_text": "一份",
+    "estimated_grams": 100,
+    "kcal": 227,
+    "protein_g": 7,
+    "carbs_g": 36,
+    "fat_g": 6,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "粥",
+    "portion_text": "一碗",
+    "estimated_grams": 300,
+    "kcal": 138,
+    "protein_g": 3.3,
+    "carbs_g": 29.7,
+    "fat_g": 0.9,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "牛肉面",
+    "portion_text": "一碗",
+    "estimated_grams": 500,
+    "kcal": 620,
+    "protein_g": 24,
+    "carbs_g": 85,
+    "fat_g": 20,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "卤蛋",
+    "portion_text": "一份",
+    "estimated_grams": 50,
+    "kcal": 75,
+    "protein_g": 6,
+    "carbs_g": 1,
+    "fat_g": 5,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "豆浆",
+    "portion_text": "一杯",
+    "estimated_grams": 250,
+    "kcal": 85,
+    "protein_g": 8,
+    "carbs_g": 4,
+    "fat_g": 4,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "玉米",
+    "portion_text": "一份",
+    "estimated_grams": 120,
+    "kcal": 130,
+    "protein_g": 4,
+    "carbs_g": 27,
+    "fat_g": 2,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "糙米饭",
+    "portion_text": "一碗",
+    "estimated_grams": 150,
+    "kcal": 170,
+    "protein_g": 4,
+    "carbs_g": 35,
+    "fat_g": 1,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "紫薯",
+    "portion_text": "一份",
+    "estimated_grams": 150,
+    "kcal": 150,
+    "protein_g": 2,
+    "carbs_g": 34,
+    "fat_g": 0,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "荞麦面",
+    "portion_text": "一份",
+    "estimated_grams": 200,
+    "kcal": 220,
+    "protein_g": 9,
+    "carbs_g": 42,
+    "fat_g": 1,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "花卷",
+    "portion_text": "一份",
+    "estimated_grams": 80,
+    "kcal": 175,
+    "protein_g": 5,
+    "carbs_g": 35,
+    "fat_g": 2,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "油条",
+    "portion_text": "一份",
+    "estimated_grams": 55,
+    "kcal": 215,
+    "protein_g": 4,
+    "carbs_g": 28,
+    "fat_g": 10,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "饺子",
+    "portion_text": "一份",
+    "estimated_grams": 200,
+    "kcal": 420,
+    "protein_g": 16,
+    "carbs_g": 50,
+    "fat_g": 17,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "馄饨",
+    "portion_text": "一份",
+    "estimated_grams": 300,
+    "kcal": 285,
+    "protein_g": 12,
+    "carbs_g": 40,
+    "fat_g": 8,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "煎饼果子",
+    "portion_text": "一份",
+    "estimated_grams": 250,
+    "kcal": 510,
+    "protein_g": 16,
+    "carbs_g": 66,
+    "fat_g": 20,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "黄焖鸡饭",
+    "portion_text": "一碗",
+    "estimated_grams": 450,
+    "kcal": 650,
+    "protein_g": 32,
+    "carbs_g": 77,
+    "fat_g": 23,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "盖浇饭",
+    "portion_text": "一碗",
+    "estimated_grams": 400,
+    "kcal": 590,
+    "protein_g": 20,
+    "carbs_g": 75,
+    "fat_g": 23,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "鱼香肉丝",
+    "portion_text": "一份",
+    "estimated_grams": 200,
+    "kcal": 340,
+    "protein_g": 19,
+    "carbs_g": 24,
+    "fat_g": 19,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "清蒸鱼",
+    "portion_text": "一份",
+    "estimated_grams": 120,
+    "kcal": 145,
+    "protein_g": 26,
+    "carbs_g": 0,
+    "fat_g": 4,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "金枪鱼",
+    "portion_text": "一份",
+    "estimated_grams": 100,
+    "kcal": 115,
+    "protein_g": 25,
+    "carbs_g": 0,
+    "fat_g": 1,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "毛豆",
+    "portion_text": "一份",
+    "estimated_grams": 100,
+    "kcal": 130,
+    "protein_g": 13,
+    "carbs_g": 10,
+    "fat_g": 5,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "豆干",
+    "portion_text": "一份",
+    "estimated_grams": 80,
+    "kcal": 120,
+    "protein_g": 13,
+    "carbs_g": 4,
+    "fat_g": 5,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "黑咖啡",
+    "portion_text": "一杯",
+    "estimated_grams": 250,
+    "kcal": 3,
+    "protein_g": 0,
+    "carbs_g": 0,
+    "fat_g": 0,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "奶茶",
+    "portion_text": "一杯",
+    "estimated_grams": 450,
+    "kcal": 320,
+    "protein_g": 4,
+    "carbs_g": 49,
+    "fat_g": 12,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "橙子",
+    "portion_text": "一份",
+    "estimated_grams": 150,
+    "kcal": 70,
+    "protein_g": 1,
+    "carbs_g": 16,
+    "fat_g": 0,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "蓝莓",
+    "portion_text": "一份",
+    "estimated_grams": 100,
+    "kcal": 57,
+    "protein_g": 1,
+    "carbs_g": 14,
+    "fat_g": 0,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "草莓",
+    "portion_text": "一份",
+    "estimated_grams": 150,
+    "kcal": 48,
+    "protein_g": 1,
+    "carbs_g": 11,
+    "fat_g": 0,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "葡萄",
+    "portion_text": "一份",
+    "estimated_grams": 150,
+    "kcal": 100,
+    "protein_g": 1,
+    "carbs_g": 24,
+    "fat_g": 0,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "西瓜",
+    "portion_text": "一份",
+    "estimated_grams": 250,
+    "kcal": 75,
+    "protein_g": 2,
+    "carbs_g": 18,
+    "fat_g": 0,
+    "confidence": "estimated"
+  },
+  {
+    "food_name": "梨",
+    "portion_text": "一份",
+    "estimated_grams": 160,
+    "kcal": 85,
+    "protein_g": 1,
+    "carbs_g": 21,
+    "fat_g": 0,
+    "confidence": "estimated"
+  }
+]
