@@ -1,6 +1,8 @@
 import { getDb } from '../db';
+import { mealNutrition } from '../journal';
 import { macrosFor, sumMacros, EMPTY_MACROS, type Macros } from '../nutrition';
 import { MEAL_LABEL, todayKey, type MealType } from '../date';
+import { readQuickPayload } from '../quick-parse';
 import { cleanupDrafts } from './chat';
 import { listMemories } from '../memory';
 import type { AssistantReply, FoodItem, MealRecord, TodayPayload } from '../types';
@@ -68,6 +70,20 @@ export function mealsOn(date: string): MealRecord[] {
     fat: r.fat,
     created_at: r.created_at,
   }));
+}
+
+function consumedOn(date: string, meals: MealRecord[]) {
+  const rows = getDb().prepare(`
+    SELECT payload_json, source_text, kind, detail, title FROM journal_entry
+    WHERE date = ? AND kind = 'meal' AND merged_session_id IS NULL
+  `).all(date) as unknown as Parameters<typeof readQuickPayload>[0][];
+  const quickMeals = rows.map(readQuickPayload).filter((payload) => !payload.planned);
+  const quickNutrition = mealNutrition(quickMeals);
+  return {
+    consumed: sumMacros([...meals, quickNutrition.totals]),
+    quickMealCount: quickMeals.length,
+    pendingQuickMealItems: quickNutrition.pending,
+  };
 }
 
 export interface ConfirmResult {
@@ -138,12 +154,7 @@ export function confirmDraft(draftId: string, incoming: FoodItem[]): ConfirmResu
 
   db.prepare('DELETE FROM draft WHERE id = ?').run(draftId);
 
-  const consumed = sumMacros(mealsOn(date).map((m) => ({
-    kcal: m.kcal,
-    protein: m.protein,
-    carb: m.carb,
-    fat: m.fat,
-  })));
+  const { consumed, pendingQuickMealItems } = consumedOn(date, mealsOn(date));
   const remainingKcal = Math.round(profile.target_kcal - consumed.kcal);
   const remainingProtein = Math.round(profile.target_protein - consumed.protein);
 
@@ -152,7 +163,8 @@ export function confirmDraft(draftId: string, incoming: FoodItem[]): ConfirmResu
     `已记入${label}：${total.kcal} kcal，蛋白质 ${total.protein}g。`,
     `今天 ${consumed.kcal} / ${profile.target_kcal} kcal，${
       remainingKcal >= 0 ? `还可摄入 ${remainingKcal} kcal` : `已超出 ${Math.abs(remainingKcal)} kcal`
-    }；蛋白质 ${Math.round(consumed.protein)} / ${profile.target_protein}g（还差 ${Math.max(0, remainingProtein)}g）。`,
+    }；蛋白质 ${Math.round(consumed.protein)} / ${profile.target_protein}g（还差 ${Math.max(0, remainingProtein)}g）。`
+      + (pendingQuickMealItems ? `还有 ${pendingQuickMealItems} 项热量待补。` : ''),
   ].join('\n');
 
   return {
@@ -200,9 +212,8 @@ export function todaySnapshot(): TodayPayload {
   const date = todayKey(TZ);
   const profile = getProfileRow();
   const meals = mealsOn(date);
-  const consumed = sumMacros(
-    meals.map((m) => ({ kcal: m.kcal, protein: m.protein, carb: m.carb, fat: m.fat })),
-  );
+  const nutrition = consumedOn(date, meals);
+  const { consumed } = nutrition;
 
   const draftRow = db
     .prepare("SELECT id, payload_json FROM draft WHERE kind = 'food' ORDER BY created_at DESC LIMIT 1")
@@ -222,7 +233,7 @@ export function todaySnapshot(): TodayPayload {
   return {
     date,
     profile: profile ?? null,
-    consumed,
+    ...nutrition,
     remainingKcal: profile ? Math.round(profile.target_kcal - consumed.kcal) : 0,
     remainingProtein: profile ? Math.round(profile.target_protein - consumed.protein) : 0,
     meals,

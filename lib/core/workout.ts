@@ -52,8 +52,43 @@ export function getPlanProgress(date: string): PlanItem[] {
   const setsByItem = new Map(completed.map(({ id, sets }) => [id, sets]));
   return getPlan(date).map((item) => ({
     ...item,
-    done: (setsByItem.get(item.id) ?? 0) >= item.sets ? 1 : 0,
+    done: item.done || (setsByItem.get(item.id) ?? 0) >= item.sets ? 1 : 0,
   }));
+}
+
+/** 用户确认按今天的计划练完。已记录的组保留，只补齐剩余组数。 */
+export function completePlannedExercise(id: number): void {
+  const db = getDb();
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const date = todayStr();
+    const item = getPlan(date).find((entry) => entry.id === id);
+    if (!item) throw new Error('今日计划里已没有这个动作');
+    const already = db.prepare(`
+      SELECT COUNT(*) AS count, COALESCE(MAX(ss.set_index), 0) AS last
+      FROM session_set ss JOIN session s ON s.id = ss.session_id
+      WHERE ss.plan_item_id = ? AND s.date = ?
+    `).get(id, date) as { count: number; last: number };
+    if (already.count < item.sets) {
+      if (activeTraining()) throw new Error('有训练正在进行，请先结束该节训练');
+      const now = nowIso();
+      const { lastInsertRowid } = db.prepare('INSERT INTO session (date, started_at, ended_at) VALUES (?, ?, ?)')
+        .run(date, now, now);
+      for (let offset = 0; offset < item.sets - already.count; offset++) {
+        addSet(Number(lastInsertRowid), {
+          planItemId: id, exerciseId: item.exercise_id, exerciseName: item.name,
+          bodyPart: item.body_part, target: item.target,
+          setIndex: already.last + offset + 1, weight: item.weight, reps: item.reps,
+          durationSec: 0, restSec: item.rest_sec,
+        });
+      }
+      markPlanDone(id);
+    }
+    db.exec('COMMIT');
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
 }
 
 export function addPlanItem(

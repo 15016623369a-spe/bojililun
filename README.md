@@ -106,6 +106,8 @@ AI_MODEL=gpt-4o-mini
 
 通义（dashscope compatible-mode）、豆包（ark）、DeepSeek 等只要是 `/chat/completions` + `image_url` 格式都能用。接上后拍照才会真的识别；训练、统计、历史不依赖模型，一直是真的。
 
+主页语音意图接入 DeepSeek：在 `.env.local` 添加 `DEEPSEEK_API_KEY=...`（可选 `DEEPSEEK_MODEL=deepseek-chat`）。服务端只发送当前一句原文并要求返回四分类 JSON；未配置或服务不可用时使用本地兜底规则。结构化记录解析、数据库状态查询和变更确认都由应用后端处理。
+
 ---
 
 ## 架构

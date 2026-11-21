@@ -3,11 +3,11 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { humanDate } from '@/lib/date';
-import { consolidateMealEntries, consolidateTrainingEntries, type JournalEntry } from '@/lib/journal';
+import type { JournalEntry } from '@/lib/journal';
 import { MUSCLES, type MuscleId } from '@/lib/muscles';
 import { canonicalMuscle, recordedInGroup, sculptureGroup, type SculptureVariant } from '@/lib/sculpture-groups';
 import ReviewBody from './ReviewBody';
-import JournalTimeline from './JournalTimeline';
+import RecordCards from './RecordCards';
 import JournalIcon from './JournalIcon';
 
 const periodCaption = { day: '当天实练部位', week: '本周实练部位', month: '本月实练部位' };
@@ -142,12 +142,10 @@ export default function ReviewJournal({ days, period = 'week', variant = 'male',
     {filtered.length ? filtered.map(({ date, entries }) => <section className="review-day" key={date}>
       <h2>{humanDate(date)}</h2>
       {ENTRY_GROUPS.map(({ kind, label }) => {
-        const raw = entries.filter((entry) => entry.kind === kind);
-        const grouped = kind === 'training' ? consolidateTrainingEntries(raw, date)
-          : kind === 'meal' ? consolidateMealEntries(raw, date) : raw;
+        const grouped = entries.filter((entry) => entry.kind === kind);
         return grouped.length > 0 && <section className={`review-category ${kind}`} data-kind={kind} key={kind}>
           <h3>{label}<span>{grouped.length} 条</span></h3>
-          <JournalTimeline entries={grouped} compact />
+          <RecordCards entries={grouped} />
         </section>;
       })}
     </section>) : <div className="journal-empty"><p>这段时间还没有记录</p></div>}

@@ -1,4 +1,5 @@
 import type { MuscleId } from './muscles';
+import { sumMacros, type Macros } from './nutrition';
 
 /** 部位 → 训练名称：背部训练 / 手臂训练 / 核心训练 */
 export function regionTrainingName(region: string): string {
@@ -19,13 +20,36 @@ export type MealItemSource =
   | { kind: 'quick'; quickId: number; index: number }
   | { kind: 'meal'; mealId: number; index: number };
 
+export interface JournalMealItem {
+  name: string;
+  amount: string;
+  meal?: string;
+  planned?: boolean;
+  grams?: number;
+  src?: MealItemSource;
+  nutrition?: Macros;
+  estimatedGrams?: number;
+  nutritionIssue?: 'food' | 'amount';
+  preparation?: string;
+  photoUrl?: string;
+  manualKcal?: number;
+}
+
+export const JOURNAL_MEAL_LABELS = ['早餐', '午餐', '晚餐', '加餐', '饮食'] as const;
+export const MEAL_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+export const MEAL_PHOTO_MAX_BYTES = 8 * 1024 * 1024;
+
+export function mealItemKcal(item: JournalMealItem): number | undefined {
+  return item.manualKcal ?? item.nutrition?.kcal;
+}
+
 /** 语音记录的结构化 JSON：前端只渲染这份 payload，不展示原话 */
 export interface QuickPayload {
   kind: 'meal' | 'training' | 'sleep' | 'note';
   planned?: boolean;
   regions?: string[];
   exercises?: TrainingExerciseRow[];
-  items?: Array<{ name: string; amount: string; meal?: string; planned?: boolean; grams?: number; src?: MealItemSource }>;
+  items?: JournalMealItem[];
   mealType?: string;
   sleep?: { duration?: string; bedtime?: string; wake?: string; quality?: string };
   summary?: string;
@@ -39,6 +63,7 @@ export interface JournalEntry {
   title: string;
   detail: string;
   meta?: string;
+  note?: string;
   source?: string;
   time?: string;
   muscles?: MuscleId[];
@@ -85,6 +110,30 @@ export function trainingSummary(payload: QuickPayload): string | undefined {
   return names.length ? names.join('、') : undefined;
 }
 
+export function mealNutrition(payloads: QuickPayload[]) {
+  const items = payloads.flatMap((payload) =>
+    (payload.items ?? []).filter((item) => !(item.planned ?? payload.planned)));
+  const known = items.flatMap((item) => {
+    if (item.nutrition) return [{ ...item.nutrition, kcal: mealItemKcal(item) ?? 0 }];
+    return item.manualKcal === undefined ? [] : [{ kcal: item.manualKcal, protein: 0, carb: 0, fat: 0 }];
+  });
+  return {
+    totals: sumMacros(known),
+    counted: known.length,
+    pending: items.length - known.length,
+    hasProtein: items.some((item) => Boolean(item.nutrition)),
+  };
+}
+
+export function mealNutritionLabel(payloads: QuickPayload[]): string | undefined {
+  const { totals, counted, pending, hasProtein } = mealNutrition(payloads);
+  return [
+    counted ? `约 ${totals.kcal} kcal` : '',
+    hasProtein ? `蛋白质 ${Number(totals.protein.toFixed(1))} g` : '',
+    pending ? `${pending} 项热量待补` : '',
+  ].filter(Boolean).join(' · ') || undefined;
+}
+
 /** 同一天只呈现一条整合后的饮食记录：各餐语音/记录合并成同一张标准化表格，保留餐次与计划标记。 */
 export function consolidateMealEntries(entries: JournalEntry[], date: string): JournalEntry[] {
   if (entries.length <= 1) return entries;
@@ -95,7 +144,6 @@ export function consolidateMealEntries(entries: JournalEntry[], date: string): J
   })));
   if (!items.length) return entries;
   const meals = [...new Set(items.map((item) => item.meal).filter((meal): meal is string => Boolean(meal) && meal !== '饮食'))];
-  const meta = [...meals, `共 ${items.length} 项`].join(' · ');
   const time = entries.map((entry) => entry.time).filter(Boolean).sort().at(-1);
   const planned = entries.every((entry) => entry.payload?.planned) || undefined;
   return [{
@@ -104,7 +152,7 @@ export function consolidateMealEntries(entries: JournalEntry[], date: string): J
     date,
     title: '饮食记录',
     detail: items.map((item) => item.name).join('、'),
-    meta,
+    meta: [...meals, mealNutritionLabel([{ kind: 'meal', items, planned }])].filter(Boolean).join(' · '),
     href: `/history/${date}`,
     time,
     payload: { kind: 'meal', items, planned },

@@ -97,6 +97,8 @@ export interface TodayPayload {
     target_protein: number;
   } | null;
   consumed: Macros;
+  quickMealCount: number;
+  pendingQuickMealItems: number;
   remainingKcal: number;
   remainingProtein: number;
   meals: MealRecord[];

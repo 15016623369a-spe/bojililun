@@ -7,13 +7,20 @@ import type { AskAction, AskAnswer, AskFact } from '@/lib/ask';
 type Meta = Omit<AskAnswer, 'text'>;
 
 /** 底部升起的临时问答浮层：流式吐字 + 一键胶囊，划走即散，不留聊天记录 */
-export default function AskSheet({ question, onClose }: { question: string; onClose: () => void }) {
+export default function AskSheet({ question, onClose, onFollowUp, onLogged, docked = false }: {
+  question: string;
+  onClose: () => void;
+  onFollowUp?: (question: string) => void;
+  onLogged?: (entryId?: number) => void;
+  docked?: boolean;
+}) {
   const router = useRouter();
   const [meta, setMeta] = useState<Meta | null>(null);
   const [text, setText] = useState('');
   const [done, setDone] = useState(false);
   const [actionState, setActionState] = useState<Record<string, 'busy' | 'done' | 'err'>>({});
   const [toast, setToast] = useState('');
+  const actionLock = useRef(false);
 
   const [dragY, setDragY] = useState(0);
   const dragRef = useRef<{ start: number; id: number } | null>(null);
@@ -75,7 +82,8 @@ export default function AskSheet({ question, onClose }: { question: string; onCl
 
   const runAction = useCallback(
     async (a: AskAction) => {
-      if (actionState[a.id] === 'busy' || actionState[a.id] === 'done') return;
+      if (actionLock.current || actionState[a.id] === 'done') return;
+      actionLock.current = true;
       setActionState((prev) => ({ ...prev, [a.id]: 'busy' }));
       try {
         if (a.id === 'plan' && a.exerciseId) {
@@ -96,20 +104,23 @@ export default function AskSheet({ question, onClose }: { question: string; onCl
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ text: a.text, items: a.items }),
           });
-          const data = (await res.json()) as { ok?: boolean; error?: string };
+          const data = (await res.json()) as { ok?: boolean; error?: string; entry?: { id: number; kind: string } };
           if (!res.ok || !data.ok) throw new Error(data.error || '记录失败');
           setActionState((prev) => ({ ...prev, [a.id]: 'done' }));
           setToast('已记入今天');
           router.refresh();
-          setTimeout(onClose, 700);
+          if (onLogged) onLogged(data.entry?.kind === 'meal' ? data.entry.id : undefined);
+          else setTimeout(onClose, 700);
           return;
         }
       } catch (e) {
         setActionState((prev) => ({ ...prev, [a.id]: 'err' }));
         setToast((e as Error).message);
+      } finally {
+        actionLock.current = false;
       }
     },
-    [actionState, onClose, router],
+    [actionState, onClose, onLogged, router],
   );
 
   /* 向下划走 */
@@ -130,13 +141,15 @@ export default function AskSheet({ question, onClose }: { question: string; onCl
   };
 
   return (
-    <div className="fc-ask-mask" onClick={onClose}>
+    <div className={docked ? 'fc-ask-mask docked-ask' : 'fc-ask-mask'} onClick={docked ? undefined : onClose}>
       <div
         className="fc-ask"
+        role={docked ? 'region' : undefined}
+        aria-label={docked ? '临时问答' : undefined}
         style={{ transform: `translateY(${dragY}px)`, transition: dragY ? 'none' : 'transform 0.22s ease' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div
+        {!docked && <div
           className="fc-ask-handle"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -144,9 +157,13 @@ export default function AskSheet({ question, onClose }: { question: string; onCl
           onPointerCancel={onPointerUp}
         >
           <i />
-        </div>
+        </div>}
 
-        <div className="fc-ask-q">{question}</div>
+        <div className="fc-ask-q">
+          {docked && <span aria-hidden="true">✦</span>}{question}
+          {docked && <button type="button" className="ask-close" onClick={onClose} aria-label="关闭问答"
+            disabled={Object.values(actionState).includes('busy')}>×</button>}
+        </div>
 
         <div className="fc-ask-body">
           {meta?.media && (
@@ -173,7 +190,7 @@ export default function AskSheet({ question, onClose }: { question: string; onCl
             </div>
           )}
 
-          {done && meta && meta.actions.length > 0 && (
+          {done && meta && (meta.actions.length > 0 || Boolean(onFollowUp && meta.followUps?.length)) && (
             <div className="fc-ask-actions">
               {meta.actions.map((a) => {
                 const state = actionState[a.id] ?? 'idle';
@@ -189,11 +206,14 @@ export default function AskSheet({ question, onClose }: { question: string; onCl
                   </button>
                 );
               })}
+              {onFollowUp && meta.followUps?.map((item) => <button key={item.question} type="button"
+                className="fc-ask-cap ask-follow-up" disabled={Object.values(actionState).includes('busy')}
+                onClick={() => onFollowUp(item.question)}>{item.label}</button>)}
             </div>
           )}
         </div>
 
-        <p className="fc-ask-hint">向下划走</p>
+        {!docked && <p className="fc-ask-hint">向下划走</p>}
         {toast && <div className="fc-ask-toast">{toast}</div>}
       </div>
     </div>

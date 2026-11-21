@@ -3,9 +3,11 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { consolidateMealEntries, consolidateTrainingEntries, type JournalEntry } from '@/lib/journal';
+import type { TrainingMutationPreview } from '@/lib/core/journal';
+import type { JournalEntry } from '@/lib/journal';
+import AskSheet from './fc/AskSheet';
 import JournalIcon from './JournalIcon';
-import JournalTimeline from './JournalTimeline';
+import RecordCards from './RecordCards';
 
 interface Recognition {
   lang: string;
@@ -26,7 +28,8 @@ export default function RecordToday({ date, entries, workoutSaved }: { date: str
   const [recording, setRecording] = useState(false);
   const [heard, setHeard] = useState('');
   const [editing, setEditing] = useState(false);
-  const [editingId, setEditingId] = useState<number>();
+  const [ask, setAsk] = useState<{ question: string }>();
+  const [mutation, setMutation] = useState<{ preview: TrainingMutationPreview; text: string }>();
   const [text, setText] = useState('');
   const [status, setStatus] = useState(workoutSaved ? '训练已自动归档' : '');
   const [freshId, setFreshId] = useState<string>();
@@ -55,19 +58,45 @@ export default function RecordToday({ date, entries, workoutSaved }: { date: str
     }
   }, []);
 
-  async function save(value: string, id?: number, resolution?: 'actual', replacementExerciseId?: string) {
+  useEffect(() => {
+    if (!freshId) return;
+    const timer = setTimeout(() => setFreshId(undefined), 5000);
+    return () => clearTimeout(timer);
+  }, [freshId]);
+
+  useEffect(() => {
+    if (!status || pastEntry) return;
+    const timer = setTimeout(() => setStatus(''), 5000);
+    return () => clearTimeout(timer);
+  }, [status, pastEntry]);
+
+  async function save(value: string, resolution?: 'actual', replacementExerciseId?: string) {
     if (lock.current || !value.trim()) return;
+    setAsk(undefined);
     lock.current = true;
     setSaving(true);
     setError('');
     setStatus('');
     try {
+      const classification = await fetch('/api/intent', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ raw_text: value }),
+      });
+      const classified = await classification.json() as { intent?: string; error?: string };
+      if (!classification.ok || !classified.intent) throw new Error(classified.error || '意图识别失败，请重试');
+      if (classified.intent === 'question') {
+        setAsk({ question: value.trim() });
+        setText('');
+        setEditing(false);
+        setConflict(undefined);
+        return;
+      }
       if (request.current?.text !== value) {
         request.current = { text: value, id: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}` };
       }
       const response = await fetch('/api/journal', {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ text: value, id, requestId: request.current.id, resolution, replacementExerciseId }),
+        body: JSON.stringify({ text: value, requestId: request.current.id, intent: classified.intent, resolution, replacementExerciseId }),
       });
       const result = await response.json();
       if (response.status === 409 && result.conflict) {
@@ -88,21 +117,27 @@ export default function RecordToday({ date, entries, workoutSaved }: { date: str
         return;
       }
       if (!response.ok) throw new Error(result.error || '记录失败，请重试');
+      if (result.preview) {
+        setMutation({ preview: result.preview as TrainingMutationPreview, text: value });
+        setText('');
+        setEditing(false);
+        return;
+      }
       const entry: JournalEntry = result.entry;
+      const corrected = entry.id.startsWith('session-');
       const plannedTraining = entry.kind === 'training' && entry.payload?.planned;
       const replacedName = conflict?.options?.find((option) => option.id === replacementExerciseId)?.zh_name
         || conflict?.results.find((option) => option.id === replacementExerciseId)?.zh_name;
       setConflict(undefined);
-      setStatus(plannedTraining ? '已识别为训练安排' : id ? '记录已更新'
+      setStatus(corrected ? '已更正原训练记录' : plannedTraining ? '已识别为训练安排'
         : resolution === 'actual' && conflict?.mode === 'exercise' ? `已替换为「${replacedName ?? '所选动作'}」，原有语音记录已清理，训练表格已更新`
           : resolution === 'actual' ? `已确认实际练${conflict?.actual.join('、') ?? ''}，不相符记录与原有语音记录已清理`
             : entry.kind === 'training' ? '已记录训练'
               : entry.kind === 'meal' ? '已记录为饮食' : entry.kind === 'sleep' ? '已记录为睡眠' : '已记录');
-      setFreshId(entry.id);
+      setFreshId(corrected ? undefined : entry.id);
       setPastEntry(!plannedTraining && entry.date !== date ? entry : undefined);
       setText('');
       setEditing(false);
-      setEditingId(undefined);
       request.current = null;
       router.refresh();
     } catch (err) {
@@ -126,6 +161,30 @@ export default function RecordToday({ date, entries, workoutSaved }: { date: str
     } catch {
       setConflict((current) => current ? { ...current, searching: false } : current);
       setError('动作搜索失败，请重试');
+    }
+  }
+
+  async function confirmMutation() {
+    if (!mutation || lock.current) return;
+    lock.current = true;
+    setSaving(true);
+    setError('');
+    try {
+      const response = await fetch('/api/journal', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ confirmMutation: mutation.preview }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.entry) throw new Error(result.error || '确认失败，请重试');
+      setMutation(undefined);
+      setStatus(mutation.preview.intent === 'completion' ? '训练已确认完成' : '训练记录已更正');
+      setFreshId(undefined);
+      router.refresh();
+    } catch (cause) {
+      setError((cause as Error).message);
+    } finally {
+      lock.current = false;
+      setSaving(false);
     }
   }
 
@@ -192,28 +251,15 @@ export default function RecordToday({ date, entries, workoutSaved }: { date: str
     }
   }
 
-  async function undo(entry: JournalEntry) {
-    try {
-      const response = await fetch(`/api/journal?id=${entry.quickId}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error();
-      setFreshId(undefined);
-      setPastEntry(undefined);
-      setStatus('已撤销');
-      router.refresh();
-    } catch {
-      setError('撤销失败，请重试。');
-    }
-  }
-
-  function edit(entry: JournalEntry) {
-    setEditingId(entry.quickId);
-    setText(entry.source ?? entry.detail);
-    setEditing(true);
+  function deleted(entry: JournalEntry) {
+    if (entry.id === freshId) setFreshId(undefined);
+    if (entry.id === pastEntry?.id) setPastEntry(undefined);
+    setStatus(entry.id === freshId ? '已撤销' : '已删除记录');
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    void save(text, editingId);
+    void save(text);
   }
 
   const conflictOptions = conflict
@@ -221,30 +267,31 @@ export default function RecordToday({ date, entries, workoutSaved }: { date: str
     : [];
   const selectedOption = conflictOptions.find((option) => option.id === conflict?.selectedId);
 
-  // 今天的训练与饮食各只呈现一条整合记录：位置保持在各自第一条记录处。
-  const timelineEntries = (() => {
-    const list: JournalEntry[] = [];
-    const inserted = new Set<JournalEntry['kind']>();
-    for (const entry of entries) {
-      if (entry.kind !== 'training' && entry.kind !== 'meal') { list.push(entry); continue; }
-      if (inserted.has(entry.kind)) continue;
-      inserted.add(entry.kind);
-      const group = entries.filter((item) => item.kind === entry.kind);
-      list.push(...(entry.kind === 'training'
-        ? consolidateTrainingEntries(group, date)
-        : consolidateMealEntries(group, date)));
-    }
-    return list;
-  })();
-
   return <>
     {status && <p className="journal-status" role="status"><JournalIcon name="check" />{status}
       {pastEntry && <Link href={`/history?period=day&date=${pastEntry.date}`}>查看 {pastEntry.date}</Link>}
     </p>}
-    {pastEntry && <JournalTimeline entries={[pastEntry]} freshId={freshId} onEdit={edit} onUndo={undo} />}
-    {timelineEntries.length ? <JournalTimeline entries={timelineEntries} freshId={freshId} onEdit={edit} onUndo={undo} />
+    {pastEntry && <RecordCards entries={[pastEntry]} freshId={freshId} onDeleted={deleted}
+      onSaved={(entry) => setPastEntry(entry.date === date ? undefined : entry)} />}
+    {entries.length ? <RecordCards entries={[...entries].reverse()} freshId={freshId} onDeleted={deleted} />
       : <div className="journal-empty"><JournalIcon name="record" /><p>今天还没有记录</p><span>说说吃了什么、练了什么，或昨晚睡得怎么样。</span></div>}
     <div className="journal-input-dock">
+      {ask && <AskSheet key={ask.question} docked question={ask.question} onClose={() => setAsk(undefined)}
+        onFollowUp={(question) => setAsk({ question })}
+        onLogged={(id) => {
+          setAsk(undefined);
+          setStatus('已记为今日饮食');
+          if (id) setFreshId(`meal-${id}`);
+        }} />}
+      {mutation && <div className="training-conflict" role="alertdialog" aria-modal="false" aria-labelledby="mutation-title">
+        <b id="mutation-title">请确认训练变更</b>
+        <p>「{mutation.preview.exerciseName}」组数：{mutation.preview.beforeSets} 组 → {mutation.preview.afterSets} 组。</p>
+        <small>{mutation.text}</small>
+        <div>
+          <button className="journal-quiet" disabled={saving} onClick={() => { setMutation(undefined); setStatus('已取消，训练记录未修改'); }}>取消</button>
+          <button className="journal-primary" disabled={saving} onClick={() => void confirmMutation()}>{saving ? '正在保存…' : '确认修改'}</button>
+        </div>
+      </div>}
       {conflict && <div className="training-conflict" role="alertdialog" aria-modal="false" aria-labelledby="training-conflict-title">
         {conflict.mode === 'exercise' && conflict.target ? <>
           <b id="training-conflict-title">确认是否替换动作</b>
@@ -269,7 +316,7 @@ export default function RecordToday({ date, entries, workoutSaved }: { date: str
           <div>
             <button className="journal-quiet" disabled={saving} onClick={() => { setConflict(undefined); setStatus('已取消，原计划与记录未修改'); }}>取消</button>
             <button className="journal-primary" disabled={saving || !conflict.selectedId}
-              onClick={() => void save(conflict.text, undefined, 'actual', conflict.selectedId)}>
+              onClick={() => void save(conflict.text, 'actual', conflict.selectedId)}>
               {saving ? '正在替换…' : `替换为${(selectedOption?.zh_name || selectedOption?.name) ?? '所选动作'}`}
             </button>
           </div>
@@ -279,7 +326,7 @@ export default function RecordToday({ date, entries, workoutSaved }: { date: str
           <small>确认后会移除今天不相符的计划和训练记录，并删除原有语音补充记录，只保留最终表格；取消则不做任何修改。</small>
           <div>
             <button className="journal-quiet" disabled={saving} onClick={() => { setConflict(undefined); setStatus('已取消，原计划与记录未修改'); }}>取消</button>
-            <button className="journal-primary" disabled={saving} onClick={() => void save(conflict.text, undefined, 'actual')}>
+            <button className="journal-primary" disabled={saving} onClick={() => void save(conflict.text, 'actual')}>
               {saving ? '正在确认…' : `实际练${conflict.actual.join('、')}`}
             </button>
           </div>
@@ -289,18 +336,18 @@ export default function RecordToday({ date, entries, workoutSaved }: { date: str
       {recording && <div className="voice-live" role="status">
         <span className="voice-live-dot" aria-hidden="true" />
         <div>
-          <b>正在听…松手后 AI 自动判断并记录</b>
+          <b>正在听…松手发送</b>
           <p>{heard || '直接说话，比如「午饭牛肉面加一个卤蛋」'}</p>
         </div>
       </div>}
       {editing && !conflict && <form className="journal-entry-form" onSubmit={submit}>
-        <label htmlFor="journal-text">{editingId ? '编辑记录' : '写一条记录'}</label>
+        <label htmlFor="journal-text">记录或提问</label>
         <textarea id="journal-text" autoFocus value={text} onChange={(event) => setText(event.target.value)} placeholder="午饭牛肉面加一个卤蛋" maxLength={1000} />
-        <div><button type="button" className="journal-quiet" onClick={() => { setEditing(false); setEditingId(undefined); setText(''); setError(''); }}>关闭</button>
-          <button className="journal-primary" disabled={saving || !text.trim()}>保存</button></div>
+        <div><button type="button" className="journal-quiet" onClick={() => { setEditing(false); setText(''); setError(''); }}>关闭</button>
+          <button className="journal-primary" disabled={saving || !text.trim()}>发送</button></div>
       </form>}
       <div className="journal-composer">
-        <button className="journal-icon-button" aria-label="键盘输入" onClick={() => { setEditing(true); setEditingId(undefined); setError(''); }}><JournalIcon name="keyboard" /></button>
+        <button className="journal-icon-button" aria-label="键盘输入" onClick={() => { setAsk(undefined); setEditing(true); setError(''); }}><JournalIcon name="keyboard" /></button>
         <button className={`journal-primary voice-action ${recording ? 'recording' : ''}`} disabled={saving}
           onPointerDown={(event) => {
             if (event.button !== 0) return;
@@ -316,7 +363,7 @@ export default function RecordToday({ date, entries, workoutSaved }: { date: str
             }
           }}
           onContextMenu={(event) => event.preventDefault()}>
-          <JournalIcon name="record" />{saving ? 'AI 正在判断…' : recording ? '松手发送' : '按住说话'}
+          <JournalIcon name="microphone" />{saving ? '正在记录…' : recording ? '松手发送' : '按住说话'}
         </button>
         <Link className="journal-icon-button" href="/chat" aria-label="拍照记录"><JournalIcon name="photo" /></Link>
       </div>

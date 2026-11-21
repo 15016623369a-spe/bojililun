@@ -15,12 +15,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: '请求体不是合法 JSON' }, { status: 400 });
   }
   const question = String(body.question ?? '').trim();
-  if (!question) return NextResponse.json({ error: '缺少 question' }, { status: 400 });
+  if (!question || question.length > 1000) return NextResponse.json({ error: '问题需要 1 至 1000 个字' }, { status: 400 });
 
   const answer = answerQuestion(question);
   const { text, ...meta } = answer;
   const encoder = new TextEncoder();
 
+  let cancelled = false;
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const send = (obj: unknown) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
@@ -29,12 +30,15 @@ export async function POST(req: Request) {
 
       const chars = Array.from(text);
       for (let i = 0; i < chars.length; i += 3) {
+        if (cancelled) return;
         send({ type: 'chunk', text: chars.slice(i, i + 3).join('') });
         await sleep(16);
       }
+      if (cancelled) return;
       send({ type: 'done' });
       controller.close();
     },
+    cancel() { cancelled = true; },
   });
 
   return new Response(stream, {

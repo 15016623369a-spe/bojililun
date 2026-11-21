@@ -1,18 +1,27 @@
 import { exercisePhrases } from './exercise-words';
-import { mentionedMuscles, regionTrainingName, type QuickPayload, type TrainingExerciseRow } from './journal';
+import { foodAliases, FOODS } from './foods';
+import { mentionedMuscles, regionTrainingName, type JournalMealItem, type QuickPayload, type TrainingExerciseRow } from './journal';
 import { MUSCLES } from './muscles';
+import { macrosFor } from './nutrition';
 
 /**
  * 语音记录标准化：把纠错后的口述解析成结构化 JSON（动作表 / 食物表 / 睡眠字段 / 摘要），
  * 前端只渲染这份结构化结果，不再展示原话。
  */
 
-export const FOOD_WORDS = [
+const FOOD_BY_NAME = new Map(FOODS.flatMap((food) =>
+  foodAliases(food).map((name) => [name.toLowerCase(), food] as const)));
+// 咖啡可能是黑咖啡，也可能加奶。要求明确品种，避免按拿铁估算。
+FOOD_BY_NAME.delete('咖啡');
+FOOD_BY_NAME.delete('美式');
+
+export const FOOD_WORDS = [...new Set([
   '牛肉面', '辣子鸡', '火锅', '卤蛋', '鸡胸肉', '蛋白粉', '燕麦', '米饭', '面条', '鸡蛋',
   '牛奶', '香蕉', '苹果', '面包', '沙拉', '三文鱼', '豆腐', '酸奶', '咖啡', '果汁',
   '馒头', '饺子', '包子', '红薯', '玉米', '牛肉', '鸡肉', '鱼肉', '蔬菜', '水果',
   '坚果', '奶酪', '全麦面包', '蛋白棒', '能量棒', '燕麦片', '小米粥', '白米饭',
-].sort((a, b) => b.length - a.length);
+  ...[...FOOD_BY_NAME.keys()].filter((name) => name.length >= 2),
+])].sort((a, b) => b.length - a.length);
 
 const CN_DIGIT: Record<string, number> = { 一: 1, 二: 2, 两: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 };
 const NUM = '(\\d+(?:\\.\\d+)?|[一二两三四五六七八九十半]+)';
@@ -85,21 +94,105 @@ function parseTraining(source: string, detail: string): QuickPayload {
   };
 }
 
-function amountIn(window: string): string | undefined {
-  const match = window.match(new RegExp(NUM + '\\s*(碗|两|份|杯|盘|根|块|克|g|斤|毫升|ml|勺|片|只|条|瓶|盒|个)'));
-  if (!match) return undefined;
-  const value = numOf(match[1]);
-  return value === undefined ? undefined : `${value}${match[2]}`;
+const MEAL_NUM = '(\\d+(?:\\.\\d+)?|[零〇一二两三四五六七八九十百千]+|半)';
+const MEAL_UNIT = '(千克|公斤|kg|毫升|ml|克|g|斤|两|碗|份|杯|盘|根|块|勺|片|只|条|瓶|盒|个)';
+const FOOD_PATTERN = `(${FOOD_WORDS.map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`;
+const QUANTITY = `${MEAL_NUM}\\s*${MEAL_UNIT}`;
+
+export function looksLikeMeal(text: string): boolean {
+  return FOOD_BY_NAME.has(text.toLowerCase()) || new RegExp(
+    `^(?:${QUANTITY}\\s*${FOOD_PATTERN}|${FOOD_PATTERN}\\s*${QUANTITY})(?:$|[、，,；;]|和|还有)`, 'i',
+  ).test(text);
+}
+
+function mealNumber(raw: string): number | undefined {
+  const simple = numOf(raw);
+  if (simple !== undefined) return simple;
+  const match = raw.match(/^(?:([一二两三四五六七八九])千)?(?:([一二两三四五六七八九])百)?([零〇]?[一二两三四五六七八九十]*)$/);
+  if (!match || (!match[1] && !match[2])) return undefined;
+  const rest = match[3].replace(/^[零〇]/, '');
+  const tail = rest ? numOf(rest) : 0;
+  if (tail === undefined) return undefined;
+  // 口语「一百五」等价于 150，「一百零五」等价于 105。
+  const place = rest.length === 1 && !/^[零〇]|十/.test(match[3])
+    ? (match[2] ? 10 : 100) : 1;
+  return (CN_DIGIT[match[1]] ?? 0) * 1000 + (CN_DIGIT[match[2]] ?? 0) * 100 + tail * place;
+}
+
+const WEIGHT_IN_GRAMS: Record<string, number> = { 克: 1, g: 1, 千克: 1000, 公斤: 1000, kg: 1000, 斤: 500, 两: 50 };
+const DRINKS = new Set(['牛奶', '拿铁', '可乐']);
+const PORTION_UNITS: Record<string, string[]> = {
+  米饭: ['碗'], 炒饭: ['碗', '份'], 面条: ['碗', '份'], 粥: ['碗'],
+  鸡蛋: ['个', '只'], 香蕉: ['根'], 苹果: ['个'], 馒头: ['个'],
+  包子: ['个'], 牛奶: ['杯'], 拿铁: ['杯'], 蛋白粉: ['勺'],
+};
+
+export function estimateQuickMealItem(item: JournalMealItem): JournalMealItem {
+  const food = FOOD_BY_NAME.get(item.name.trim().toLowerCase());
+  const base = { ...item, nutrition: undefined, estimatedGrams: undefined, nutritionIssue: undefined };
+  if (!food) return { ...base, nutritionIssue: 'food' };
+  const amount = item.amount.trim().toLowerCase();
+  const match = amount.match(new RegExp(`^${MEAL_NUM}\\s*${MEAL_UNIT}?$`));
+  const count = match && mealNumber(match[1]);
+  if (!count || !match) return { ...base, nutritionIssue: 'amount' };
+  const unit = match[2] ?? 'g';
+  const estimated = !(unit in WEIGHT_IN_GRAMS);
+  const factor = WEIGHT_IN_GRAMS[unit]
+    ?? (DRINKS.has(food.name) && /^(毫升|ml)$/.test(unit) ? 1 : undefined)
+    ?? (PORTION_UNITS[food.name]?.includes(unit) ? food.default_grams : undefined);
+  const grams = count * (factor ?? 0);
+  if (grams <= 0 || grams > 20_000) return { ...base, nutritionIssue: 'amount' };
+  return {
+    ...base,
+    estimatedGrams: estimated ? grams : undefined,
+    nutrition: macrosFor(grams, {
+      kcal: food.kcal_100g, protein: food.protein_100g, carb: food.carb_100g, fat: food.fat_100g,
+    }),
+  };
+}
+
+function withQuickMealNutrition(payload: QuickPayload): QuickPayload {
+  if (payload.kind !== 'meal' || !payload.items) return payload;
+  return {
+    ...payload,
+    items: payload.items.map((item) => item.nutrition || item.nutritionIssue ? item : estimateQuickMealItem(item)),
+  };
+}
+
+function adjacentMealItems(text: string, quantityFirst: boolean): JournalMealItem[] {
+  const pattern = new RegExp(
+    quantityFirst ? `\\s*${QUANTITY}\\s*${FOOD_PATTERN}` : `\\s*${FOOD_PATTERN}\\s*${QUANTITY}`, 'iy',
+  );
+  const items: JournalMealItem[] = [];
+  while (pattern.lastIndex < text.length) {
+    const match = pattern.exec(text);
+    if (!match) return [];
+    const [, name, number, unit] = quantityFirst ? [match[0], match[3], match[1], match[2]] : match;
+    items.push(estimateQuickMealItem({ name, amount: number + unit }));
+  }
+  return items;
 }
 
 function parseMeal(source: string, detail: string, title: string): QuickPayload {
-  const hits = occurrences(source, FOOD_WORDS);
-  const items = hits.map((hit, index) => {
-    const after = source.slice(hit.end, hits[index + 1]?.start ?? Math.min(source.length, hit.end + 10));
-    const before = source.slice(Math.max(0, hit.start - 8), hit.start);
-    return { name: hit.name, amount: amountIn(after) ?? amountIn(before) ?? '适量' };
+  const items = detail.split(/[、，,；;。+＋]|(?:还|又)(?:吃|喝)了?|以及|还有|和|跟|加上|加(?=[\d一二两三四五六七八九十半个份碗杯])/
+  ).flatMap((part) => {
+    const clean = part.trim()
+      .replace(/^(?:(?:明天|早餐|午餐|晚餐|晚饭|午饭|早饭|夜宵|加餐|打算|计划|准备|想要|我|吃了?|喝了?|大约|大概|差不多|约)[\s：:]*)+/, '')
+      .replace(/(?:左右|大概|大约)$/, '').trim();
+    if (!clean) return [];
+    const adjacent = adjacentMealItems(clean, true);
+    if (adjacent.length) return adjacent;
+    const suffixed = adjacentMealItems(clean, false);
+    if (suffixed.length) return suffixed;
+
+    // 有不认识的菜名时，保留该段菜名和分量，供用户修改。
+    const leading = clean.match(new RegExp(`^${MEAL_NUM}\\s*${MEAL_UNIT}\\s*(?:的)?(.+)$`, 'i'));
+    const trailing = clean.match(new RegExp(`^(.+?)\\s*(?:约|大约|大概)?${MEAL_NUM}\\s*${MEAL_UNIT}$`, 'i'));
+    if (leading) return [estimateQuickMealItem({ name: leading[3].trim(), amount: leading[1] + leading[2] })];
+    if (trailing) return [estimateQuickMealItem({ name: trailing[1].trim(), amount: trailing[2] + trailing[3] })];
+    return [estimateQuickMealItem({ name: clean, amount: '未填写' })];
   });
-  if (!items.length) items.push({ name: detail || source, amount: '适量' });
+  if (!items.length) items.push(estimateQuickMealItem({ name: detail || source, amount: '未填写' }));
   return { kind: 'meal', planned: PLANNED.test(source) || undefined, mealType: title, items };
 }
 
@@ -134,4 +227,17 @@ export function parseQuickPayload(source: string, kind: QuickPayload['kind'], de
   if (kind === 'meal') return parseMeal(source, detail, title);
   if (kind === 'sleep') return parseSleep(source, detail);
   return { kind: 'note', summary: detail || source };
+}
+
+export function readQuickPayload(row: {
+  payload_json: string | null;
+  source_text: string;
+  kind: QuickPayload['kind'];
+  detail: string;
+  title: string;
+}): QuickPayload {
+  if (row.payload_json) {
+    try { return withQuickMealNutrition(JSON.parse(row.payload_json) as QuickPayload); } catch { /* 损坏时重新解析 */ }
+  }
+  return parseQuickPayload(row.source_text, row.kind, row.detail, row.title);
 }

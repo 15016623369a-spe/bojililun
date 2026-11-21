@@ -5,10 +5,11 @@ import DailyRefresh from './DailyRefresh';
 import JournalIcon from './JournalIcon';
 import JournalNav from './JournalNav';
 
-export default function JournalShell({ active, title, subtitle, children, footer, back, headerAction, today = todayStr() }: {
+export default function JournalShell({ active, title, subtitle, subtitleAside, children, footer, back, headerAction, today = todayStr() }: {
   active: 'plan' | 'record' | 'review';
   title: string;
   subtitle?: string;
+  subtitleAside?: string;
   children: ReactNode;
   footer?: ReactNode;
   back?: { href: string; label: string };
@@ -24,7 +25,7 @@ export default function JournalShell({ active, title, subtitle, children, footer
     <main className="journal-content">
       {back && <Link className="journal-back" href={back.href}>‹ {back.label}</Link>}
       <h1>{title}</h1>
-      {subtitle && <p className="journal-date">{subtitle}</p>}
+      {subtitle && <p className="journal-date">{subtitle}{subtitleAside && <small>{subtitleAside}</small>}</p>}
       {children}
     </main>
     <footer className="journal-footer">

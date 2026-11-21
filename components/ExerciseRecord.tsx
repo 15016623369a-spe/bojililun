@@ -28,9 +28,9 @@ function initialDrafts(sets: SetRow[]) {
   }])) as Record<number, { weight: string; reps: string }>;
 }
 
-export default function ExerciseRecord({ group }: { group: ExerciseGroup }) {
+export default function ExerciseRecord({ group, initiallyExpanded = false }: { group: ExerciseGroup; initiallyExpanded?: boolean }) {
   const router = useRouter();
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(initiallyExpanded);
   const [sets, setSets] = useState(group.sets);
   const [drafts, setDrafts] = useState(() => initialDrafts(group.sets));
   const [saving, setSaving] = useState<number | null>(null);
