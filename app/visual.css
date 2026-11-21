@@ -174,12 +174,12 @@
   overflow-wrap: anywhere;
 }
 
-.fc-ledger-card[data-kind='workout'] {
+.fc-ledger-card[data-kind="workout"] {
   border-color: #c9c57d;
   background: color-mix(in srgb, var(--lemon) 28%, var(--silver));
 }
 
-.fc-ledger-card[data-kind='plan_draft'] {
+.fc-ledger-card[data-kind="plan_draft"] {
   border-style: dashed;
   background: transparent;
 }
@@ -317,18 +317,28 @@
 
 .fc-ledger-review .review-heat-legend i {
   flex: none;
-  background: color-mix(in srgb-linear, var(--silver-3), var(--review-heat, var(--lemon)) var(--heat, 0%));
+  background: color-mix(
+    in srgb-linear,
+    var(--silver-3),
+    var(--review-heat, var(--lemon)) var(--heat, 0%)
+  );
 }
 
-.fc-ledger-review .review-heat-legend i:nth-of-type(2) { --heat: 33%; }
-.fc-ledger-review .review-heat-legend i:nth-of-type(3) { --heat: 67%; }
-.fc-ledger-review .review-heat-legend i:nth-of-type(4) { --heat: 100%; }
+.fc-ledger-review .review-heat-legend i:nth-of-type(2) {
+  --heat: 33%;
+}
+.fc-ledger-review .review-heat-legend i:nth-of-type(3) {
+  --heat: 67%;
+}
+.fc-ledger-review .review-heat-legend i:nth-of-type(4) {
+  --heat: 100%;
+}
 
-.fc-ledger-review[data-heat-palette='ink'] {
+.fc-ledger-review[data-heat-palette="ink"] {
   --review-heat: var(--ink-0);
 }
 
-.fc-ledger-review[data-heat-palette='ink'] .sculpture-hover {
+.fc-ledger-review[data-heat-palette="ink"] .sculpture-hover {
   background: var(--silver-3);
   border-color: var(--hair-2);
 }
@@ -380,7 +390,11 @@
 .fc-plan-stage,
 .fc-atlas-hd + main,
 .fc-ledger-shell .fc-pill {
-  background-image: radial-gradient(circle, rgb(107 109 103 / 21%) 0.7px, transparent 1px);
+  background-image: radial-gradient(
+    circle,
+    rgb(107 109 103 / 21%) 0.7px,
+    transparent 1px
+  );
   background-size: 6px 6px;
 }
 
@@ -452,4 +466,33 @@
 .fc-ledger-kind svg {
   width: 18px;
   height: 18px;
+}
+.exercise-metrics {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border: 1px solid rgba(20, 21, 19, 0.12);
+  border-radius: 16px;
+  background: linear-gradient(145deg, #ecece8, #dfe0dc);
+}
+.exercise-metrics h2 {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+}
+.exercise-metric-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+.exercise-metric-tags span {
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  background: #242522;
+  color: #f1f1ed;
+  font-size: 0.75rem;
+}
+.exercise-metrics p {
+  margin: 0.75rem 0 0;
+  color: #666762;
+  font-size: 0.75rem;
+  line-height: 1.5;
 }

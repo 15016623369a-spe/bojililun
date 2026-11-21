@@ -1,15 +1,15 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
-import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
-import { EQUIPMENT_LABEL, TARGET_LABEL, imageUrl } from '@/lib/exercise-label';
-import { muscleById, type MuscleId } from '@/lib/muscles';
-import { groupForEcorcheName, isExtremity, SHOW_LAYER } from '@/lib/ecorche';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
+import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
+import { EQUIPMENT_LABEL, TARGET_LABEL, imageUrl } from "@/lib/exercise-label";
+import { muscleById, type MuscleId } from "@/lib/muscles";
+import { groupForEcorcheName, isExtremity, SHOW_LAYER } from "@/lib/ecorche";
 
 interface DictItem {
   id: string;
@@ -17,6 +17,12 @@ interface DictItem {
   zh_name: string;
   equipment: string;
   target: string;
+  mechanic: string;
+  movement_pattern: string;
+  metabolic_demand: string;
+  met_range: string;
+  fatigue_level: string;
+  recommended_rep_range: string;
   image: string;
   steps: string[];
   desc: string;
@@ -53,19 +59,37 @@ interface SceneApi {
   view: ViewGoal;
 }
 
-const COLD = new THREE.Color('#cfdcc9');
-const HOT = new THREE.Color('#2f6b47');
+const COLD = new THREE.Color("#cfdcc9");
+const HOT = new THREE.Color("#2f6b47");
 
 function heatColor(level: number): THREE.Color {
   return COLD.clone().lerp(HOT, Math.max(0, Math.min(1, level)));
 }
 
 const FILTERS: Array<{ key: string; label: string; equip: string[] }> = [
-  { key: 'all', label: '全部', equip: [] },
-  { key: 'machine', label: '固定器械', equip: ['leverage machine', 'smith machine', 'sled machine', 'cable'] },
-  { key: 'dumbbell', label: '哑铃', equip: ['dumbbell'] },
-  { key: 'barbell', label: '杠铃', equip: ['barbell', 'ez barbell', 'olympic barbell', 'trap bar', 'kettlebell'] },
-  { key: 'body', label: '自重', equip: ['body weight', 'band', 'stability ball', 'medicine ball'] },
+  { key: "all", label: "全部", equip: [] },
+  {
+    key: "machine",
+    label: "固定器械",
+    equip: ["leverage machine", "smith machine", "sled machine", "cable"],
+  },
+  { key: "dumbbell", label: "哑铃", equip: ["dumbbell"] },
+  {
+    key: "barbell",
+    label: "杠铃",
+    equip: [
+      "barbell",
+      "ez barbell",
+      "olympic barbell",
+      "trap bar",
+      "kettlebell",
+    ],
+  },
+  {
+    key: "body",
+    label: "自重",
+    equip: ["body weight", "band", "stability ball", "medicine ball"],
+  },
 ];
 
 function ExerciseGif({
@@ -84,7 +108,7 @@ function ExerciseGif({
   const [src, setSrc] = useState(still ? imageUrl(image) : `/api/gif/${id}`);
   const [failed, setFailed] = useState(false);
   return (
-    <div className={big ? 'fc-dict-gif big' : 'fc-dict-gif'}>
+    <div className={big ? "fc-dict-gif big" : "fc-dict-gif"}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={failed ? imageUrl(image) : src}
@@ -98,16 +122,43 @@ function ExerciseGif({
   );
 }
 
+function exerciseIntro(item: DictItem) {
+  const type =
+    item.mechanic === "compound" || item.mechanic === "多关节"
+      ? "多关节动作"
+      : "单关节动作";
+  const effort =
+    item.metabolic_demand === "高" || item.metabolic_demand === "high"
+      ? "整体用力需求较高"
+      : item.metabolic_demand === "低" || item.metabolic_demand === "low"
+        ? "整体用力需求较低"
+        : "整体用力需求适中";
+  const range =
+    item.recommended_rep_range === "按时长" ||
+    item.recommended_rep_range === "按时间"
+      ? "静态动作按时间记录"
+      : `每组 ${item.recommended_rep_range} 次可作起点`;
+  return `这是一个以${item.movement_pattern || "全身协同动作"}为主的${type}，${effort}。${range}，保持动作稳定并按训练目标调整。`;
+}
+
 /** 身体页：全屏解剖图 + 点肌肉看标准动作；今天练过的肌肉实时亮着 */
-export default function MuscleDict({ heat, showControls = true }: { heat: HeatItem[]; showControls?: boolean }) {
+export default function MuscleDict({
+  heat,
+  showControls = true,
+}: {
+  heat: HeatItem[];
+  showControls?: boolean;
+}) {
   const router = useRouter();
   const mountRef = useRef<HTMLDivElement | null>(null);
   const apiRef = useRef<SceneApi | null>(null);
-  const nearestRef = useRef<((nx: number, ny: number) => MuscleId | null) | null>(null);
+  const nearestRef = useRef<
+    ((nx: number, ny: number) => MuscleId | null) | null
+  >(null);
 
-  const [side, setSide] = useState<'back' | 'front'>('back');
+  const [side, setSide] = useState<"back" | "front">("back");
   const [loading, setLoading] = useState(true);
-  const [failed, setFailed] = useState('');
+  const [failed, setFailed] = useState("");
   const [hovered, setHovered] = useState<MuscleId | null>(null);
   const [selected, setSelected] = useState<MuscleId | null>(null);
   const [hinted, setHinted] = useState(false);
@@ -116,11 +167,13 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
   const [data, setData] = useState<DictResult | null>(null);
   const [busyList, setBusyList] = useState(false);
   const [active, setActive] = useState<DictItem | null>(null);
-  const [filter, setFilter] = useState('all');
-  const [state, setState] = useState<Record<string, 'busy' | 'done' | 'err'>>({});
-  const [toast, setToast] = useState('');
+  const [filter, setFilter] = useState("all");
+  const [state, setState] = useState<Record<string, "busy" | "done" | "err">>(
+    {},
+  );
+  const [toast, setToast] = useState("");
 
-  const heatKey = heat.map((h) => `${h.id}:${h.level.toFixed(2)}`).join(',');
+  const heatKey = heat.map((h) => `${h.id}:${h.level.toFixed(2)}`).join(",");
 
   /* ------------------------------ 3D ------------------------------ */
 
@@ -132,7 +185,7 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
     try {
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     } catch {
-      setFailed('当前浏览器不支持 WebGL');
+      setFailed("当前浏览器不支持 WebGL");
       setLoading(false);
       return;
     }
@@ -222,9 +275,12 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
     const groupMats = new Map<string, THREE.MeshStandardMaterial>();
 
     const meshes: THREE.Mesh[] = [];
-    const view = { goalTarget: null as THREE.Vector3 | null, goalPos: null as THREE.Vector3 | null };
+    const view = {
+      goalTarget: null as THREE.Vector3 | null,
+      goalPos: null as THREE.Vector3 | null,
+    };
     const draco = new DRACOLoader();
-    draco.setDecoderPath('/draco/');
+    draco.setDecoderPath("/draco/");
     const loader = new GLTFLoader();
     loader.setDRACOLoader(draco);
     loader.setMeshoptDecoder(MeshoptDecoder);
@@ -233,7 +289,7 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
     let raf = 0;
 
     loader.load(
-      '/models/ecorche/ecorche.glb',
+      "/models/ecorche/ecorche.glb",
       (gltf) => {
         if (disposed) return;
         const root = gltf.scene;
@@ -247,15 +303,15 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
           if (!(obj instanceof THREE.Mesh)) return;
           const ud = obj.userData as Record<string, unknown>;
           // ecorche 用 layer 分骨、深层肌、浅层肌；默认只留浅层
-          const layer = String(ud.layer ?? '');
-          const name = String(ud.name ?? obj.name ?? '');
+          const layer = String(ud.layer ?? "");
+          const name = String(ud.name ?? obj.name ?? "");
           const mb = new THREE.Box3().setFromObject(obj);
           const cy = mb.getCenter(new THREE.Vector3()).y;
 
           // 头部保留原模型的解剖头：颅骨、牙、眼球 + 面部肌，不可点选
           if (cy > headCut) {
             headBox.union(mb);
-            const keepHead = layer === SHOW_LAYER || layer === 'skeleton';
+            const keepHead = layer === SHOW_LAYER || layer === "skeleton";
             obj.visible = keepHead;
             if (keepHead) {
               obj.userData.groupId = null;
@@ -311,7 +367,8 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
           const v3 = new THREE.Vector3();
           const clipBelow = (ids: string[], cutY: number) => {
             for (const m of meshes) {
-              if (!m.visible || !ids.includes(String(m.userData.groupId))) continue;
+              if (!m.visible || !ids.includes(String(m.userData.groupId)))
+                continue;
               const g = m.geometry as THREE.BufferGeometry;
               const pos = g.attributes.position;
               let idx = g.index;
@@ -333,24 +390,29 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
                 if (above[a] && above[b2] && above[c2]) keep.push(a, b2, c2);
               }
               const ng = new THREE.BufferGeometry();
-              for (const k of Object.keys(g.attributes)) ng.setAttribute(k, g.attributes[k]);
+              for (const k of Object.keys(g.attributes))
+                ng.setAttribute(k, g.attributes[k]);
               ng.setIndex(keep);
               m.geometry = ng;
             }
           };
-          clipBelow(['forearms'], wristY + size.y * 0.035);
-          clipBelow(['calves', 'quads', 'hamstrings', 'adductors'], ankleY);
+          clipBelow(["forearms"], wristY + size.y * 0.035);
+          clipBelow(["calves", "quads", "hamstrings", "adductors"], ankleY);
 
           // 2) 藏掉头骨与颈部肌、以及手骨脚骨（都要被平滑部件替换）
           const bb = new THREE.Box3();
           root.traverse((obj) => {
             if (!(obj instanceof THREE.Mesh)) return;
             const ud = obj.userData as Record<string, unknown>;
-            const layer = String(ud.layer ?? '');
+            const layer = String(ud.layer ?? "");
             bb.setFromObject(obj);
             const cy = (bb.min.y + bb.max.y) / 2;
-            const isSkeleton = layer === 'skeleton';
-            const isNeck = String(ud.groupId ?? '') === 'neck' || /sternocleidomastoid|scalenus|splenius|longus|omohyoid|sternohyoid|sternothyroid|thyrohyoid/i.test(String(ud.name ?? ''));
+            const isSkeleton = layer === "skeleton";
+            const isNeck =
+              String(ud.groupId ?? "") === "neck" ||
+              /sternocleidomastoid|scalenus|splenius|longus|omohyoid|sternohyoid|sternothyroid|thyrohyoid/i.test(
+                String(ud.name ?? ""),
+              );
             if (cy > neckY || isNeck) {
               obj.visible = false;
               return;
@@ -363,10 +425,19 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
           // 3) 取 ecorche 的腕心 / 踝心，用于对齐
           const anchorOf = (ids: string[], cutY: number) => {
             const out = new Map<number, { x: number; z: number; r: number }>();
-            const acc = new Map<number, { sx: number; sz: number; n: number; pts: { x: number; z: number }[] }>();
+            const acc = new Map<
+              number,
+              {
+                sx: number;
+                sz: number;
+                n: number;
+                pts: { x: number; z: number }[];
+              }
+            >();
             for (const m of meshes) {
-              if (!m.visible || !ids.includes(String(m.userData.groupId))) continue;
-              const pos = m.geometry.getAttribute('position');
+              if (!m.visible || !ids.includes(String(m.userData.groupId)))
+                continue;
+              const pos = m.geometry.getAttribute("position");
               for (let i = 0; i < pos.count; i++) {
                 v3.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld);
                 if (Math.abs(v3.y - cutY) > size.y * 0.012) continue;
@@ -389,8 +460,11 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
             }
             return out;
           };
-          const ecoWrists = anchorOf(['forearms'], wristY);
-          const ecoAnkles = anchorOf(['calves', 'quads', 'hamstrings', 'adductors'], ankleY);
+          const ecoWrists = anchorOf(["forearms"], wristY);
+          const ecoAnkles = anchorOf(
+            ["calves", "quads", "hamstrings", "adductors"],
+            ankleY,
+          );
 
           // 末端收细：离断口越近收得越多，避免断面比手/脚还粗
           const taperEnd = (
@@ -403,7 +477,8 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
             const v = new THREE.Vector3();
             const mi = new THREE.Matrix4();
             for (const m of meshes) {
-              if (!m.visible || !ids.includes(String(m.userData.groupId))) continue;
+              if (!m.visible || !ids.includes(String(m.userData.groupId)))
+                continue;
               const g = m.geometry as THREE.BufferGeometry;
               const pos = g.attributes.position;
               const mw = m.matrixWorld.clone();
@@ -413,7 +488,10 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
                 v.fromBufferAttribute(pos, i).applyMatrix4(mw);
                 const c = centers.get(v.x >= 0 ? 1 : -1);
                 if (c && v.y < cutY + span) {
-                  const t = Math.min(1, Math.max(0, (cutY + span - v.y) / span));
+                  const t = Math.min(
+                    1,
+                    Math.max(0, (cutY + span - v.y) / span),
+                  );
                   const f = 1 - amount * t;
                   v.x = c.x + (v.x - c.x) * f;
                   v.z = c.z + (v.z - c.z) * f;
@@ -425,15 +503,31 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
               }
               const ng = new THREE.BufferGeometry();
               for (const key of Object.keys(g.attributes)) {
-                if (key === 'position') ng.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+                if (key === "position")
+                  ng.setAttribute(
+                    "position",
+                    new THREE.BufferAttribute(arr, 3),
+                  );
                 else ng.setAttribute(key, g.attributes[key]);
               }
               ng.setIndex(g.index);
               m.geometry = ng;
             }
           };
-          taperEnd(['forearms'], wristY + size.y * 0.035, size.y * 0.05, ecoWrists, 0.42);
-          taperEnd(['calves', 'quads', 'hamstrings', 'adductors'], ankleY, size.y * 0.05, ecoAnkles, 0.42);
+          taperEnd(
+            ["forearms"],
+            wristY + size.y * 0.035,
+            size.y * 0.05,
+            ecoWrists,
+            0.42,
+          );
+          taperEnd(
+            ["calves", "quads", "hamstrings", "adductors"],
+            ankleY,
+            size.y * 0.05,
+            ecoAnkles,
+            0.42,
+          );
 
           const plaster = new THREE.MeshStandardMaterial({
             color: 0xf3ede4,
@@ -445,7 +539,7 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
           parts.position.copy(center).negate();
           wrapper.add(parts);
 
-          loader.load('/models/porcelain/male-fixed.glb', (pg) => {
+          loader.load("/models/porcelain/male-fixed.glb", (pg) => {
             if (disposed) return;
             pg.scene.updateMatrixWorld(true);
 
@@ -453,7 +547,10 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
             type Tri = [number, number, number];
             const P: number[] = [];
             const tris: Tri[] = [];
-            const pushMesh = (mesh: THREE.Mesh, filter?: (x: number, y: number, z: number) => boolean) => {
+            const pushMesh = (
+              mesh: THREE.Mesh,
+              filter?: (x: number, y: number, z: number) => boolean,
+            ) => {
               const g = mesh.geometry as THREE.BufferGeometry;
               const pos = g.attributes.position;
               const idx = g.index;
@@ -490,7 +587,9 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
               return max - min;
             })();
 
-            const build = (filter: (x: number, y: number, z: number) => boolean) => {
+            const build = (
+              filter: (x: number, y: number, z: number) => boolean,
+            ) => {
               const keepTris = tris.filter(
                 ([a, b2, c2]) =>
                   filter(P[a * 3], P[a * 3 + 1], P[a * 3 + 2]) &&
@@ -499,7 +598,7 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
               );
               const geo = new THREE.BufferGeometry();
               const own = new Float32Array(P);
-              geo.setAttribute('position', new THREE.BufferAttribute(own, 3));
+              geo.setAttribute("position", new THREE.BufferAttribute(own, 3));
               geo.setIndex(keepTris.flat());
               geo.computeVertexNormals();
               const lo = new THREE.Vector3(Infinity, Infinity, Infinity);
@@ -520,14 +619,25 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
                 used.add(b2);
                 used.add(c2);
               }
-              return { geo, own, lo, hi, tri: keepTris.length, used: [...used] };
+              return {
+                geo,
+                own,
+                lo,
+                hi,
+                tri: keepTris.length,
+                used: [...used],
+              };
             };
 
             const k = size.y / porcHeight; // 全身等比缩放
 
             // 把某个高度附近的顶点向 (cx, cz) 收拢，消除空心套筒边缘
             const pinchRim = (
-              part: { own: Float32Array; used: number[]; geo: THREE.BufferGeometry },
+              part: {
+                own: Float32Array;
+                used: number[];
+                geo: THREE.BufferGeometry;
+              },
               yRef: number,
               cx: number,
               cz: number,
@@ -550,7 +660,11 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
             const headMesh = new THREE.Mesh(head.geo, plaster);
             headMesh.scale.setScalar(k);
             // 让平的切面埋到颈根以下 3cm，避免断层
-            headMesh.position.set(0, neckY - size.y * 0.062 - head.lo.y * k, -size.z * 0.004);
+            headMesh.position.set(
+              0,
+              neckY - size.y * 0.062 - head.lo.y * k,
+              -size.z * 0.004,
+            );
             // 颈根切口往里收成塞子，封住锁骨上方的空洞
             pinchRim(head, head.lo.y, 0, -size.z * 0.004, 0.075, 0.82);
             parts.add(headMesh);
@@ -558,7 +672,9 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
             // ---- 手 ----
             const POR_WRIST = 0.885;
             for (const [sign, w] of ecoWrists) {
-              const hand = build((x, y) => y < POR_WRIST && y > 0.6 && x * sign > 0.2);
+              const hand = build(
+                (x, y) => y < POR_WRIST && y > 0.6 && x * sign > 0.2,
+              );
               if (!hand.tri) continue;
               const m = new THREE.Mesh(hand.geo, plaster);
               // 手比按身高算的略大一点，腕口才能包住前臂断口
@@ -576,11 +692,14 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
               }
               const cx = n ? sx / n : 0;
               const cz = n ? sz / n : 0;
-              m.position.set(w.x - cx * kHand, wristY + size.y * 0.062 - hand.hi.y * kHand, w.z - cz * kHand);
+              m.position.set(
+                w.x - cx * kHand,
+                wristY + size.y * 0.062 - hand.hi.y * kHand,
+                w.z - cz * kHand,
+              );
               // 腕口向轴心收拢，贴住前臂
               pinchRim(hand, hand.hi.y, cx, cz, 0.04, 0.74);
               parts.add(m);
-
 
               // 腕口封个盖，避免从袖口看进去
               const rim: { x: number; z: number }[] = [];
@@ -598,12 +717,19 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
                 for (let i = 1; i <= rim.length; i++) {
                   idx2.push(0, i, i === rim.length ? 1 : i + 1);
                 }
-                capGeo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+                capGeo.setAttribute(
+                  "position",
+                  new THREE.Float32BufferAttribute(verts, 3),
+                );
                 capGeo.setIndex(idx2);
                 capGeo.computeVertexNormals();
                 const cap = new THREE.Mesh(capGeo, plaster);
                 cap.scale.setScalar(kHand);
-                cap.position.set(m.position.x, m.position.y + hand.hi.y * kHand, m.position.z);
+                cap.position.set(
+                  m.position.x,
+                  m.position.y + hand.hi.y * kHand,
+                  m.position.z,
+                );
                 parts.add(cap);
               }
             }
@@ -626,7 +752,11 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
               }
               const cx = n ? sx / n : 0;
               const cz = n ? sz / n : 0;
-              m.position.set(a.x - cx * k, ankleY + size.y * 0.03 - foot.hi.y * k, a.z - cz * k);
+              m.position.set(
+                a.x - cx * k,
+                ankleY + size.y * 0.03 - foot.hi.y * k,
+                a.z - cz * k,
+              );
               pinchRim(foot, foot.hi.y, cx, cz, 0.035, 0.64);
               parts.add(m);
             }
@@ -642,7 +772,8 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
 
         // 全身取景：头顶到脚踝都在一屏里
         const visibleH = size.y * 0.99;
-        const fitDist = (visibleH / 2 / Math.tan((camera.fov * Math.PI) / 360)) * 1.0;
+        const fitDist =
+          (visibleH / 2 / Math.tan((camera.fov * Math.PI) / 360)) * 1.0;
         const focusY = size.y * 0.01;
         camera.position.set(0, focusY, -fitDist);
         controls.target.set(0, focusY, 0);
@@ -658,16 +789,17 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
           pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
           raycaster.setFromCamera(pointer, camera);
           for (const h of raycaster.intersectObjects(meshes, false)) {
-            const gid = (h.object.userData as Record<string, unknown>).groupId as MuscleId | null;
+            const gid = (h.object.userData as Record<string, unknown>)
+              .groupId as MuscleId | null;
             if (gid) return gid;
           }
           return null;
         };
 
-        renderer.domElement.addEventListener('pointerdown', (e) => {
+        renderer.domElement.addEventListener("pointerdown", (e) => {
           downAt = { x: e.clientX, y: e.clientY, t: Date.now() };
         });
-        renderer.domElement.addEventListener('pointerup', (e) => {
+        renderer.domElement.addEventListener("pointerup", (e) => {
           if (!downAt) return;
           const moved = Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y);
           const quick = Date.now() - downAt.t < 700;
@@ -683,12 +815,12 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
             setSpin(false);
           }
         });
-        renderer.domElement.addEventListener('pointermove', (e) => {
+        renderer.domElement.addEventListener("pointermove", (e) => {
           if (downAt) return;
           const id = pick(e);
           setHovered(id);
           if (id) setHinted(true);
-          renderer.domElement.style.cursor = id ? 'pointer' : 'grab';
+          renderer.domElement.style.cursor = id ? "pointer" : "grab";
         });
 
         const sum = new Map<string, { v: THREE.Vector3; n: number }>();
@@ -705,7 +837,8 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
           } else sum.set(gid, { v: c.clone(), n: 1 });
         }
         const centroids = new Map<string, THREE.Vector3>();
-        for (const [gid, s2] of sum) centroids.set(gid, s2.v.multiplyScalar(1 / s2.n));
+        for (const [gid, s2] of sum)
+          centroids.set(gid, s2.v.multiplyScalar(1 / s2.n));
 
         // 手指点偏时的就近兜底：屏幕距离最近的肌肉
         const pickNearest = (nx: number, ny: number): MuscleId | null => {
@@ -728,13 +861,26 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
         };
         nearestRef.current = pickNearest;
 
-        apiRef.current = { meshes, base, dim, hover, sel, groupMats, centroids, controls, camera, fitDist, focusY, view };
+        apiRef.current = {
+          meshes,
+          base,
+          dim,
+          hover,
+          sel,
+          groupMats,
+          centroids,
+          controls,
+          camera,
+          fitDist,
+          focusY,
+          view,
+        };
         setLoading(false);
       },
       undefined,
       () => {
         if (disposed) return;
-        setFailed('人体模型没加载出来');
+        setFailed("人体模型没加载出来");
         setLoading(false);
       },
     );
@@ -784,7 +930,8 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
       sel.dispose();
       groupMats.forEach((m) => m.dispose());
       renderer.dispose();
-      if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement);
+      if (renderer.domElement.parentNode === mount)
+        mount.removeChild(renderer.domElement);
       apiRef.current = null;
     };
   }, []);
@@ -833,7 +980,11 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
   useEffect(() => {
     const api = apiRef.current;
     if (!api) return;
-    api.camera.position.set(0, api.focusY, side === 'back' ? -api.fitDist : api.fitDist);
+    api.camera.position.set(
+      0,
+      api.focusY,
+      side === "back" ? -api.fitDist : api.fitDist,
+    );
     api.controls.target.set(0, api.focusY, 0);
     api.controls.update();
   }, [side, loading]);
@@ -865,7 +1016,8 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
 
     const c = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
-    const span = Math.max(size.y, size.x * (api.camera.aspect || 0.8), 0.05) * 2.6;
+    const span =
+      Math.max(size.y, size.x * (api.camera.aspect || 0.8), 0.05) * 2.6;
     const dist = span / 2 / Math.tan((api.camera.fov * Math.PI) / 360);
     const z = sign * dist;
     const target = new THREE.Vector3(c.x, c.y - span * 0.22, c.z);
@@ -882,8 +1034,10 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
     let cancelled = false;
     setBusyList(true);
     setActive(null);
-    setFilter('all');
-    fetch(`/api/exercises?muscle=${selected}&limit=100&steps=1`, { cache: 'no-store' })
+    setFilter("all");
+    fetch(`/api/exercises?muscle=${selected}&limit=100&steps=1`, {
+      cache: "no-store",
+    })
       .then((r) => r.json())
       .then((d: DictResult) => {
         if (!cancelled) setData(d);
@@ -902,9 +1056,9 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
   /* 深链 /atlas?muscle=lats */
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const view = params.get('view');
-    if (view === 'front' || view === 'back') setSide(view);
-    const m = params.get('muscle');
+    const view = params.get("view");
+    if (view === "front" || view === "back") setSide(view);
+    const m = params.get("muscle");
     if (m && muscleById(m)) {
       setSelected(m as MuscleId);
       setHinted(true);
@@ -913,25 +1067,38 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
 
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(() => setToast(''), 2200);
+    const t = setTimeout(() => setToast(""), 2200);
     return () => clearTimeout(t);
   }, [toast]);
 
   const items = useMemo(() => {
     const rank: Record<string, number> = {
       barbell: 0,
-      'olympic barbell': 0,
-      'ez barbell': 1,
+      "olympic barbell": 0,
+      "ez barbell": 1,
       dumbbell: 2,
       kettlebell: 3,
       cable: 4,
-      'smith machine': 5,
-      'leverage machine': 6,
-      'sled machine': 6,
-      'body weight': 7,
+      "smith machine": 5,
+      "leverage machine": 6,
+      "sled machine": 6,
+      "body weight": 7,
       band: 8,
     };
-    const CLASSIC = ['高位下拉', '引体', '划船', '硬拉', '深蹲', '卧推', '推举', '飞鸟', '侧平举', '弯举', '腿举', '下拉'];
+    const CLASSIC = [
+      "高位下拉",
+      "引体",
+      "划船",
+      "硬拉",
+      "深蹲",
+      "卧推",
+      "推举",
+      "飞鸟",
+      "侧平举",
+      "弯举",
+      "腿举",
+      "下拉",
+    ];
     const classicScore = (name: string) => {
       const i = CLASSIC.findIndex((k) => name.includes(k));
       return i === -1 ? 99 : i;
@@ -948,27 +1115,33 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
         const ra = rank[a.equipment] ?? 9;
         const rb = rank[b.equipment] ?? 9;
         if (ra !== rb) return ra - rb;
-        return (a.zh_name || a.name).localeCompare(b.zh_name || b.name, 'zh-CN');
+        return (a.zh_name || a.name).localeCompare(
+          b.zh_name || b.name,
+          "zh-CN",
+        );
       });
   }, [data, filter]);
 
-  const addToPlan = useCallback(async (it: DictItem) => {
-    setState((prev) => ({ ...prev, [`plan-${it.id}`]: 'busy' }));
-    try {
-      const res = await fetch('/api/plan', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ exerciseId: it.id }),
-      });
-      if (!res.ok) throw new Error('加入失败');
-      setState((prev) => ({ ...prev, [`plan-${it.id}`]: 'done' }));
-      setToast('已加入今日训练');
-      router.refresh();
-    } catch {
-      setState((prev) => ({ ...prev, [`plan-${it.id}`]: 'err' }));
-      setToast('加入失败');
-    }
-  }, [router]);
+  const addToPlan = useCallback(
+    async (it: DictItem) => {
+      setState((prev) => ({ ...prev, [`plan-${it.id}`]: "busy" }));
+      try {
+        const res = await fetch("/api/plan", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ exerciseId: it.id }),
+        });
+        if (!res.ok) throw new Error("加入失败");
+        setState((prev) => ({ ...prev, [`plan-${it.id}`]: "done" }));
+        setToast("已加入今日训练");
+        router.refresh();
+      } catch {
+        setState((prev) => ({ ...prev, [`plan-${it.id}`]: "err" }));
+        setToast("加入失败");
+      }
+    },
+    [router],
+  );
 
   const planState = active ? state[`plan-${active.id}`] : undefined;
 
@@ -1006,17 +1179,29 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
         {!failed && (
           <>
             {showControls && (
-            <div className="fc-dict-tabs">
-              <button type="button" className={side === 'front' ? 'on' : ''} onClick={() => setSide('front')}>
-                正面
-              </button>
-              <button type="button" className={side === 'back' ? 'on' : ''} onClick={() => setSide('back')}>
-                背面
-              </button>
-              <button type="button" className={spin ? 'on' : ''} onClick={() => setSpin((v) => !v)}>
-                自转
-              </button>
-            </div>
+              <div className="fc-dict-tabs">
+                <button
+                  type="button"
+                  className={side === "front" ? "on" : ""}
+                  onClick={() => setSide("front")}
+                >
+                  正面
+                </button>
+                <button
+                  type="button"
+                  className={side === "back" ? "on" : ""}
+                  onClick={() => setSide("back")}
+                >
+                  背面
+                </button>
+                <button
+                  type="button"
+                  className={spin ? "on" : ""}
+                  onClick={() => setSpin((v) => !v)}
+                >
+                  自转
+                </button>
+              </div>
             )}
           </>
         )}
@@ -1024,29 +1209,39 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
 
       <p className="fc-dict-hintline">
         {selected
-          ? '已推近到这一块 · 关掉浮层回到全身'
+          ? "已推近到这一块 · 关掉浮层回到全身"
           : hoverDef
             ? `${hoverDef.region}·${hoverDef.label}`
             : !hinted && lit > 0
               ? `今天点亮了 ${lit} 块肌肉 · 点一下看动作`
-              : '拖动旋转 · 点一块肌肉看动作'}
+              : "拖动旋转 · 点一块肌肉看动作"}
       </p>
 
       {selected && (
         <div className="fc-mask dict" onClick={() => setSelected(null)}>
           <div
             className={
-              active ? 'fc-sheet fc-dict-sheet fc-dict-detail' : 'fc-sheet fc-dict-sheet'
+              active
+                ? "fc-sheet fc-dict-sheet fc-dict-detail"
+                : "fc-sheet fc-dict-sheet"
             }
             onClick={(e) => e.stopPropagation()}
           >
             {active ? (
               <>
                 <div className="fc-dict-detail-top">
-                  <button type="button" className="fc-dict-back" onClick={() => setActive(null)}>
+                  <button
+                    type="button"
+                    className="fc-dict-back"
+                    onClick={() => setActive(null)}
+                  >
                     ‹ 动作列表
                   </button>
-                  <button type="button" className="fc-dict-close" onClick={() => setSelected(null)}>
+                  <button
+                    type="button"
+                    className="fc-dict-close"
+                    onClick={() => setSelected(null)}
+                  >
                     关闭
                   </button>
                 </div>
@@ -1060,16 +1255,43 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
                       big
                     />
                     <div className="fc-dict-meta">
-                      <h3 className="fc-dict-name">{active.zh_name || active.name}</h3>
+                      <h3 className="fc-dict-name">
+                        {active.zh_name || active.name}
+                      </h3>
                       <p className="fc-dict-en">{active.name}</p>
                       <div className="fc-dict-chips">
-                        <span>{EQUIPMENT_LABEL[active.equipment] ?? active.equipment}</span>
-                        <span>{TARGET_LABEL[active.target] ?? active.target}</span>
+                        <span>
+                          {EQUIPMENT_LABEL[active.equipment] ??
+                            active.equipment}
+                        </span>
+                        <span>
+                          {TARGET_LABEL[active.target] ?? active.target}
+                        </span>
                       </div>
                     </div>
                   </div>
 
                   <h4 className="fc-dict-sub">动作要点 / 步骤</h4>
+                  <section className="fc-exercise-intro">
+                    <h4>动作参考</h4>
+                    <p>{exerciseIntro(active)}</p>
+                  </section>
+                  <div className="fc-exercise-metrics">
+                    <span>
+                      {active.mechanic === "compound" ||
+                      active.mechanic === "多关节"
+                        ? "多关节动作"
+                        : "单关节动作"}
+                    </span>
+                    <span>{active.movement_pattern}</span>
+                    <span>消耗参考：MET {active.met_range}</span>
+                    <span>疲劳程度：{active.fatigue_level}</span>
+                    <span>建议范围：{active.recommended_rep_range}</span>
+                  </div>
+                  <p className="fc-exercise-note">
+                    MET
+                    是动作类型的参考强度，不代表单组卡路里；实际消耗会随体重、负荷和组间休息变化。
+                  </p>
                   {active.steps.length > 0 ? (
                     <ol className="fc-dict-steps">
                       {active.steps.map((s, i) => (
@@ -1084,18 +1306,22 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
                 <div className="fc-dict-actions">
                   <button
                     type="button"
-                    className={planState === 'done' ? 'fc-btn primary done' : 'fc-btn primary'}
+                    className={
+                      planState === "done"
+                        ? "fc-btn primary done"
+                        : "fc-btn primary"
+                    }
                     onClick={() => void addToPlan(active)}
-                    disabled={planState === 'busy' || planState === 'done'}
+                    disabled={planState === "busy" || planState === "done"}
                     aria-live="polite"
                   >
-                    {planState === 'done'
-                      ? '✓ 已加入今日训练'
-                      : planState === 'busy'
-                        ? '加入中…'
-                        : planState === 'err'
-                          ? '加入失败 · 再试一次'
-                          : '+ 加入训练安排'}
+                    {planState === "done"
+                      ? "✓ 已加入今日训练"
+                      : planState === "busy"
+                        ? "加入中…"
+                        : planState === "err"
+                          ? "加入失败 · 再试一次"
+                          : "+ 加入训练安排"}
                   </button>
                 </div>
               </>
@@ -1104,12 +1330,18 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
                 <div className="fc-dict-head">
                   <div>
                     <div className="fc-dict-title">
-                      {def ? `${def.region}·${def.label}` : '这块肌肉'}
-                      <span className="fc-dict-count">{busyList ? '…' : `${data?.total ?? 0} 个动作`}</span>
+                      {def ? `${def.region}·${def.label}` : "这块肌肉"}
+                      <span className="fc-dict-count">
+                        {busyList ? "…" : `${data?.total ?? 0} 个动作`}
+                      </span>
                     </div>
                     <div className="fc-dict-note">点动作看动图与要点</div>
                   </div>
-                  <button type="button" className="fc-dict-close" onClick={() => setSelected(null)}>
+                  <button
+                    type="button"
+                    className="fc-dict-close"
+                    onClick={() => setSelected(null)}
+                  >
                     关闭
                   </button>
                 </div>
@@ -1119,7 +1351,7 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
                     <button
                       key={f.key}
                       type="button"
-                      className={filter === f.key ? 'on' : ''}
+                      className={filter === f.key ? "on" : ""}
                       onClick={() => setFilter(f.key)}
                     >
                       {f.label}
@@ -1131,22 +1363,38 @@ export default function MuscleDict({ heat, showControls = true }: { heat: HeatIt
                   {busyList && <p className="fc-note">正在取这一块的动作…</p>}
                   {!busyList &&
                     items.map((it) => (
-                      <button type="button" key={it.id} className="fc-dict-item" onClick={() => setActive(it)}>
-                        <ExerciseGif id={it.id} image={it.image} alt={it.zh_name || it.name} still />
+                      <button
+                        type="button"
+                        key={it.id}
+                        className="fc-dict-item"
+                        onClick={() => setActive(it)}
+                      >
+                        <ExerciseGif
+                          id={it.id}
+                          image={it.image}
+                          alt={it.zh_name || it.name}
+                          still
+                        />
                         <span className="fc-dict-item-body">
                           <b>{it.zh_name || it.name}</b>
                           <em>
-                            {EQUIPMENT_LABEL[it.equipment] ?? it.equipment} · {TARGET_LABEL[it.target] ?? it.target}
+                            {EQUIPMENT_LABEL[it.equipment] ?? it.equipment} ·{" "}
+                            {TARGET_LABEL[it.target] ?? it.target}
                           </em>
                         </span>
                         <span className="fc-dict-arrow">›</span>
                       </button>
                     ))}
                   {!busyList && items.length === 0 && (
-                    <p className="fc-note">这个筛选下没有动作，换个器械试试。</p>
+                    <p className="fc-note">
+                      这个筛选下没有动作，换个器械试试。
+                    </p>
                   )}
                 </div>
-                <p className="fc-dict-src">动作数据：hasaneyldrm/exercises-dataset（MIT）· 动图版权 Gym visual</p>
+                <p className="fc-dict-src">
+                  动作数据：hasaneyldrm/exercises-dataset（MIT）· 动图版权 Gym
+                  visual
+                </p>
               </>
             )}
           </div>

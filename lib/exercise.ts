@@ -1,4 +1,4 @@
-import { getDb } from './db';
+import { getDb } from "./db";
 
 function plainAll<T extends object>(rows: T[]): T[] {
   return rows.map((r) => ({ ...r }));
@@ -11,6 +11,12 @@ export interface ExerciseRow {
   body_part: string;
   equipment: string;
   target: string;
+  mechanic: string;
+  movement_pattern: string;
+  metabolic_demand: string;
+  met_range: string;
+  fatigue_level: string;
+  recommended_rep_range: string;
   muscle_group: string;
   secondary_muscles: string;
   zh: string;
@@ -24,9 +30,9 @@ const EQUIPMENT_PRIORITY: Record<string, number> = {
   barbell: 0,
   dumbbell: 1,
   cable: 2,
-  'leverage machine': 3,
-  'smith machine': 4,
-  'body weight': 5,
+  "leverage machine": 3,
+  "smith machine": 4,
+  "body weight": 5,
 };
 
 export function findExercises(opts: {
@@ -41,32 +47,38 @@ export function findExercises(opts: {
   const args: Array<string | number> = [];
 
   if (opts.bodyPart) {
-    where.push('body_part = ?');
+    where.push("body_part = ?");
     args.push(opts.bodyPart);
   }
 
   if (opts.equipments && opts.equipments.length) {
-    where.push(`equipment IN (${opts.equipments.map(() => '?').join(',')})`);
+    where.push(`equipment IN (${opts.equipments.map(() => "?").join(",")})`);
     args.push(...opts.equipments);
   }
 
   if (opts.excludeStretch !== false) {
-    where.push("name NOT LIKE '%stretch%' AND name NOT LIKE '%mobility%' AND name NOT LIKE '%yoga%'");
+    where.push(
+      "name NOT LIKE '%stretch%' AND name NOT LIKE '%mobility%' AND name NOT LIKE '%yoga%'",
+    );
   }
 
   const priority = `CASE equipment ${Object.entries(EQUIPMENT_PRIORITY)
     .map(([eq, n]) => `WHEN '${eq}' THEN ${n}`)
-    .join(' ')} ELSE 9 END`;
+    .join(" ")} ELSE 9 END`;
 
   const sql = `SELECT * FROM exercise ${
-    where.length ? 'WHERE ' + where.join(' AND ') : ''
+    where.length ? "WHERE " + where.join(" AND ") : ""
   } ORDER BY ${priority}, RANDOM() LIMIT ?`;
 
-  return plainAll(db.prepare(sql).all(...args, opts.limit ?? 4) as unknown as ExerciseRow[]);
+  return plainAll(
+    db.prepare(sql).all(...args, opts.limit ?? 4) as unknown as ExerciseRow[],
+  );
 }
 
 export function exerciseCount(): number {
-  return (getDb().prepare('SELECT COUNT(*) AS c FROM exercise').get() as { c: number }).c;
+  return (
+    getDb().prepare("SELECT COUNT(*) AS c FROM exercise").get() as { c: number }
+  ).c;
 }
 
 /* ------------------------------------------------------------------ */
@@ -82,23 +94,28 @@ export interface ListOpts {
   offset?: number;
 }
 
-function buildWhere(o: { bodyPart?: string; equipment?: string; target?: string; q?: string }) {
+function buildWhere(o: {
+  bodyPart?: string;
+  equipment?: string;
+  target?: string;
+  q?: string;
+}) {
   const where: string[] = [];
   const args: string[] = [];
   if (o.bodyPart) {
-    where.push('body_part = ?');
+    where.push("body_part = ?");
     args.push(o.bodyPart);
   }
   if (o.equipment) {
-    where.push('equipment = ?');
+    where.push("equipment = ?");
     args.push(o.equipment);
   }
   if (o.target) {
-    where.push('target = ?');
+    where.push("target = ?");
     args.push(o.target);
   }
   if (o.q) {
-    where.push('(name LIKE ? OR zh_name LIKE ? OR target LIKE ?)');
+    where.push("(name LIKE ? OR zh_name LIKE ? OR target LIKE ?)");
     args.push(`%${o.q}%`, `%${o.q}%`, `%${o.q}%`);
   }
   return { where, args };
@@ -108,46 +125,70 @@ export function listExercises(o: ListOpts): ExerciseRow[] {
   const { where, args } = buildWhere(o);
   const priority = `CASE equipment ${Object.entries(EQUIPMENT_PRIORITY)
     .map(([eq, n]) => `WHEN '${eq}' THEN ${n}`)
-    .join(' ')} ELSE 9 END`;
-  const sql = `SELECT * FROM exercise ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+    .join(" ")} ELSE 9 END`;
+  const sql = `SELECT * FROM exercise ${where.length ? "WHERE " + where.join(" AND ") : ""}
                ORDER BY ${priority}, name ASC
                LIMIT ? OFFSET ?`;
   return plainAll(dbAll(sql, [...args, o.limit ?? 120, o.offset ?? 0]));
 }
 
 function dbAll(sql: string, args: Array<string | number>): ExerciseRow[] {
-  return getDb().prepare(sql).all(...args) as unknown as ExerciseRow[];
+  return getDb()
+    .prepare(sql)
+    .all(...args) as unknown as ExerciseRow[];
 }
 
-export function countExercises(o: { bodyPart?: string; equipment?: string; target?: string; q?: string }): number {
+export function countExercises(o: {
+  bodyPart?: string;
+  equipment?: string;
+  target?: string;
+  q?: string;
+}): number {
   const { where, args } = buildWhere(o);
-  const sql = `SELECT COUNT(*) AS c FROM exercise ${where.length ? 'WHERE ' + where.join(' AND ') : ''}`;
-  return (getDb().prepare(sql).get(...args) as { c: number }).c;
+  const sql = `SELECT COUNT(*) AS c FROM exercise ${where.length ? "WHERE " + where.join(" AND ") : ""}`;
+  return (
+    getDb()
+      .prepare(sql)
+      .get(...args) as { c: number }
+  ).c;
 }
 
 /** 当前部位/搜索条件下，各器械分别有多少个（给筛选 chips 和分组标题用） */
-export function equipmentCountsFor(o: { bodyPart?: string; q?: string }): Array<{ key: string; c: number }> {
+export function equipmentCountsFor(o: {
+  bodyPart?: string;
+  q?: string;
+}): Array<{ key: string; c: number }> {
   const { where, args } = buildWhere(o);
   const sql = `SELECT equipment AS key, COUNT(*) AS c FROM exercise
-               ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+               ${where.length ? "WHERE " + where.join(" AND ") : ""}
                GROUP BY equipment`;
-  return getDb().prepare(sql).all(...args) as unknown as Array<{ key: string; c: number }>;
+  return getDb()
+    .prepare(sql)
+    .all(...args) as unknown as Array<{ key: string; c: number }>;
 }
 
-export function groupCount(column: 'body_part' | 'equipment'): Array<{ key: string; c: number }> {
+export function groupCount(
+  column: "body_part" | "equipment",
+): Array<{ key: string; c: number }> {
   const rows = getDb()
-    .prepare(`SELECT ${column} AS key, COUNT(*) AS c FROM exercise GROUP BY ${column}`)
+    .prepare(
+      `SELECT ${column} AS key, COUNT(*) AS c FROM exercise GROUP BY ${column}`,
+    )
     .all() as unknown as Array<{ key: string; c: number }>;
   return rows;
 }
 
 export function getExercise(id: string): ExerciseRow | null {
-  const row = getDb().prepare('SELECT * FROM exercise WHERE id = ?').get(id) as ExerciseRow | undefined;
+  const row = getDb().prepare("SELECT * FROM exercise WHERE id = ?").get(id) as
+    ExerciseRow | undefined;
   return row ? { ...row } : null;
 }
 
 export function relatedExercises(ex: ExerciseRow, limit = 4): ExerciseRow[] {
   return plainAll(
-    dbAll(`SELECT * FROM exercise WHERE target = ? AND id != ? ORDER BY RANDOM() LIMIT ?`, [ex.target, ex.id, limit]),
+    dbAll(
+      `SELECT * FROM exercise WHERE target = ? AND id != ? ORDER BY RANDOM() LIMIT ?`,
+      [ex.target, ex.id, limit],
+    ),
   );
 }

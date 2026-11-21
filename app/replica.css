@@ -22,8 +22,15 @@
 
   background: var(--paper);
   color: var(--ink);
-  font-family: 'Helvetica Neue', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB',
-    'Microsoft YaHei', system-ui, sans-serif;
+  font-family:
+    "Helvetica Neue",
+    -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    "Hiragino Sans GB",
+    "Microsoft YaHei",
+    system-ui,
+    sans-serif;
   -webkit-font-smoothing: antialiased;
   min-height: 100dvh;
 }
@@ -102,7 +109,7 @@
 }
 
 .fc-row::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 7px;
   top: 5px;
@@ -220,27 +227,75 @@
   animation: fc-wave 1.1s ease-in-out infinite;
 }
 
-.fc-wave i:nth-child(1) { height: 26%; animation-delay: 0.05s; }
-.fc-wave i:nth-child(2) { height: 48%; animation-delay: 0.15s; }
-.fc-wave i:nth-child(3) { height: 78%; animation-delay: 0.25s; }
-.fc-wave i:nth-child(4) { height: 40%; animation-delay: 0.35s; }
-.fc-wave i:nth-child(5) { height: 92%; animation-delay: 0.2s; }
-.fc-wave i:nth-child(6) { height: 58%; animation-delay: 0.4s; }
-.fc-wave i:nth-child(7) { height: 34%; animation-delay: 0.3s; }
-.fc-wave i:nth-child(8) { height: 70%; animation-delay: 0.1s; }
-.fc-wave i:nth-child(9) { height: 44%; animation-delay: 0.45s; }
+.fc-wave i:nth-child(1) {
+  height: 26%;
+  animation-delay: 0.05s;
+}
+.fc-wave i:nth-child(2) {
+  height: 48%;
+  animation-delay: 0.15s;
+}
+.fc-wave i:nth-child(3) {
+  height: 78%;
+  animation-delay: 0.25s;
+}
+.fc-wave i:nth-child(4) {
+  height: 40%;
+  animation-delay: 0.35s;
+}
+.fc-wave i:nth-child(5) {
+  height: 92%;
+  animation-delay: 0.2s;
+}
+.fc-wave i:nth-child(6) {
+  height: 58%;
+  animation-delay: 0.4s;
+}
+.fc-wave i:nth-child(7) {
+  height: 34%;
+  animation-delay: 0.3s;
+}
+.fc-wave i:nth-child(8) {
+  height: 70%;
+  animation-delay: 0.1s;
+}
+.fc-wave i:nth-child(9) {
+  height: 44%;
+  animation-delay: 0.45s;
+}
 
-.fc-wave i:nth-child(2) { animation-delay: 0.1s; }
-.fc-wave i:nth-child(3) { animation-delay: 0.2s; }
-.fc-wave i:nth-child(4) { animation-delay: 0.3s; }
-.fc-wave i:nth-child(5) { animation-delay: 0.4s; }
-.fc-wave i:nth-child(6) { animation-delay: 0.3s; }
-.fc-wave i:nth-child(7) { animation-delay: 0.2s; }
-.fc-wave i:nth-child(8) { animation-delay: 0.1s; }
+.fc-wave i:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.fc-wave i:nth-child(3) {
+  animation-delay: 0.2s;
+}
+.fc-wave i:nth-child(4) {
+  animation-delay: 0.3s;
+}
+.fc-wave i:nth-child(5) {
+  animation-delay: 0.4s;
+}
+.fc-wave i:nth-child(6) {
+  animation-delay: 0.3s;
+}
+.fc-wave i:nth-child(7) {
+  animation-delay: 0.2s;
+}
+.fc-wave i:nth-child(8) {
+  animation-delay: 0.1s;
+}
 
 @keyframes fc-wave {
-  0%, 100% { height: 22%; opacity: 0.55; }
-  50% { height: 96%; opacity: 1; }
+  0%,
+  100% {
+    height: 22%;
+    opacity: 0.55;
+  }
+  50% {
+    height: 96%;
+    opacity: 1;
+  }
 }
 
 .fc-quote {
@@ -340,7 +395,12 @@
   bottom: 0;
   z-index: 20;
   padding: 0 0 env(safe-area-inset-bottom);
-  background: linear-gradient(180deg, rgba(251, 246, 243, 0) 0%, var(--paper) 22%, var(--paper) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(251, 246, 243, 0) 0%,
+    var(--paper) 22%,
+    var(--paper) 100%
+  );
   pointer-events: none;
 }
 
@@ -366,7 +426,9 @@
   justify-content: center;
   gap: 9px;
   box-shadow: 0 8px 20px rgba(17, 81, 51, 0.18);
-  transition: transform 0.12s ease, background 0.2s ease;
+  transition:
+    transform 0.12s ease,
+    background 0.2s ease;
   user-select: none;
   -webkit-user-select: none;
   touch-action: none;
@@ -547,8 +609,12 @@
 }
 
 @keyframes fc-fade {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .fc-sheet {
@@ -561,8 +627,14 @@
 }
 
 @keyframes fc-up {
-  from { transform: translateY(16px); opacity: 0.6; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(16px);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .fc-sheet h3 {
@@ -1172,14 +1244,46 @@ textarea.fc-input {
   margin: 6px -10px 0;
 }
 
-.sculpture-viewer { position: relative; width: 100%; height: 100%; overflow: hidden; }
-.sculpture-status { position: absolute; inset: 0; display: grid; place-items: center; font-size: 13px; color: #797b71; pointer-events: none; }
-.sculpture-hover { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); padding: 5px 14px; border-radius: 20px; color: #2f6a45; background: #f3ede4ed; font-size: 13px; pointer-events: none; }
+.sculpture-viewer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+.sculpture-status {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  color: #797b71;
+  pointer-events: none;
+}
+.sculpture-hover {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  padding: 5px 14px;
+  border-radius: 20px;
+  color: #2f6a45;
+  background: #f3ede4ed;
+  font-size: 13px;
+  pointer-events: none;
+}
 
 /* On wide screens retain a clear view of the selected 3D surface beside the list. */
 @media (min-width: 900px) {
-  .fc-mask.dict { align-items: center; justify-content: flex-end; padding: 20px; }
-  .fc-mask.dict .fc-dict-sheet { width: 340px; max-height: 80dvh; border-radius: 22px; }
+  .fc-mask.dict {
+    align-items: center;
+    justify-content: flex-end;
+    padding: 20px;
+  }
+  .fc-mask.dict .fc-dict-sheet {
+    width: 340px;
+    max-height: 80dvh;
+    border-radius: 22px;
+  }
 }
 
 .fc-dict-tabs {
@@ -1236,7 +1340,9 @@ textarea.fc-input {
 }
 
 /* 不支持毛玻璃时退回接近实心的纸色，保证可读性 */
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+@supports not (
+  (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+) {
   .fc-dict-sheet {
     background: rgba(248, 246, 241, 0.97);
   }
@@ -1321,9 +1427,20 @@ textarea.fc-input {
   color: white;
 }
 
-.fc-dict-select-row .fc-dict-item { flex: 1; min-width: 0; border: 0; padding: 6px; }
-.fc-dict-select-row[data-selected="true"] .fc-dict-item-body em { color: #d1e5d8; }
-.fc-dict-planned { flex: none; font-size: 11px; color: #d1e5d8; }
+.fc-dict-select-row .fc-dict-item {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  padding: 6px;
+}
+.fc-dict-select-row[data-selected="true"] .fc-dict-item-body em {
+  color: #d1e5d8;
+}
+.fc-dict-planned {
+  flex: none;
+  font-size: 11px;
+  color: #d1e5d8;
+}
 .fc .fc-dict-explain {
   display: inline-grid;
   place-items: center;
@@ -1333,15 +1450,29 @@ textarea.fc-input {
   border: 1px solid #d1d8cd;
   border-radius: 13px;
   background: linear-gradient(#fffefa, #eef1e9);
-  box-shadow: inset 0 1px 0 #fff, 0 1px 2px #1c30271a;
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 1px 2px #1c30271a;
   color: var(--green);
 }
-.fc .fc-dict-explain svg { width: 19px; height: 19px; }
-.fc .fc-dict-explain:hover { background: #e2ebe0; }
-.fc .fc-dict-explain:active { box-shadow: inset 0 1px 3px #1c30272e; }
-.fc .fc-dict-explain:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.fc .fc-dict-explain svg {
+  width: 19px;
+  height: 19px;
+}
+.fc .fc-dict-explain:hover {
+  background: #e2ebe0;
+}
+.fc .fc-dict-explain:active {
+  box-shadow: inset 0 1px 3px #1c30272e;
+}
+.fc .fc-dict-explain:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
 .fc-dict-select-row[data-selected="true"] .fc-dict-explain:focus-visible,
-.fc-dict-select-row[data-selected="true"] .fc-dict-item:focus-visible { outline-color: white; }
+.fc-dict-select-row[data-selected="true"] .fc-dict-item:focus-visible {
+  outline-color: white;
+}
 
 .fc-dict-gif {
   width: 54px;
@@ -1425,8 +1556,18 @@ textarea.fc-input {
   margin: 0 -6px;
   padding: 0 6px 34px;
   /* 滚动到底部时内容渐隐——用 mask 而不是实色渐变，半透明背景才不会被盖住 */
-  -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 30px), transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 30px), transparent 100%);
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0,
+    #000 calc(100% - 30px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0,
+    #000 calc(100% - 30px),
+    transparent 100%
+  );
 }
 
 .fc-dict-back {
@@ -1487,7 +1628,7 @@ h3.fc-dict-name {
 }
 
 .fc-dict-sub::after {
-  content: '';
+  content: "";
   flex: 1;
   height: 1px;
   background: var(--hair);
@@ -1513,6 +1654,45 @@ h3.fc-dict-name {
   font-weight: 600;
 }
 
+.fc-exercise-intro {
+  margin: 18px 0 10px;
+  padding: 14px 16px;
+  border: 1px solid rgba(20, 21, 19, 0.12);
+  border-radius: 14px;
+  background: linear-gradient(145deg, #efefeb, #e1e2de);
+}
+.fc-exercise-intro h4 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 650;
+}
+.fc-exercise-intro p {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.fc-exercise-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0;
+}
+.fc-exercise-metrics span {
+  border: 1px solid rgba(20, 21, 19, 0.12);
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: var(--ink-2);
+  background: rgba(255, 255, 255, 0.36);
+  font-size: 11px;
+}
+.fc-exercise-note {
+  margin: 8px 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
 /* 底部主操作：不跟着正文滚动，始终吸在弹窗底部 */
 .fc-dict-actions {
   flex: none;
@@ -1528,7 +1708,9 @@ h3.fc-dict-name {
   align-items: center;
   justify-content: center;
   font-size: 16px;
-  transition: background 0.18s ease, color 0.18s ease;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease;
 }
 
 .fc-dict-actions .fc-btn.done {
@@ -1709,25 +1891,72 @@ h3.fc-dict-name {
 }
 
 .fc-ask-mask.docked-ask {
-  position: static; display: block; margin: 0 0 8px; background: none;
-  animation: docked-ask-in .2s ease-out;
+  position: static;
+  display: block;
+  margin: 0 0 8px;
+  background: none;
+  animation: docked-ask-in 0.2s ease-out;
 }
 .docked-ask .fc-ask {
-  max-width: none; max-height: min(44dvh, 320px); padding: 10px 14px 13px; color: var(--ink);
-  background: #fff; border: 1px solid #eae6df; border-radius: 15px;
+  max-width: none;
+  max-height: min(44dvh, 320px);
+  padding: 10px 14px 13px;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid #eae6df;
+  border-radius: 15px;
   box-shadow: 0 6px 22px #152b1512;
 }
 .docked-ask .fc-ask-q {
-  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 6px;
-  color: var(--forest); margin: 0 0 4px; font-size: 13px; font-weight: 650; overflow-wrap: anywhere;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 6px;
+  color: var(--forest);
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
 }
-.docked-ask .fc-ask-text { font-size: 14px; line-height: 1.6; min-height: 0; }
-.docked-ask .fc-ask-actions { margin-top: 11px; gap: 7px; }
-.docked-ask .fc-ask-cap { padding: 7px 11px; border: 1px solid #d8e4d9; border-radius: 999px; color: var(--forest); background: var(--sage); font-size: 12px; font-weight: 650; }
-.docked-ask .ask-follow-up { background: #fff; }
-.docked-ask .fc-ask-cap:disabled { opacity: .55; }
-@keyframes docked-ask-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-@media (prefers-reduced-motion: reduce) { .fc-ask-mask.docked-ask { animation: none; } }
+.docked-ask .fc-ask-text {
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 0;
+}
+.docked-ask .fc-ask-actions {
+  margin-top: 11px;
+  gap: 7px;
+}
+.docked-ask .fc-ask-cap {
+  padding: 7px 11px;
+  border: 1px solid #d8e4d9;
+  border-radius: 999px;
+  color: var(--forest);
+  background: var(--sage);
+  font-size: 12px;
+  font-weight: 650;
+}
+.docked-ask .ask-follow-up {
+  background: #fff;
+}
+.docked-ask .fc-ask-cap:disabled {
+  opacity: 0.55;
+}
+@keyframes docked-ask-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fc-ask-mask.docked-ask {
+    animation: none;
+  }
+}
 
 /* ------------------------------ 身体页（全屏解剖图） ------------------------------ */
 
@@ -2066,8 +2295,13 @@ h3.fc-dict-name {
 }
 
 @keyframes fc-rec-blink {
-  0%, 100% { opacity: 0.35; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .fc-rec-cancel {
@@ -2092,7 +2326,10 @@ h3.fc-dict-name {
   line-height: 1;
   color: #fff;
   background: rgba(255, 255, 255, 0.16);
-  transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease;
+  transition:
+    transform 0.16s ease,
+    background 0.16s ease,
+    color 0.16s ease;
 }
 
 .fc-rec-cancel.on .fc-rec-x {

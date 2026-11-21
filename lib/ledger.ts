@@ -1,16 +1,16 @@
-import { applyMealOption, prepareMealPick, type QuickPick } from './quick-pick';
-import type { DatabaseSync } from 'node:sqlite';
-import dictionary from '../data/exercises-seed.json';
+import { applyMealOption, prepareMealPick, type QuickPick } from "./quick-pick";
+import type { DatabaseSync } from "node:sqlite";
+import dictionary from "../data/exercises-seed.json";
 import {
   formatWorkoutSummary,
   type Item,
   type Movement,
   type Confidence,
   type SetDetail,
-} from './calculations';
-export type Source = 'manual' | 'photo' | 'voice' | 'scale';
+} from "./calculations";
+export type Source = "manual" | "photo" | "voice" | "scale";
 export interface Draft {
-  entry_type: 'meal' | 'workout' | 'plan_draft' | 'body_metrics';
+  entry_type: "meal" | "workout" | "plan_draft" | "body_metrics";
   summary_title: string;
   confidence: Confidence;
   raw_text: string | null;
@@ -23,25 +23,28 @@ export interface Draft {
   weight_kg?: number;
   body_fat_pct?: number | null;
 }
-export type Parsed = { route: 'qa'; question: string } | { route: 'record'; records: Draft[] };
+export type Parsed =
+  { route: "qa"; question: string } | { route: "record"; records: Draft[] };
 export const localDay = (iso: string) =>
-  new Intl.DateTimeFormat('en-CA', { timeZone: process.env.APP_TZ || 'Asia/Shanghai' }).format(new Date(iso));
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: process.env.APP_TZ || "Asia/Shanghai",
+  }).format(new Date(iso));
 export function transaction<T>(db: DatabaseSync, fn: () => T) {
-  db.exec('SAVEPOINT ledger_write');
+  db.exec("SAVEPOINT ledger_write");
   try {
     const result = fn();
-    db.exec('RELEASE ledger_write');
+    db.exec("RELEASE ledger_write");
     return result;
   } catch (e) {
-    db.exec('ROLLBACK TO ledger_write; RELEASE ledger_write');
+    db.exec("ROLLBACK TO ledger_write; RELEASE ledger_write");
     throw e;
   }
 }
 export function initLedger(db: DatabaseSync) {
-  db.exec('PRAGMA foreign_keys=ON');
+  db.exec("PRAGMA foreign_keys=ON");
   transaction(db, () => {
     db.exec(`
-    CREATE TABLE IF NOT EXISTS exercises(id TEXT PRIMARY KEY,name_zh TEXT NOT NULL,aliases TEXT NOT NULL,primary_muscles TEXT NOT NULL,secondary_muscles TEXT NOT NULL,gif_url TEXT,cues TEXT);
+    CREATE TABLE IF NOT EXISTS exercises(id TEXT PRIMARY KEY,name_zh TEXT NOT NULL,aliases TEXT NOT NULL,primary_muscles TEXT NOT NULL,secondary_muscles TEXT NOT NULL,gif_url TEXT,cues TEXT,mechanic TEXT,movement_pattern TEXT,metabolic_demand TEXT,met_range TEXT,fatigue_level TEXT,recommended_rep_range TEXT);
     CREATE TABLE IF NOT EXISTS entries(id INTEGER PRIMARY KEY,user_id TEXT NOT NULL,date TEXT NOT NULL,entry_type TEXT NOT NULL CHECK(entry_type IN ('meal','workout','plan_draft')),logged_at TEXT NOT NULL,input_method TEXT CHECK(input_method IN ('voice','photo','manual')),confidence TEXT NOT NULL CHECK(confidence IN ('estimated','exact')),raw_text TEXT,summary_title TEXT NOT NULL,feeling_tags TEXT NOT NULL,note TEXT,is_deleted INTEGER NOT NULL DEFAULT 0,actions TEXT NOT NULL DEFAULT '[]',request_key TEXT NOT NULL, UNIQUE(user_id,request_key));
     CREATE TABLE IF NOT EXISTS body_metrics(id INTEGER PRIMARY KEY,user_id TEXT NOT NULL,date TEXT NOT NULL,logged_at TEXT NOT NULL,weight_kg REAL NOT NULL CHECK(weight_kg>0),body_fat_pct REAL CHECK(body_fat_pct BETWEEN 0 AND 100),source TEXT CHECK(source IN ('voice','scale','manual')),confidence TEXT NOT NULL CHECK(confidence IN ('exact','estimated')),note TEXT,raw_text TEXT,feeling_tags TEXT NOT NULL,request_key TEXT NOT NULL, UNIQUE(user_id,request_key));
     CREATE TABLE IF NOT EXISTS meal_items(id INTEGER PRIMARY KEY,entry_id INTEGER NOT NULL REFERENCES entries(id),food_name TEXT NOT NULL,portion_text TEXT,estimated_grams REAL,kcal INTEGER,protein_g REAL,carbs_g REAL,fat_g REAL,confidence TEXT NOT NULL CHECK(confidence IN ('exact','estimated')));
@@ -52,21 +55,31 @@ export function initLedger(db: DatabaseSync) {
     CREATE TABLE IF NOT EXISTS ledger_requests(user_id TEXT,request_id TEXT,PRIMARY KEY(user_id,request_id));`);
     if (
       !db
-        .prepare('PRAGMA table_info(meal_items)')
+        .prepare("PRAGMA table_info(meal_items)")
         .all()
-        .some((c) => c.name === 'nutrition_basis')
+        .some((c) => c.name === "nutrition_basis")
     ) {
-      db.exec('ALTER TABLE meal_items ADD COLUMN nutrition_basis TEXT');
+      db.exec("ALTER TABLE meal_items ADD COLUMN nutrition_basis TEXT");
     }
     if (
       !db
-        .prepare('PRAGMA table_info(entries)')
+        .prepare("PRAGMA table_info(entries)")
         .all()
-        .some((c) => c.name === 'quick_pick')
+        .some((c) => c.name === "quick_pick")
     ) {
-      db.exec('ALTER TABLE entries ADD COLUMN quick_pick TEXT');
+      db.exec("ALTER TABLE entries ADD COLUMN quick_pick TEXT");
     }
-    const insert = db.prepare('INSERT OR IGNORE INTO exercises VALUES(?,?,?,?,?,?,?)');
+    const exerciseCols = new Set(
+      (
+        db.prepare("PRAGMA table_info(exercises)").all() as { name: string }[]
+      ).map((c) => c.name),
+    );
+    for (const name of ["mechanic", "movement_pattern", "metabolic_demand", "met_range", "fatigue_level", "recommended_rep_range"])
+      if (!exerciseCols.has(name))
+        db.exec(`ALTER TABLE exercises ADD COLUMN ${name} TEXT`);
+    const insert = db.prepare(
+      "INSERT OR IGNORE INTO exercises(id,name_zh,aliases,primary_muscles,secondary_muscles,gif_url,cues,mechanic,movement_pattern,metabolic_demand,met_range,fatigue_level,recommended_rep_range) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+    );
     for (const e of dictionary)
       insert.run(
         e.id,
@@ -76,18 +89,30 @@ export function initLedger(db: DatabaseSync) {
         JSON.stringify(e.secondary_muscles),
         e.gif_url,
         JSON.stringify(e.cues),
+        (e as any).mechanic ?? null,
+        (e as any).movement_pattern ?? null,
+        (e as any).metabolic_demand ?? null,
+        (e as any).met_range ?? null,
+        (e as any).fatigue_level ?? null,
+        (e as any).recommended_rep_range ?? null,
       );
   });
 }
 function checked(n: unknown, integer = false) {
   if (n == null) return null;
-  if (typeof n !== 'number' || !Number.isFinite(n) || n < 0 || n > 1e7 || (integer && !Number.isInteger(n)))
-    throw Error('数值无效');
+  if (
+    typeof n !== "number" ||
+    !Number.isFinite(n) ||
+    n < 0 ||
+    n > 1e7 ||
+    (integer && !Number.isInteger(n))
+  )
+    throw Error("数值无效");
   return n;
 }
 function writeSets(db: DatabaseSync, id: number, index: number, m: Movement) {
   const stmt = db.prepare(
-    'INSERT INTO workout_sets(entry_id,exercise_id,exercise_name,action_index,set_order,weight_kg,reps,duration_sec) VALUES(?,?,?,?,?,?,?,?)',
+    "INSERT INTO workout_sets(entry_id,exercise_id,exercise_name,action_index,set_order,weight_kg,reps,duration_sec) VALUES(?,?,?,?,?,?,?,?)",
   );
   m.sets.forEach((s, i) =>
     stmt.run(
@@ -103,12 +128,12 @@ function writeSets(db: DatabaseSync, id: number, index: number, m: Movement) {
   );
 }
 export function writeItems(db: DatabaseSync, id: number, items: Item[]) {
-  if (!Array.isArray(items) || !items.length) throw Error('缺少饮食明细');
+  if (!Array.isArray(items) || !items.length) throw Error("缺少饮食明细");
   const insert = db.prepare(
-    'INSERT INTO meal_items(entry_id,food_name,portion_text,estimated_grams,kcal,protein_g,carbs_g,fat_g,confidence,nutrition_basis) VALUES(?,?,?,?,?,?,?,?,?,?)',
+    "INSERT INTO meal_items(entry_id,food_name,portion_text,estimated_grams,kcal,protein_g,carbs_g,fat_g,confidence,nutrition_basis) VALUES(?,?,?,?,?,?,?,?,?,?)",
   );
   for (const i of items) {
-    if (!i.food_name?.trim()) throw Error('缺少食物名称');
+    if (!i.food_name?.trim()) throw Error("缺少食物名称");
     insert.run(
       id,
       i.food_name,
@@ -130,26 +155,39 @@ export function saveBatch(
   source: Source | null,
   records: Draft[],
 ) {
-  if (!request || !Array.isArray(records) || !records.length || records.length > 100)
-    throw Error('记录批次无效');
+  if (
+    !request ||
+    !Array.isArray(records) ||
+    !records.length ||
+    records.length > 100
+  )
+    throw Error("记录批次无效");
   return transaction(db, () => {
-    if (!db.prepare('INSERT OR IGNORE INTO ledger_requests VALUES(?,?)').run(user, request).changes) return;
+    if (
+      !db
+        .prepare("INSERT OR IGNORE INTO ledger_requests VALUES(?,?)")
+        .run(user, request).changes
+    )
+      return;
     records.forEach((r, index) => {
       if (
-        typeof r.summary_title !== 'string' ||
+        typeof r.summary_title !== "string" ||
         !r.summary_title.trim() ||
-        !(r.note === null || typeof r.note === 'string') ||
-        !(r.raw_text === null || typeof r.raw_text === 'string')
+        !(r.note === null || typeof r.note === "string") ||
+        !(r.raw_text === null || typeof r.raw_text === "string")
       )
-        throw Error('记录内容无效');
+        throw Error("记录内容无效");
       const stamp = new Date(r.logged_at).toISOString(),
         date = localDay(stamp),
-        key = request + '/' + index;
-      if (!Array.isArray(r.feeling_tags) || !r.feeling_tags.every((t) => typeof t === 'string'))
-        throw Error('体感标签无效');
-      if (r.entry_type === 'body_metrics') {
+        key = request + "/" + index;
+      if (
+        !Array.isArray(r.feeling_tags) ||
+        !r.feeling_tags.every((t) => typeof t === "string")
+      )
+        throw Error("体感标签无效");
+      if (r.entry_type === "body_metrics") {
         db.prepare(
-          'INSERT INTO body_metrics(user_id,date,logged_at,weight_kg,body_fat_pct,source,confidence,note,raw_text,feeling_tags,request_key) VALUES(?,?,?,?,?,?,?,?,?,?,?)',
+          "INSERT INTO body_metrics(user_id,date,logged_at,weight_kg,body_fat_pct,source,confidence,note,raw_text,feeling_tags,request_key) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
         ).run(
           user,
           date,
@@ -168,9 +206,12 @@ export function saveBatch(
       const actions = (r.exercises ?? []).map((m) => {
         const e = dictionary.find(
           (e) =>
-            e.id === m.exercise_id || e.name_zh === m.exercise_name || e.aliases.includes(m.exercise_name),
+            e.id === m.exercise_id ||
+            e.name_zh === m.exercise_name ||
+            e.aliases.includes(m.exercise_name),
         );
-        if (!m.exercise_name?.trim() || !Array.isArray(m.sets)) throw Error('动作明细无效');
+        if (!m.exercise_name?.trim() || !Array.isArray(m.sets))
+          throw Error("动作明细无效");
         return {
           exercise_id: e?.id ?? null,
           exercise_name: e?.name_zh ?? m.exercise_name,
@@ -179,11 +220,12 @@ export function saveBatch(
           sets: m.sets,
         };
       });
-      if (r.entry_type === 'workout' && !actions.length) throw Error('缺少动作');
+      if (r.entry_type === "workout" && !actions.length)
+        throw Error("缺少动作");
       const id = Number(
         db
           .prepare(
-            'INSERT INTO entries(user_id,date,entry_type,logged_at,input_method,confidence,raw_text,summary_title,feeling_tags,note,actions,request_key) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
+            "INSERT INTO entries(user_id,date,entry_type,logged_at,input_method,confidence,raw_text,summary_title,feeling_tags,note,actions,request_key) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
           )
           .run(
             user,
@@ -200,18 +242,28 @@ export function saveBatch(
             key,
           ).lastInsertRowid,
       );
-      if (r.entry_type === 'meal') {
+      if (r.entry_type === "meal") {
         const items = r.items ?? [];
         writeItems(db, id, items);
-        const pick = r.quick_pick?.kind === 'meal' ? prepareMealPick(r.quick_pick, items) : null;
-        if (pick) db.prepare('UPDATE entries SET quick_pick=? WHERE id=?').run(JSON.stringify(pick), id);
+        const pick =
+          r.quick_pick?.kind === "meal"
+            ? prepareMealPick(r.quick_pick, items)
+            : null;
+        if (pick)
+          db.prepare("UPDATE entries SET quick_pick=? WHERE id=?").run(
+            JSON.stringify(pick),
+            id,
+          );
       }
       if (
-        r.entry_type === 'workout' &&
-        r.quick_pick?.kind === 'workout' &&
+        r.entry_type === "workout" &&
+        r.quick_pick?.kind === "workout" &&
         actions[r.quick_pick.exercise_index]?.sets.length === 0
       ) {
-        db.prepare('UPDATE entries SET quick_pick=? WHERE id=?').run(JSON.stringify(r.quick_pick), id);
+        db.prepare("UPDATE entries SET quick_pick=? WHERE id=?").run(
+          JSON.stringify(r.quick_pick),
+          id,
+        );
       }
       actions.forEach((m, i) => writeSets(db, id, i, m));
     });
@@ -231,10 +283,12 @@ export function getLastExerciseRecord(
   if (!row) return null;
   const sets = db
     .prepare(
-      'SELECT weight_kg,reps,duration_sec FROM workout_sets WHERE entry_id=? AND action_index=? ORDER BY set_order',
+      "SELECT weight_kg,reps,duration_sec FROM workout_sets WHERE entry_id=? AND action_index=? ORDER BY set_order",
     )
     .all(row.id, row.action_index) as unknown as SetDetail[];
-  const days = (Date.parse(localDay(beforeTime)) - Date.parse(String(row.date))) / 86400000;
+  const days =
+    (Date.parse(localDay(beforeTime)) - Date.parse(String(row.date))) /
+    86400000;
   return { sets, label: `上次 · ${formatWorkoutSummary(sets)}（${days}天前）` };
 }
 export function fillSets(
@@ -242,33 +296,54 @@ export function fillSets(
   user: string,
   id: number,
   index: number,
-  choice: number | 'last' | 'skip',
+  choice: number | "last" | "skip",
 ) {
   transaction(db, () => {
     const row = db
-      .prepare("SELECT * FROM entries WHERE id=? AND user_id=? AND entry_type='workout' AND is_deleted=0")
+      .prepare(
+        "SELECT * FROM entries WHERE id=? AND user_id=? AND entry_type='workout' AND is_deleted=0",
+      )
       .get(id, user);
-    if (!row) throw Error('训练记录不存在');
+    if (!row) throw Error("训练记录不存在");
     const actions = JSON.parse(String(row.actions)) as Movement[],
       m = actions[index];
-    if (!m) throw Error('动作不存在');
+    if (!m) throw Error("动作不存在");
     if (
       m.skipped ||
-      db.prepare('SELECT 1 FROM workout_sets WHERE entry_id=? AND action_index=?').get(id, index)
+      db
+        .prepare(
+          "SELECT 1 FROM workout_sets WHERE entry_id=? AND action_index=?",
+        )
+        .get(id, index)
     )
       return;
-    if (choice === 'skip') {
+    if (choice === "skip") {
       m.skipped = true;
-      db.prepare('UPDATE entries SET actions=? WHERE id=?').run(JSON.stringify(actions), id);
+      db.prepare("UPDATE entries SET actions=? WHERE id=?").run(
+        JSON.stringify(actions),
+        id,
+      );
       return;
     }
     const sets =
-      choice === 'last'
-        ? getLastExerciseRecord(db, user, m.exercise_id ?? '', String(row.logged_at))?.sets
-        : typeof choice === 'number' && Number.isInteger(choice) && choice >= 1 && choice <= 20
-          ? Array.from({ length: choice }, () => ({ weight_kg: null, reps: null, duration_sec: null }))
+      choice === "last"
+        ? getLastExerciseRecord(
+            db,
+            user,
+            m.exercise_id ?? "",
+            String(row.logged_at),
+          )?.sets
+        : typeof choice === "number" &&
+            Number.isInteger(choice) &&
+            choice >= 1 &&
+            choice <= 20
+          ? Array.from({ length: choice }, () => ({
+              weight_kg: null,
+              reps: null,
+              duration_sec: null,
+            }))
           : null;
-    if (!sets?.length) throw Error('没有可用组数');
+    if (!sets?.length) throw Error("没有可用组数");
     writeSets(db, id, index, { ...m, sets });
   });
 }
@@ -278,27 +353,41 @@ export interface CardPick {
   options: { id: string; label: string }[];
 }
 
-function pickForRow(db: DatabaseSync, user: string, row: Record<string, unknown>): CardPick | null {
-  if (row.quick_pick === 'false') return null;
-  const saved = row.quick_pick ? (JSON.parse(String(row.quick_pick)) as QuickPick) : null;
-  if (row.entry_type === 'meal') {
-    if (saved?.kind !== 'meal') return null;
+function pickForRow(
+  db: DatabaseSync,
+  user: string,
+  row: Record<string, unknown>,
+): CardPick | null {
+  if (row.quick_pick === "false") return null;
+  const saved = row.quick_pick
+    ? (JSON.parse(String(row.quick_pick)) as QuickPick)
+    : null;
+  if (row.entry_type === "meal") {
+    if (saved?.kind !== "meal") return null;
     return {
       question: saved.question,
-      options: saved.options.map(({ label }, index) => ({ id: String(index), label })),
+      options: saved.options.map(({ label }, index) => ({
+        id: String(index),
+        label,
+      })),
     };
   }
-  if (row.entry_type !== 'workout') return null;
+  if (row.entry_type !== "workout") return null;
   const actions = JSON.parse(String(row.actions)) as Movement[];
   const completed = new Set(
     db
-      .prepare('SELECT DISTINCT action_index FROM workout_sets WHERE entry_id=?')
+      .prepare(
+        "SELECT DISTINCT action_index FROM workout_sets WHERE entry_id=?",
+      )
       .all(Number(row.id))
       .map((r) => r.action_index),
   );
-  const available = (index: number) => actions[index] && !actions[index].skipped && !completed.has(index);
-  const hint = saved?.kind === 'workout' && available(saved.exercise_index) ? saved : null;
-  const index = hint?.exercise_index ?? actions.findIndex((_, i) => available(i));
+  const available = (index: number) =>
+    actions[index] && !actions[index].skipped && !completed.has(index);
+  const hint =
+    saved?.kind === "workout" && available(saved.exercise_index) ? saved : null;
+  const index =
+    hint?.exercise_index ?? actions.findIndex((_, i) => available(i));
   if (index < 0) return null;
   const move = actions[index];
   const last = move.exercise_id
@@ -307,24 +396,42 @@ function pickForRow(db: DatabaseSync, user: string, row: Record<string, unknown>
   const proposed = [...new Set(hint?.options.map((o) => o.sets) ?? [])].filter(
     (n) => Number.isInteger(n) && n >= 1 && n <= 20,
   );
-  const sets = (proposed.length >= 2 ? proposed : [3, 4, 5]).slice(0, last ? 3 : 4);
+  const sets = (proposed.length >= 2 ? proposed : [3, 4, 5]).slice(
+    0,
+    last ? 3 : 4,
+  );
   return {
-    question: hint?.question.trim().slice(0, 85) || move.exercise_name + '做了几组？',
+    question:
+      hint?.question.trim().slice(0, 85) || move.exercise_name + "做了几组？",
     options: [
-      ...(last ? [{ id: index + ':last', label: '同上次：' + last.label.replace(/^上次 · /, '') }] : []),
-      ...sets.map((n) => ({ id: index + ':' + n, label: n + '组' })),
+      ...(last
+        ? [
+            {
+              id: index + ":last",
+              label: "同上次：" + last.label.replace(/^上次 · /, ""),
+            },
+          ]
+        : []),
+      ...sets.map((n) => ({ id: index + ":" + n, label: n + "组" })),
     ],
   };
 }
 
 export function readCardPick(db: DatabaseSync, user: string, id: number) {
-  const row = db.prepare('SELECT * FROM entries WHERE id=? AND user_id=? AND is_deleted=0').get(id, user);
+  const row = db
+    .prepare("SELECT * FROM entries WHERE id=? AND user_id=? AND is_deleted=0")
+    .get(id, user);
   return row ? pickForRow(db, user, row) : null;
 }
 
-export function updateMealNutrition(db: DatabaseSync, id: number, itemId: number, item: Item) {
+export function updateMealNutrition(
+  db: DatabaseSync,
+  id: number,
+  itemId: number,
+  item: Item,
+) {
   db.prepare(
-    'UPDATE meal_items SET portion_text=?,estimated_grams=?,kcal=?,protein_g=?,carbs_g=?,fat_g=?,confidence=?,nutrition_basis=? WHERE id=? AND entry_id=?',
+    "UPDATE meal_items SET portion_text=?,estimated_grams=?,kcal=?,protein_g=?,carbs_g=?,fat_g=?,confidence=?,nutrition_basis=? WHERE id=? AND entry_id=?",
   ).run(
     item.portion_text,
     item.estimated_grams,
@@ -339,33 +446,58 @@ export function updateMealNutrition(db: DatabaseSync, id: number, itemId: number
   );
 }
 
-export function chooseCardPick(db: DatabaseSync, user: string, id: number, choice: string) {
+export function chooseCardPick(
+  db: DatabaseSync,
+  user: string,
+  id: number,
+  choice: string,
+) {
   transaction(db, () => {
-    const row = db.prepare('SELECT * FROM entries WHERE id=? AND user_id=? AND is_deleted=0').get(id, user);
-    if (!row || row.quick_pick === 'false') return;
+    const row = db
+      .prepare(
+        "SELECT * FROM entries WHERE id=? AND user_id=? AND is_deleted=0",
+      )
+      .get(id, user);
+    if (!row || row.quick_pick === "false") return;
     const pick = pickForRow(db, user, row);
     if (!pick) return;
-    if (choice !== 'skip') {
+    if (choice !== "skip") {
       const option = pick.options.find((o) => o.id === choice);
-      if (!option) throw Error('该选项不可用');
-      if (row.entry_type === 'workout') {
-        const [index, value] = choice.split(':');
-        fillSets(db, user, id, Number(index), value === 'last' ? 'last' : Number(value));
+      if (!option) throw Error("该选项不可用");
+      if (row.entry_type === "workout") {
+        const [index, value] = choice.split(":");
+        fillSets(
+          db,
+          user,
+          id,
+          Number(index),
+          value === "last" ? "last" : Number(value),
+        );
       } else {
-        const saved = JSON.parse(String(row.quick_pick)) as Extract<QuickPick, { kind: 'meal' }>;
+        const saved = JSON.parse(String(row.quick_pick)) as Extract<
+          QuickPick,
+          { kind: "meal" }
+        >;
         const items = db
-          .prepare('SELECT * FROM meal_items WHERE entry_id=? ORDER BY id')
+          .prepare("SELECT * FROM meal_items WHERE entry_id=? ORDER BY id")
           .all(id)
           .map(({ nutrition_basis, ...item }) => ({
             ...item,
-            nutrition_basis: nutrition_basis ? JSON.parse(String(nutrition_basis)) : undefined,
+            nutrition_basis: nutrition_basis
+              ? JSON.parse(String(nutrition_basis))
+              : undefined,
           })) as unknown as (Item & { id: number })[];
-        for (const edit of applyMealOption(items, saved.options[Number(choice)].edits)) {
+        for (const edit of applyMealOption(
+          items,
+          saved.options[Number(choice)].edits,
+        )) {
           updateMealNutrition(db, id, items[edit.index].id, edit.item);
         }
-        db.prepare('UPDATE entries SET summary_title=?,confidence=? WHERE id=?').run(
-          String(row.summary_title) + ' · ' + option.label,
-          'estimated',
+        db.prepare(
+          "UPDATE entries SET summary_title=?,confidence=? WHERE id=?",
+        ).run(
+          String(row.summary_title) + " · " + option.label,
+          "estimated",
           id,
         );
       }

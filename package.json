@@ -14,7 +14,8 @@
     "shot:library": "node scripts/shot-library.mjs",
     "shot:training": "node scripts/shot-training.mjs",
     "shot:body": "node scripts/shot-body.mjs",
-    "test:ledger": "node --test tests/ledger.cjs"
+    "test:ledger": "node --test tests/ledger.cjs",
+    "backfill:exercise-metrics": "node scripts/backfill-exercise-metrics.mjs"
   },
   "dependencies": {
     "next": "15.5.29",
