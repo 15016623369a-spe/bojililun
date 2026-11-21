@@ -9,6 +9,49 @@ import { canonicalMuscle, labelAtBarycentric, SCULPTURE_GROUPS, SCULPTURE_VARIAN
 import { labeledGeometry, validateLabelData } from '@/lib/sculpture-geometry';
 
 const BY_BYTE = new Map(SCULPTURE_GROUPS.map((g) => [g.byteValue, g.id]));
+const BYTE_OF = new Map(SCULPTURE_GROUPS.map((g) => [g.id, g.byteValue]));
+
+/**
+ * 计划首屏的点阵后处理：先把中性灰雕塑渲染进纹理，再在屏幕空间按格采样亮度画圆点。
+ * 参数对应 docs/design/2026-11-21/visual-handoff.md 里原静态稿的算法（5px 格 → uCell）。
+ */
+const HALFTONE_VERT = 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
+const HALFTONE_FRAG = `
+  uniform sampler2D tScene;
+  uniform vec2 uRes;
+  uniform float uCell;
+  uniform float uAA;
+  varying vec2 vUv;
+  vec3 toDisplay(vec3 c) {
+    c = max(c * 1.05, 0.0);
+    c = (c * (2.51 * c + 0.03)) / (c * (2.43 * c + 0.59) + 0.14);
+    return pow(clamp(c, 0.0, 1.0), vec3(1.0 / 2.2));
+  }
+  vec4 lit(vec2 uv) {
+    vec4 s = texture2D(tScene, uv);
+    if (s.a < 0.002) return vec4(0.0);
+    return vec4(toDisplay(s.rgb / s.a), s.a);
+  }
+  void main() {
+    vec2 px = gl_FragCoord.xy;
+    vec4 m = lit(px / uRes);
+    float l = dot(m.rgb, vec3(0.299, 0.587, 0.114));
+    float g = clamp((l - 0.5) * 1.18 + 0.5, 0.0, 1.0) * 0.91;
+    vec4 col = vec4(vec3(g), 1.0) * (m.a * 0.66);
+    vec2 c = (floor(px / uCell) + 0.5) * uCell;
+    vec4 s = lit(c / uRes);
+    if (s.a > 0.35) {
+      float tone = max(0.0, (252.0 / 255.0 - s.r) / (128.0 / 255.0));
+      float r = (0.46 + min(1.22, tone) * 1.78) * uCell / 5.0;
+      float cov = 1.0 - smoothstep(r - uAA, r + uAA, length(px - c));
+      float a = (0.4 + min(1.0, tone) * 0.6) * cov * s.a;
+      col = vec4(vec3(20.0, 26.0, 20.0) / 255.0 * a, a) + col * (1.0 - a);
+    }
+    gl_FragColor = col;
+  }
+`;
+
+export type SculptureAnchor = { muscle: MuscleId; label: string } | null;
 
 function disposeMaterial(material: THREE.Material) {
   for (const value of Object.values(material)) if (value instanceof THREE.Texture) value.dispose();
@@ -34,7 +77,7 @@ async function verifyHash(bytes: ArrayBuffer, expected: string) {
   if (actual !== expected) throw new Error('人体资源版本不匹配');
 }
 
-export default function SculptureBody({ recorded = [], selected = null, side = 'front', onPick, spin = false, variant = 'male', heatLevels }: {
+export default function SculptureBody({ recorded = [], selected = null, side = 'front', onPick, spin = false, variant = 'male', heatLevels, look = 'sculpture', anchor = null }: {
   recorded?: MuscleId[];
   selected?: MuscleId | null;
   side?: 'front' | 'back';
@@ -42,15 +85,21 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
   spin?: boolean;
   variant?: SculptureVariant;
   heatLevels?: ReadonlyMap<MuscleId, number>;
+  /** halftone：计划首屏的点阵人体；sculpture：回顾等页面的石膏 + 热力着色 */
+  look?: 'sculpture' | 'halftone';
+  /** 跟随模型转动的柠檬黄锚点；转到背面被遮挡时隐藏 */
+  anchor?: SculptureAnchor;
 }) {
   const mount = useRef<HTMLDivElement>(null);
-  const latest = useRef({ recorded, selected, side, onPick, spin, heatLevels });
-  latest.current = { recorded, selected, side, onPick, spin, heatLevels };
-  const api = useRef<{ refresh: () => void; setSide: (side: 'front' | 'back') => void } | null>(null);
+  const anchorEl = useRef<HTMLDivElement>(null);
+  const latest = useRef({ recorded, selected, side, onPick, spin, heatLevels, anchor });
+  latest.current = { recorded, selected, side, onPick, spin, heatLevels, anchor };
+  const api = useRef<{ refresh: () => void; setSide: (side: 'front' | 'back') => void; anchor: () => void } | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [hovered, setHovered] = useState<MuscleId | null>(null);
   useEffect(() => { api.current?.refresh(); }, [recorded, selected, heatLevels]);
   useEffect(() => { api.current?.setSide(side); }, [side]);
+  useEffect(() => { api.current?.anchor(); }, [anchor?.muscle]);
 
   useEffect(() => {
     const host = mount.current;
@@ -65,7 +114,9 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
       return;
     }
     setStatus('loading');
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    const halftone = look === 'halftone';
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    renderer.setPixelRatio(dpr);
     renderer.setClearColor(0, 0);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.05;
@@ -75,17 +126,53 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(30, 1, .01, 100);
     camera.position.set(0, .02, 4.3);
-    scene.add(new THREE.HemisphereLight(0xfffaf4, 0xc9beb2, 1.1));
-    const key = new THREE.DirectionalLight(0xfff7ed, 2.4);
-    key.position.set(-3, 4, 5); scene.add(key);
-    const fill = new THREE.DirectionalLight(0xffffff, 1.0);
-    fill.position.set(3, 2, -4); scene.add(fill);
+    if (halftone) {
+      // 中性灰、侧光偏强：点阵靠明暗读出肩、胸、腰腹和腿的厚度
+      scene.add(new THREE.HemisphereLight(0xffffff, 0x9a9b97, 0.75));
+      const key = new THREE.DirectionalLight(0xffffff, 3.1);
+      key.position.set(-3.2, 3.6, 4.2); scene.add(key);
+      const rim = new THREE.DirectionalLight(0xffffff, 1.1);
+      rim.position.set(3.5, 1.5, -3); scene.add(rim);
+    } else {
+      scene.add(new THREE.HemisphereLight(0xfffaf4, 0xc9beb2, 1.1));
+      const key = new THREE.DirectionalLight(0xfff7ed, 2.4);
+      key.position.set(-3, 4, 5); scene.add(key);
+      const fill = new THREE.DirectionalLight(0xffffff, 1.0);
+      fill.position.set(3, 2, -4); scene.add(fill);
+    }
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enablePan = false;
     controls.enableDamping = true;
     controls.dampingFactor = .08;
     controls.minDistance = 2; controls.maxDistance = 8;
+    if (halftone) {
+      // 首屏只绕竖轴转，停手后构图稳定
+      controls.enableZoom = false;
+      controls.minPolarAngle = controls.maxPolarAngle = Math.PI / 2 - .005;
+      controls.rotateSpeed = .75;
+    }
     controls.target.set(0, 0, 0); controls.update();
+
+    let post: { target: THREE.WebGLRenderTarget; scene: THREE.Scene; camera: THREE.OrthographicCamera; material: THREE.ShaderMaterial } | null = null;
+    if (halftone) {
+      const target = new THREE.WebGLRenderTarget(1, 1, { samples: 4 });
+      const postMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+          tScene: { value: target.texture },
+          uRes: { value: new THREE.Vector2(1, 1) },
+          uCell: { value: 3 * dpr },
+          uAA: { value: .55 * dpr },
+        },
+        vertexShader: HALFTONE_VERT,
+        fragmentShader: HALFTONE_FRAG,
+        blending: THREE.NoBlending,
+        depthTest: false,
+        depthWrite: false,
+      });
+      const postScene = new THREE.Scene();
+      postScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), postMaterial));
+      post = { target, scene: postScene, camera: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), material: postMaterial };
+    }
 
     const heatData = new Uint8Array(32 * 4);
     const heat = new THREE.DataTexture(heatData, 32, 1, THREE.RGBAFormat);
@@ -115,12 +202,13 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
       renderer.domElement.style.cursor = next ? 'pointer' : 'grab';
     };
     refresh();
-    const material = new THREE.MeshStandardMaterial({ color: 0xf3ede4, roughness: .88, metalness: 0, side: THREE.DoubleSide });
-    material.customProgramCacheKey = () => 'sculpture-ortho-feather-v1';
+    const material = new THREE.MeshStandardMaterial({ color: halftone ? 0xe4e4e1 : 0xf3ede4, roughness: .88, metalness: 0, side: THREE.DoubleSide });
+    material.customProgramCacheKey = () => halftone ? 'sculpture-halftone-v1' : 'sculpture-ortho-feather-v1';
     material.onBeforeCompile = (shader) => {
       shader.uniforms.uMuscleHeat = { value: heat };
-      shader.uniforms.uMuscleGreen = { value: new THREE.Color('#2F6A45') };
-      shader.uniforms.uMuscleHover = { value: new THREE.Color('#8FAE94') };
+      // 点阵模式下选中/悬停只把该区压暗，圆点随之变大变深，不另上色
+      shader.uniforms.uMuscleGreen = { value: new THREE.Color(halftone ? '#8c8d88' : '#2F6A45') };
+      shader.uniforms.uMuscleHover = { value: new THREE.Color(halftone ? '#b3b4af' : '#8FAE94') };
       shader.vertexShader = shader.vertexShader.replace('#include <common>', `#include <common>
         attribute vec3 muscleIds;
         attribute vec2 muscleBary;
@@ -167,7 +255,8 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
     const raycaster = new THREE.Raycaster();
     const ndc = new THREE.Vector2();
     const point = new THREE.Vector3(), a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), bary = new THREE.Vector3();
-    const pickAt = (x: number, y: number): MuscleId | null => {
+    type Pick = { id: MuscleId; point: THREE.Vector3; normal: THREE.Vector3 };
+    const pickHit = (x: number, y: number): Pick | null => {
       if (!subject) return null;
       const rect = renderer.domElement.getBoundingClientRect();
       if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) return null;
@@ -183,8 +272,67 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
       a.fromBufferAttribute(pos, hit.face.a); b.fromBufferAttribute(pos, hit.face.b); c.fromBufferAttribute(pos, hit.face.c);
       if (!THREE.Triangle.getBarycoord(point, a, b, c, bary)) return null;
       const v = hit.face.a;
-      const id = labelAtBarycentric([ids.getX(v), ids.getY(v), ids.getZ(v)], [bary.x, bary.y, bary.z]);
-      return BY_BYTE.get(id) ?? null;
+      const id = BY_BYTE.get(labelAtBarycentric([ids.getX(v), ids.getY(v), ids.getZ(v)], [bary.x, bary.y, bary.z]));
+      if (!id) return null;
+      const normal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld);
+      return { id, point: hit.point.clone(), normal };
+    };
+    const pickAt = (x: number, y: number): MuscleId | null => pickHit(x, y)?.id ?? null;
+
+    // 锚点存成模型自身坐标，转身时跟着肌肉走
+    let anchorLocal: { muscle: MuscleId; p: THREE.Vector3; n: THREE.Vector3 } | null = null;
+    const toSubject = (p: THREE.Vector3, n: THREE.Vector3) => {
+      const inv = new THREE.Matrix4().copy(subject!.matrixWorld).invert();
+      return { p: p.clone().applyMatrix4(inv), n: n.clone().transformDirection(inv) };
+    };
+    const centroidAnchor = (muscle: MuscleId) => {
+      const byte = BYTE_OF.get(muscle);
+      if (!subject || byte === undefined) return null;
+      subject.updateMatrixWorld(true);
+      const sum = new THREE.Vector3(), nsum = new THREE.Vector3(), tmp = new THREE.Vector3(), ntmp = new THREE.Vector3();
+      let count = 0;
+      subject.traverse((obj) => {
+        if (!(obj instanceof THREE.Mesh)) return;
+        const pos = obj.geometry.getAttribute('position'), ids = obj.geometry.getAttribute('muscleIds'), nor = obj.geometry.getAttribute('normal');
+        if (!pos || !ids) return;
+        for (let i = 0; i < pos.count; i += 3) {
+          if (Math.round(ids.getX(i)) !== byte) continue;
+          tmp.fromBufferAttribute(pos, i).applyMatrix4(obj.matrixWorld);
+          // 双侧肌群取观者右侧那一块，和参考图里胸部锚点的位置一致
+          if (tmp.x < .015) continue;
+          sum.add(tmp); count++;
+          if (nor) nsum.add(ntmp.fromBufferAttribute(nor, i).transformDirection(obj.matrixWorld));
+        }
+      });
+      if (!count) return null;
+      sum.divideScalar(count);
+      // 把重心吸附到相机看得见的表面上
+      const dir = sum.clone().sub(camera.position).normalize();
+      raycaster.set(camera.position, dir);
+      const hit = raycaster.intersectObject(subject, true)[0];
+      const p = hit ? hit.point : sum;
+      const n = hit?.face && hit.object instanceof THREE.Mesh
+        ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld)
+        : nsum.lengthSq() ? nsum.normalize() : new THREE.Vector3(0, 0, 1);
+      return { muscle, ...toSubject(p, n) };
+    };
+    const syncAnchor = () => {
+      const want = latest.current.anchor;
+      if (!want) { anchorLocal = null; dirty = true; return; }
+      if (anchorLocal?.muscle !== want.muscle) anchorLocal = centroidAnchor(want.muscle);
+      dirty = true;
+    };
+    const placeAnchor = () => {
+      const el = anchorEl.current;
+      if (!el) return;
+      if (!anchorLocal || !subject || !latest.current.anchor) { el.dataset.visible = '0'; return; }
+      const w = anchorLocal.p.clone().applyMatrix4(subject.matrixWorld);
+      const n = anchorLocal.n.clone().transformDirection(subject.matrixWorld);
+      const facing = n.dot(camera.position.clone().sub(w).normalize());
+      const v = w.clone().project(camera);
+      const width = host.clientWidth, height = host.clientHeight;
+      el.style.transform = `translate3d(${((v.x+1)/2*width).toFixed(1)}px, ${((1-v.y)/2*height).toFixed(1)}px, 0)`;
+      el.dataset.visible = facing > .08 ? '1' : '0';
     };
     let pointer: { x: number; y: number } | null = null;
     let down: { x: number; y: number; id: number } | null = null;
@@ -201,8 +349,13 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
     };
     const onUp = (event: PointerEvent) => {
       if (down?.id === event.pointerId && !dragged && Math.hypot(event.clientX-down.x, event.clientY-down.y) <= 5) {
-        const id = pickAt(event.clientX, event.clientY);
-        if (id) latest.current.onPick?.(id);
+        const hit = pickHit(event.clientX, event.clientY);
+        if (hit) {
+          const muscle = canonicalMuscle(hit.id) ?? hit.id;
+          anchorLocal = { muscle, ...toSubject(hit.point, hit.normal) };
+          dirty = true;
+          latest.current.onPick?.(hit.id);
+        }
       }
       down = null; pointer = null; needsHover = false; updateHover(null);
     };
@@ -219,14 +372,25 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
     renderer.domElement.addEventListener('pointercancel', onCancel);
     controls.addEventListener('change', onControlsChange);
 
+    // 点阵首屏转身用缓动，石膏视图保持原来的瞬时切换
+    let turn: { from: number; to: number; cam: THREE.Vector3; start: number } | null = null;
     api.current = {
       refresh,
+      anchor: syncAnchor,
       setSide: (view) => {
-        if (subject) subject.rotation.y = view === 'front' ? -Math.PI/2 : Math.PI/2;
-        dirty = true;
-        // Reset orbit azimuth too, so front/back buttons work after manual rotation.
+        const to = view === 'front' ? -Math.PI/2 : Math.PI/2;
         const distance = camera.position.distanceTo(controls.target);
-        camera.position.set(0, .02, distance); controls.target.set(0, 0, 0); controls.update();
+        if (halftone && subject) {
+          const azimuth = Math.atan2(camera.position.x, camera.position.z);
+          turn = { from: subject.rotation.y - azimuth, to, cam: new THREE.Vector3(0, .02, distance), start: performance.now() };
+          subject.rotation.y = turn.from;
+          camera.position.set(0, .02, distance); controls.target.set(0, 0, 0); controls.update();
+        } else {
+          if (subject) subject.rotation.y = to;
+          // Reset orbit azimuth too, so front/back buttons work after manual rotation.
+          camera.position.set(0, .02, distance); controls.target.set(0, 0, 0); controls.update();
+        }
+        dirty = true;
         onLeave();
       },
     };
@@ -266,7 +430,7 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
         subject = new THREE.Group(); subject.add(gltf.scene);
         subject.scale.setScalar(2.05/height);
         subject.rotation.y = latest.current.side === 'front' ? -Math.PI/2 : Math.PI/2;
-        scene.add(subject); refresh(); setStatus('ready');
+        scene.add(subject); refresh(); syncAnchor(); setStatus('ready');
       } catch (error) { disposeSubject(gltf.scene); throw error; }
     })().catch((error: Error) => {
       if (disposed || error.name === 'AbortError') return;
@@ -277,6 +441,11 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
     const resize = () => {
       const w = host.clientWidth || 360, h = host.clientHeight || 620;
       camera.aspect = w/h; camera.updateProjectionMatrix(); renderer.setSize(w, h, false);
+      if (post) {
+        const size = renderer.getDrawingBufferSize(new THREE.Vector2());
+        post.target.setSize(size.x, size.y);
+        post.material.uniforms.uRes.value.copy(size);
+      }
       dirty = true;
     };
     resize();
@@ -290,12 +459,31 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
         if (pointer) needsHover = true;
       }
       lastFrame = time;
+      if (turn && subject) {
+        const t = Math.min(1, (time - turn.start) / 720);
+        const e = 1 - Math.pow(1 - t, 3);
+        let delta = turn.to - turn.from;
+        delta = Math.atan2(Math.sin(delta), Math.cos(delta));
+        subject.rotation.y = turn.from + delta * e;
+        dirty = true;
+        if (t >= 1) turn = null;
+      }
       controls.update();
       if (needsHover && pointer && !down && time-lastHover > 70) {
         updateHover(pickAt(pointer.x, pointer.y)); needsHover = false; lastHover = time;
       }
       if (dirty) {
-        renderer.render(scene, camera);
+        if (post) {
+          renderer.setRenderTarget(post.target);
+          renderer.clear();
+          renderer.render(scene, camera);
+          renderer.setRenderTarget(null);
+          renderer.clear();
+          renderer.render(post.scene, post.camera);
+        } else {
+          renderer.render(scene, camera);
+        }
+        placeAnchor();
         dirty = false;
       }
     };
@@ -310,13 +498,20 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
       renderer.domElement.removeEventListener('pointerleave', onLeave);
       renderer.domElement.removeEventListener('pointercancel', onCancel);
       if (subject) disposeSubject(subject);
+      if (post) {
+        post.target.dispose(); post.material.dispose();
+        post.scene.traverse((obj) => { if (obj instanceof THREE.Mesh) obj.geometry.dispose(); });
+      }
       heat.dispose(); material.dispose(); renderer.dispose(); renderer.domElement.remove();
     };
   }, []);
 
-  return <div className="sculpture-viewer" data-status={status} data-selected={canonicalMuscle(selected) ?? ''} data-hovered={hovered ?? ''}
+  return <div className={`sculpture-viewer${look === 'halftone' ? ' is-halftone' : ''}`} data-status={status} data-selected={canonicalMuscle(selected) ?? ''} data-hovered={hovered ?? ''}
     data-recorded={[...new Set(recorded.map(canonicalMuscle).filter(Boolean))].join(',')}>
     <div ref={mount} style={{ width: '100%', height: '100%' }} />
+    {anchor && <div ref={anchorEl} className="sculpture-anchor" data-visible="0" aria-hidden="true">
+      <i key={anchor.muscle} /><span>{anchor.label}</span>
+    </div>}
     {status !== 'ready' && <div className="sculpture-status" role="status">{status === 'error' ? '人体暂时无法加载，请刷新重试' : '正在加载人体…'}</div>}
     {hovered && <span className="sculpture-hover" aria-live="polite">{sculptureGroup(hovered)?.label}</span>}
   </div>;

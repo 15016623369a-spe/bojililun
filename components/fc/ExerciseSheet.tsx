@@ -51,12 +51,14 @@ async function fetchExercises(url: string, signal: AbortSignal): Promise<DictRes
   return res.json();
 }
 
-export default function ExerciseSheet({ muscle, onClose, grouped = false, onChooseExercise, selection }: {
+export default function ExerciseSheet({ muscle, onClose, grouped = false, onChooseExercise, selection, preference }: {
   muscle: MuscleId | null;
   onClose: () => void;
   grouped?: boolean;
   selection?: ExerciseSelection;
   onChooseExercise?: (exercise: ExerciseChoice) => void;
+  /** liked：只看「我的动作库」（在「我的 · 动作偏好」里标为常练的动作） */
+  preference?: 'liked';
 }) {
   const router = useRouter();
   const [data, setData] = useState<DictResult | null>(null);
@@ -76,6 +78,7 @@ export default function ExerciseSheet({ muscle, onClose, grouped = false, onChoo
     [grouped ? 'group' : 'muscle']: muscle ?? '',
     limit: '100', steps: '1', order: 'plan',
   });
+  if (preference) query.set('preference', preference);
   for (const equipment of FILTERS.find((item) => item.key === filter)?.equip ?? []) {
     query.append('equipment', equipment);
   }
@@ -195,7 +198,8 @@ export default function ExerciseSheet({ muscle, onClose, grouped = false, onChoo
 
   if (!muscle) return null;
   const def = muscleById(muscle);
-  const title = grouped ? sculptureGroup(muscle)?.label : def ? `${def.region}·${def.label}` : undefined;
+  const base = grouped ? sculptureGroup(muscle)?.label : def ? `${def.region}·${def.label}` : undefined;
+  const title = preference && base ? `${base} · 我的动作库` : base;
 
   return (
     <>
@@ -337,7 +341,9 @@ export default function ExerciseSheet({ muscle, onClose, grouped = false, onChoo
                       </button>
                     </div>;
                   })}
-                {!busyList && !listError && items.length === 0 && <p className="fc-note">这个筛选下没有动作，换个器械试试。</p>}
+                {!busyList && !listError && items.length === 0 && <p className="fc-note">{preference
+                  ? <>这一块还没有常练动作。可以在<a href="/me/exercises">「我的 · 动作偏好」</a>里标记。</>
+                  : '这个筛选下没有动作，换个器械试试。'}</p>}
                 {listError && <p className="fc-note" role="alert">{listError}</p>}
                 {listError && !data && <button type="button" className="fc-btn ghost" onClick={() => setReload((value) => value + 1)}>重新加载</button>}
                 {data?.nextOffset != null && <button type="button" className="fc-btn ghost" disabled={busyMore} onClick={() => void loadMore()}>

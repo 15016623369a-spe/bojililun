@@ -6,7 +6,7 @@ import { BarsIcon, BodyIcon } from './icons';
 import RecordTab from './RecordTab';
 
 // 顺序：身体（左）· 记录（中，长按就地录音）· 回顾（右）
-const LEFT = { href: '/atlas', label: '身体', key: 'body' as const, Icon: BodyIcon };
+const LEFT = { href: '/atlas', label: '计划', key: 'body' as const, Icon: BodyIcon };
 const RIGHT = { href: '/review', label: '回顾', key: 'review' as const, Icon: BarsIcon };
 
 export type TabKey = 'log' | 'body' | 'review';
