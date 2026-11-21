@@ -2,9 +2,9 @@ import type { CSSProperties } from 'react';
 import { muscleById, type MuscleId } from '@/lib/muscles';
 import type { SculptureVariant } from '@/lib/sculpture-groups';
 
-type Marker = [id: MuscleId, edge: 'left' | 'right', labelY: number, x: number, y: number];
+export type Marker = [id: MuscleId, edge: 'left' | 'right', labelY: number, x: number, y: number];
 
-const VIEWS: { side: 'front' | 'back'; label: string; markers: Marker[] }[] = [
+export const VIEWS: { side: 'front' | 'back'; label: string; markers: Marker[] }[] = [
   { side: 'front', label: '正面', markers: [
     ['neck', 'left', 8, 47, 15],
     ['chest_upper', 'left', 21, 43, 21],
@@ -33,7 +33,7 @@ const VIEWS: { side: 'front' | 'back'; label: string; markers: Marker[] }[] = [
   ] },
 ];
 
-const LABELS: Partial<Record<MuscleId, string>> = {
+export const LABELS: Partial<Record<MuscleId, string>> = {
   delt_front: '肩前束',
   delt_side: '肩中束',
   delt_rear: '肩后束',

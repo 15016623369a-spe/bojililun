@@ -6,7 +6,7 @@ import JournalIcon from './JournalIcon';
 import Icon from './ui/Icon';
 import JournalNav from './JournalNav';
 
-export default function JournalShell({ active, title, subtitle, subtitleAside, children, footer, back, headerAction, today = todayStr(), className, hero }: {
+export default function JournalShell({ active, title, subtitle, subtitleAside, children, footer, back, headerAction, today = todayStr(), className, hero, hideNav = false }: {
   active: 'plan' | 'record' | 'review';
   title: string;
   subtitle?: string;
@@ -19,6 +19,8 @@ export default function JournalShell({ active, title, subtitle, subtitleAside, c
   className?: string;
   /** 替代标题的大字区（大号日期、读数等）；会自带隐藏的 h1 */
   hero?: ReactNode;
+  /** 页面自带页内导航时隐藏主导航（如训练统计） */
+  hideNav?: boolean;
 }) {
   return <div className={className ? `journal-shell ${className}` : 'journal-shell'}>
     <DailyRefresh date={today} timeZone={WORKOUT_TIME_ZONE} />
@@ -36,7 +38,7 @@ export default function JournalShell({ active, title, subtitle, subtitleAside, c
     </main>
     <footer className="journal-footer">
       {footer}
-      <JournalNav active={active} />
+      {!hideNav && <JournalNav active={active} />}
     </footer>
   </div>;
 }
