@@ -1,8 +1,12 @@
+import type { NutritionBasis, FoodState, WeightBasis } from './ledger-nutrition';
 import { MUSCLES } from './muscles';
 export type Confidence = 'estimated' | 'exact';
 export type Nutrition = Record<'kcal' | 'protein_g' | 'carbs_g' | 'fat_g', number | null>;
 export type Item = Nutrition & {
   food_name: string;
+  food_state?: FoodState;
+  weight_basis?: WeightBasis;
+  nutrition_basis?: NutritionBasis;
   portion_text: string | null;
   estimated_grams: number | null;
   confidence: Confidence;

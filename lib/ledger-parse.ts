@@ -1,9 +1,22 @@
+import { estimateNutrition } from './ledger-nutrition';
 import { parseSchema, validateParse } from './ledger-contract';
 import foods from '../data/food-reference.json';
 import dictionary from '../data/exercises-seed.json';
 import { detectIntent } from './intent';
 import type { Draft, Parsed, Source } from './ledger';
 import type { Item } from './calculations';
+function explicitScaleWeight(text: string): number | null {
+  // Only apply to single-item records and explicit statements about how the weight was measured.
+  if (!/下锅前|烹调前|带骨重量|帶骨重量|生重|熟重|净重|淨重/.test(text)) return null;
+  const grams = new Set(
+    Array.from(
+      text.matchAll(/(\d+(?:\.\d+)?)\s*(千克|公斤|kg|克|g|斤)(?![a-z])/gi),
+      ([, value, unit]) => Number(value) * (/kg|千克|公斤/i.test(unit) ? 1000 : unit === '斤' ? 500 : 1),
+    ),
+  );
+  return grams.size === 1 ? [...grams][0] : null;
+}
+
 export async function parseInput(text: string, photo: string | undefined, source: Source): Promise<Parsed> {
   const note = text.match(/(?:备注[：:]?)([^，,。；;]+)/)?.[1]?.trim() ?? null;
   const base = {
@@ -13,17 +26,21 @@ export async function parseInput(text: string, photo: string | undefined, source
     note,
     feeling_tags: ['有点力竭', '轻松', '疲劳'].filter((tag) => text.includes(tag)),
   };
-  const compatible = process.env.AI_API_KEY && ['openai', 'compatible'].includes(process.env.AI_PROVIDER ?? '');
+  const compatible =
+    process.env.AI_API_KEY && ['openai', 'compatible'].includes(process.env.AI_PROVIDER ?? '');
   const deepseek = !compatible && !photo && process.env.DEEPSEEK_API_KEY;
   if (compatible || deepseek) {
-    const url = deepseek ? 'https://api.deepseek.com' : process.env.AI_BASE_URL || 'https://api.openai.com/v1';
-    const key = deepseek || process.env.AI_API_KEY;
-    const model = deepseek ? process.env.DEEPSEEK_MODEL || 'deepseek-chat' : process.env.AI_MODEL || 'gpt-4o-mini';
-    const content: unknown[] = [{ type: 'text', text: text || '记录图中的食物或训练' }];
-    if (photo) content.push({ type: 'image_url', image_url: { url: photo } });
-    const res = await fetch(
-      url.replace(/\/$/, '') + '/chat/completions',
-      {
+    try {
+      const url = deepseek
+        ? 'https://api.deepseek.com'
+        : process.env.AI_BASE_URL || 'https://api.openai.com/v1';
+      const key = deepseek || process.env.AI_API_KEY;
+      const model = deepseek
+        ? process.env.DEEPSEEK_MODEL || 'deepseek-chat'
+        : process.env.AI_MODEL || 'gpt-4o-mini';
+      const content: unknown[] = [{ type: 'text', text: text || '记录图中的食物或训练' }];
+      if (photo) content.push({ type: 'image_url', image_url: { url: photo } });
+      const res = await fetch(url.replace(/\/$/, '') + '/chat/completions', {
         method: 'POST',
         headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' },
         signal: AbortSignal.timeout(45000),
@@ -33,31 +50,60 @@ export async function parseInput(text: string, photo: string | undefined, source
           messages: [
             {
               role: 'system',
-              content: `输出 JSON，提问返回 {route:"qa",question}，陈述返回 {route:"record",records:[...]}，混合吃练称重要拆多条。每条含 entry_type(meal/workout/body_metrics/plan_draft),summary_title,note,feeling_tags,confidence(exact/estimated)。饮食 items 含 food_name,portion_text,estimated_grams,kcal整数,protein_g,carbs_g,fat_g,confidence。估算只限单项，未知用null。训练 exercises:[{exercise_name,sets:[{weight_kg,reps,duration_sec}]}]，未报组数 sets:[]，勿猜测。体征 weight_kg,body_fat_pct。同一餐的补充、否定和做法并入一张卡的 note，不为“没吃别的”建食物项。区分做饭用料与实际吃下的重量：例如用500克鸡肉煲汤、撇去浮油，应记鸡肉汤一份，把原料重量和撇油写入note；未说明吃下多少肉时 estimated_grams、无法合理估算的营养素填null。不要把用户觉得脂肪少写成确切脂肪数。保留睡眠外食等备注。纯照片将描述放raw_text。结构必须符合：${JSON.stringify(parseSchema)}。参考份量：${JSON.stringify(foods)}`,
+              content: `输出 JSON，提问返回 {route:"qa",question}，陈述返回 {route:"record",records:[...]}，混合吃练称重要拆多条。每条含 entry_type(meal/workout/body_metrics/plan_draft),summary_title,note,feeling_tags,confidence(exact/estimated)。饮食 items 含 food_name（净食材名，例如鸡腿肉）、food_state(raw/cooked/unknown，以所报重量称量时状态为准)、weight_basis(bone_in/edible/unknown)、portion_text、estimated_grams（用户报的原始重量，不提前扣骨）、kcal整数,protein_g,carbs_g,fat_g,confidence。估算只限单项，未知用null。训练 exercises:[{exercise_name,sets:[{weight_kg,reps,duration_sec}]}]，未报组数 sets:[]，勿猜测。体征 weight_kg,body_fat_pct。note 由用户维护，返回 null。做法和估算依据只写对应食物的 portion_text，不为“没吃别的”建食物项。区分做饭用料与实际吃下的重量：例如用500克鸡肉煲汤、撇去浮油，应记鸡肉汤一份，把原料重量和撇油写入对应食物的 portion_text；食物可辨认时，请你根据用户原话、做法和常见食用份量，对每一项实际摄入的克数、蛋白、碳水、脂肪、千卡给出最合理的单点估计。未说明份量时在portion_text写明“暂按…”的假设，整项标estimated。只提到喝汤时按喝下的汤估算，不把整锅肉算进去；提到也吃了肉才计入肉。用户提供包装标注或实测数据时优先保留。只有无法辨认食物或无法合理假设时留null。不要把用户觉得脂肪少写成确切脂肪数。纯照片将描述放raw_text。结构必须符合：${JSON.stringify(parseSchema)}。可选 quick_pick：每张只问一个明确的高影响歧义，用户已经说明时不要追问。默认假设填写到 items，记录先保存。饮食选项必须有2-4个具体标签，使用 kind=meal，edits 仅改已有 item_index（从0开始）的 measured_grams、food_state、weight_basis，可传 [] 表示该项就是默认；服务端会加跳过。若歧义涉及混合餐总重，先拆为可计算食材（鸡肉、牛肉、米饭等），给每种解释对应的各食材克数，别把同一个500克分配给每种食材。例如“500克鸡肉做的鸡肉牛肉饭”，问“500克指鸡肉还是整份饭？”，给“500克指鸡肉”和“500克是整份饭”两项，整份饭解释里各食材的克数合计500。饮品糖度或是否喝汤可把糖或汤作为独立明细，用克数（0=没吃）表达。训练只在缺少组数时给 kind=workout，exercise_index 对应动作，提供2-4个具体组数，不擅自补入默认训练组。不要在选项写热量或营养值。参考份量：${JSON.stringify(foods)}`,
             },
             { role: 'user', content },
           ],
         }),
-      },
-    );
-    if (!res.ok) throw Error('解析服务暂时不可用');
-    const out = JSON.parse((await res.json()).choices[0].message.content);
-    validateParse(out);
-    if (out.route === 'qa' && typeof out.question === 'string') return out;
-    if (out.route !== 'record' || !Array.isArray(out.records)) throw Error('解析格式异常');
-    return {
-      route: 'record',
-      records: out.records.map((r: Draft) => ({
-        ...base,
-        ...r,
-        logged_at: base.logged_at,
-        raw_text: text || r.raw_text || null,
-        confidence: source === 'photo' ? 'estimated' : r.confidence,
-      })),
-    };
+      });
+      if (!res.ok) throw Error('解析服务暂时不可用');
+      const out = JSON.parse((await res.json()).choices[0].message.content);
+      // Optional suggestions are independently validated so malformed AI patches cannot drop a record.
+      if (out.route === 'record' && Array.isArray(out.records)) {
+        for (const record of out.records) {
+          if (record && typeof record === 'object' && record.quick_pick !== undefined) {
+            try {
+              validateParse({ route: 'record', records: [record] });
+            } catch {
+              delete record.quick_pick;
+            }
+          }
+        }
+      }
+      validateParse(out);
+      if (out.route === 'qa' && typeof out.question === 'string') return out;
+      if (out.route !== 'record' || !Array.isArray(out.records)) throw Error('解析格式异常');
+      return {
+        route: 'record',
+        records: out.records.map((r: Draft) => ({
+          ...base,
+          ...r,
+          note,
+          ...(r.entry_type === 'meal'
+            ? {
+                items: r.items?.map((i) =>
+                  estimateNutrition(
+                    i,
+                    true,
+                    out.records.length === 1 && r.items?.length === 1 && i.weight_basis === 'bone_in'
+                      ? explicitScaleWeight(text)
+                      : null,
+                  ),
+                ),
+              }
+            : {}),
+          logged_at: base.logged_at,
+          raw_text: text || r.raw_text || null,
+          confidence: source === 'photo' ? 'estimated' : r.confidence,
+        })),
+      };
+    } catch (error) {
+      if (!text.trim()) throw error;
+      // Text can still be recorded with the local parser if the provider is unavailable.
+    }
   }
-  if (detectIntent(text).intent === 'question') return {route:'qa',question:text};
-  if (photo) throw Error('照片解析需要配置视觉模型，可直接输入文字');
+  if (detectIntent(text).intent === 'question') return { route: 'qa', question: text };
+  if (photo && !text.trim()) throw Error('照片解析需要配置视觉模型，可直接输入文字');
   const records: Draft[] = [];
   const number = (v: string) =>
     Number(
@@ -128,7 +174,9 @@ export async function parseInput(text: string, photo: string | undefined, source
         ...base,
         entry_type: 'meal',
         summary_title: items.map((i) => i.food_name).join('、') || part,
-        items: items.length ? items : [{ food_name: part, confidence: 'estimated' } as Item],
+        items: items.length
+          ? items.map((i) => estimateNutrition(i, false))
+          : [{ food_name: part, confidence: 'estimated' } as Item],
       });
   }
   if (!records.length) throw Error('请补充食物名、动作名或体重');

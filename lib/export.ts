@@ -13,7 +13,7 @@ export interface Card extends Draft {
   id: number;
   input_method: Source | null;
   exercises: Movement[];
-  items: Item[];
+  items: (Item & { id: number })[];
 }
 type Measurement = Metric & {
   source: Source | null;
@@ -33,7 +33,7 @@ export function exportJournal(db: DatabaseSync, user: string, start: string, end
     )
     .all(user, start, end);
   const items = db.prepare(
-    'SELECT id,food_name,portion_text,estimated_grams,kcal,protein_g,carbs_g,fat_g,confidence FROM meal_items WHERE entry_id=? ORDER BY id',
+    'SELECT id,food_name,portion_text,estimated_grams,kcal,protein_g,carbs_g,fat_g,confidence,nutrition_basis FROM meal_items WHERE entry_id=? ORDER BY id',
   );
   const sets = db.prepare(
     'SELECT set_order,weight_kg,reps,duration_sec FROM workout_sets WHERE entry_id=? AND action_index=? ORDER BY set_order',
@@ -41,7 +41,12 @@ export function exportJournal(db: DatabaseSync, user: string, start: string, end
   const cards = rows.map(({ actions, feeling_tags, ...r }) => ({
     ...r,
     feeling_tags: JSON.parse(String(feeling_tags)),
-    items: items.all(r.id).map((item) => ({ ...item })),
+    items: items
+      .all(r.id)
+      .map(({ nutrition_basis, ...item }) => ({
+        ...item,
+        nutrition_basis: nutrition_basis ? JSON.parse(String(nutrition_basis)) : null,
+      })),
     exercises: (JSON.parse(String(actions)) as Movement[]).map((m, i) => ({
       ...m,
       sets: sets.all(r.id, i).map((set) => ({ ...set })),
@@ -85,7 +90,7 @@ export function renderMarkdown(book: ReturnType<typeof exportJournal>) {
       );
       for (const i of c.items)
         lines.push(
-          `  - ${i.food_name} · ${i.portion_text ?? '份量未知'} · ${i.kcal ?? '—'} kcal · 蛋白/碳水/脂肪 ${i.protein_g ?? '—'}/${i.carbs_g ?? '—'}/${i.fat_g ?? '—'} g · ${i.confidence}`,
+          `  - ${i.food_name} · ${i.portion_text ?? '份量未知'} · ${i.kcal ?? '—'} kcal · 蛋白/碳水/脂肪 ${i.protein_g ?? '—'}/${i.carbs_g ?? '—'}/${i.fat_g ?? '—'} g · ${i.confidence}${i.nutrition_basis ? ' · ' + [i.nutrition_basis.reference ?? 'AI 估算', i.nutrition_basis.assumption].filter(Boolean).join(' · ') : ''}`,
         );
       for (const m of c.exercises)
         lines.push('  - ' + m.exercise_name + ' · ' + (formatWorkoutSummary(m.sets) || '组数未记'));

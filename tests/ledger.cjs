@@ -77,9 +77,11 @@ test('每天第一次（乱序输入）、七个自然日、区间之前的测�
   assert.deepEqual(t.points, [{ date: day, weight_kg: 70, days: 2, average7: 71 }]);
 });
 test('混合拆单、事务、重试、导出', async (t) => {
-  const key=process.env.DEEPSEEK_API_KEY;
+  const key = process.env.DEEPSEEK_API_KEY;
   delete process.env.DEEPSEEK_API_KEY;
-  t.after(()=>{if(key)process.env.DEEPSEEK_API_KEY=key;});
+  t.after(() => {
+    if (key) process.env.DEEPSEEK_API_KEY = key;
+  });
   const db = setup();
   const p = await parseInput('卧推四组，练完喝了牛奶，早上称了70公斤', undefined, 'voice');
   assert.deepEqual(
@@ -176,4 +178,177 @@ test('重复迁移，旧入口更新和删除', () => {
   assert.equal(db.prepare('SELECT count(*) n FROM body_metrics').get().n, 0);
   db.close();
   fs.rmSync(tmp, { recursive: true });
+});
+test('保留模型给出的单项营养估值和份量依据', async (t) => {
+  t.mock.method(global, 'fetch', async () =>
+    Response.json({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              route: 'record',
+              records: [
+                {
+                  entry_type: 'meal',
+                  summary_title: '鸡汤',
+                  raw_text: null,
+                  note: null,
+                  feeling_tags: [],
+                  confidence: 'estimated',
+                  items: [
+                    {
+                      food_name: '未收录的自制浓汤',
+                      portion_text: '暂按一小碗',
+                      estimated_grams: 180,
+                      kcal: 365,
+                      protein_g: 4,
+                      carbs_g: 0.5,
+                      fat_g: 2,
+                      confidence: 'estimated',
+                    },
+                  ],
+                },
+              ],
+            }),
+          },
+        },
+      ],
+    }),
+  );
+  const key = process.env.DEEPSEEK_API_KEY;
+  process.env.DEEPSEEK_API_KEY = 'test';
+  t.after(() => {
+    if (key) process.env.DEEPSEEK_API_KEY = key;
+    else delete process.env.DEEPSEEK_API_KEY;
+  });
+  const result = await parseInput('喝了鸡汤', undefined, 'manual');
+  assert.equal(result.records[0].items[0].protein_g, 4);
+  assert.equal(result.records[0].items[0].kcal, 36);
+  assert.equal(result.records[0].items[0].portion_text, '暂按一小碗');
+});
+test('繁简别名命中同一来源，带骨生重转为可食重，改熟重只用本地库', () => {
+  const { estimateNutrition, editNutrition } = require('../lib/ledger-nutrition.ts');
+  const raw = estimateNutrition(
+    { ...item, food_name: '雞腿', estimated_grams: 500, food_state: 'raw', weight_basis: 'bone_in' },
+    true,
+  );
+  assert.equal(raw.nutrition_basis.reference, 'tfda:I0404501');
+  assert.equal(raw.estimated_grams, 333.5);
+  const cooked = editNutrition(raw, { measured_grams: 200, food_state: 'cooked', weight_basis: 'edible' });
+  assert.equal(cooked.nutrition_basis.reference, 'usda:172389');
+  assert.equal(cooked.estimated_grams, 200);
+  assert.notEqual(cooked.protein_g, raw.protein_g);
+  const db = setup();
+  store.saveBatch(db, user, 'portion', 'voice', [
+    { ...base, entry_type: 'meal', summary_title: '鸡腿', items: [cooked] },
+  ]);
+  const book = ex.exportJournal(db, user, day, day);
+  assert.equal(book.days[0].daily_summary.intake.protein_g, cooked.protein_g);
+  assert.match(ex.renderMarkdown(book), /usda:172389/);
+  db.close();
+});
+test('已存在的 meal_items 表可重复迁移，旧明细保留', () => {
+  const db = new DatabaseSync(':memory:');
+  db.exec(
+    "CREATE TABLE meal_items(id INTEGER PRIMARY KEY,food_name TEXT); INSERT INTO meal_items VALUES(7,'旧数据')",
+  );
+  store.initLedger(db);
+  store.initLedger(db);
+  assert.equal(db.prepare('SELECT food_name FROM meal_items WHERE id=7').get().food_name, '旧数据');
+  assert.equal(
+    db
+      .prepare('PRAGMA table_info(meal_items)')
+      .all()
+      .filter((c) => c.name === 'nutrition_basis').length,
+    1,
+  );
+  db.close();
+});
+
+test('饮食快选过滤低影响问题和不可计算的补丁', () => {
+  const { estimateNutrition } = require('../lib/ledger-nutrition.ts');
+  const { prepareMealPick } = require('../lib/quick-pick.ts');
+  const chicken = estimateNutrition(
+    { ...item, food_name: '鸡肉', estimated_grams: 500, food_state: 'cooked', weight_basis: 'edible' },
+    true,
+  );
+  const make = (edit) => ({
+    kind: 'meal',
+    question: '500 克指什么？',
+    options: [
+      { label: '鸡肉重', edits: [] },
+      { label: '整份重', edits: [edit] },
+    ],
+  });
+  assert.equal(prepareMealPick(make({ item_index: 0, measured_grams: 499 }), [chicken]), null);
+  assert.equal(prepareMealPick(make({ item_index: 9, measured_grams: 150 }), [chicken]), null);
+  assert.ok(prepareMealPick(make({ item_index: 0, measured_grams: 150 }), [chicken]));
+});
+
+test('快选默认落卡，选中原地重算，跳过及重复请求不会改写', () => {
+  const { estimateNutrition } = require('../lib/ledger-nutrition.ts');
+  const db = setup();
+  const chicken = estimateNutrition(
+    { ...item, food_name: '鸡肉', estimated_grams: 500, food_state: 'cooked', weight_basis: 'edible' },
+    true,
+  );
+  const meal = {
+    ...base,
+    summary_title: '鸡肉饭',
+    entry_type: 'meal',
+    items: [chicken],
+    quick_pick: {
+      kind: 'meal',
+      question: '500 克是什么重量？',
+      options: [
+        { label: '鸡肉重', edits: [] },
+        { label: '整份重', edits: [{ item_index: 0, measured_grams: 150 }] },
+      ],
+    },
+  };
+  store.saveBatch(db, user, 'pick', 'voice', [meal, meal]);
+  const read = () => ex.exportJournal(db, user, day, day);
+  const [first, second] = read().days[0].entries;
+  assert.equal(first.items[0].estimated_grams, 500);
+  assert.equal(store.readCardPick(db, user, first.id).options.length, 2);
+  assert.throws(() => store.chooseCardPick(db, user, first.id, '999'));
+  store.chooseCardPick(db, user, first.id, '1');
+  store.chooseCardPick(db, user, first.id, '0');
+  store.chooseCardPick(db, user, second.id, 'skip');
+  const result = read();
+  assert.equal(result.days[0].entries[0].items[0].id, first.items[0].id);
+  assert.equal(result.days[0].entries[0].items[0].estimated_grams, 150);
+  assert.deepEqual(result.days[0].entries[1], second);
+  assert.equal(store.readCardPick(db, user, first.id), null);
+  assert.equal(store.readCardPick(db, user, second.id), null);
+  assert.match(ex.renderMarkdown(result), /鸡肉饭 · 整份重/);
+  assert.equal(
+    result.days[0].daily_summary.intake.kcal,
+    result.days[0].entries.reduce((s, e) => s + e.items[0].kcal, 0),
+  );
+  db.close();
+});
+
+test('训练每张卡最多一个快选，收起后不再追问另一动作', () => {
+  const db = setup();
+  const workout = bench();
+  workout.exercises.push({ exercise_name: '深蹲', sets: [] });
+  workout.quick_pick = {
+    kind: 'workout',
+    question: '深蹲做了几组？',
+    exercise_index: 1,
+    options: [
+      { label: '2组', sets: 2 },
+      { label: '4组', sets: 4 },
+    ],
+  };
+  store.saveBatch(db, user, 'multi', 'voice', [workout]);
+  const read = () => ex.exportJournal(db, user, day, day).days[0];
+  const id = read().entries[0].id;
+  assert.equal(store.readCardPick(db, user, id).question, '深蹲做了几组？');
+  store.chooseCardPick(db, user, id, '1:2');
+  assert.equal(read().entries[0].exercises[1].sets.length, 2);
+  assert.equal(read().entries[0].exercises[0].sets.length, 0);
+  assert.equal(store.readCardPick(db, user, id), null);
+  db.close();
 });

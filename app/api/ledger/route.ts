@@ -1,6 +1,16 @@
 import { getDb } from '@/lib/db';
 import { exportJournal, renderMarkdown } from '@/lib/export';
-import { fillSets, saveBatch, localDay, writeItems, transaction } from '@/lib/ledger';
+import {
+  fillSets,
+  chooseCardPick,
+  updateMealNutrition,
+  saveBatch,
+  localDay,
+  writeItems,
+  transaction,
+} from '@/lib/ledger';
+import { editNutrition, type NutritionEdit } from '@/lib/ledger-nutrition';
+import type { Item } from '@/lib/calculations';
 import { parseInput } from '@/lib/ledger-parse';
 const user = 'local';
 export async function GET(req: Request) {
@@ -66,18 +76,41 @@ export async function PATCH(req: Request) {
   try {
     const b = await req.json(),
       db = getDb();
-    if (b.choice !== undefined) fillSets(db, user, b.id, b.index, b.choice);
+    if (typeof b.quick_choice === 'string') chooseCardPick(db, user, b.id, b.quick_choice);
+    else if (b.choice !== undefined) fillSets(db, user, b.id, b.index, b.choice);
     else
       transaction(db, () => {
         if (!db.prepare('SELECT id FROM entries WHERE id=? AND user_id=? AND is_deleted=0').get(b.id, user))
           throw Error('卡片不存在');
         if (b.deleted === true) db.prepare('UPDATE entries SET is_deleted=1 WHERE id=?').run(b.id);
         if (typeof b.note === 'string') db.prepare('UPDATE entries SET note=? WHERE id=?').run(b.note, b.id);
+        if (b.nutrition_edit) {
+          const edit = b.nutrition_edit as NutritionEdit & { item_id: number };
+          const row = db
+            .prepare('SELECT * FROM meal_items WHERE id=? AND entry_id=?')
+            .get(edit.item_id, b.id);
+          if (!row) throw Error('食物明细不存在');
+          const { nutrition_basis, ...data } = row;
+          const item = editNutrition(
+            {
+              ...data,
+              nutrition_basis: nutrition_basis ? JSON.parse(String(nutrition_basis)) : undefined,
+            } as Item,
+            {
+              measured_grams: edit.measured_grams,
+              food_state: edit.food_state,
+              weight_basis: edit.weight_basis,
+            },
+          );
+          updateMealNutrition(db, b.id, edit.item_id, item);
+          db.prepare("UPDATE entries SET quick_pick='false' WHERE id=?").run(b.id);
+        }
         if (b.items) {
           if (!db.prepare("SELECT id FROM entries WHERE id=? AND entry_type='meal'").get(b.id))
             throw Error('不是饮食记录');
           db.prepare('DELETE FROM meal_items WHERE entry_id=?').run(b.id);
           writeItems(db, b.id, b.items);
+          db.prepare("UPDATE entries SET quick_pick='false' WHERE id=?").run(b.id);
         }
       });
     return Response.json({ ok: true });

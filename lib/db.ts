@@ -10,7 +10,7 @@ const DB_PATH = path.resolve(process.env.FITCHECK_DB_PATH || path.join(DATA_DIR,
 export const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
 
 // Increment when the schema or column migrations change. Next.js keeps globalThis across hot reloads.
-const SCHEMA_REVISION = 9;
+const SCHEMA_REVISION = 11;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS profile (

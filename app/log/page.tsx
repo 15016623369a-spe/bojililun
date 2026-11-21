@@ -1,7 +1,7 @@
 import LedgerCards from '@/components/fc/LedgerCards';
 import { getDb } from '@/lib/db';
 import { exportJournal } from '@/lib/export';
-import { getLastExerciseRecord } from '@/lib/ledger';
+import { readCardPick } from '@/lib/ledger';
 import type { Metadata } from 'next';
 import LogScreen from '@/components/fc/LogScreen';
 import { LeafIcon } from '@/components/fc/icons';
@@ -19,14 +19,7 @@ export default function LogPage() {
   const { label } = dayText(today);
   const db = getDb(),
     day = exportJournal(db, 'local', today, today).days[0];
-  const history: Record<string, string> = {};
-  for (const c of day.entries)
-    c.exercises.forEach((m, index) => {
-      if (!m.sets.length && m.exercise_id) {
-        const last = getLastExerciseRecord(db, 'local', m.exercise_id, c.logged_at);
-        if (last) history[c.id + ':' + index] = last.label.replace(/^上次 · /, '');
-      }
-    });
+  const picks = Object.fromEntries(day.entries.map((c) => [c.id, readCardPick(db, 'local', c.id)]));
 
   return (
     <div className="fc">
@@ -41,7 +34,7 @@ export default function LogPage() {
         </header>
 
         <main style={{ marginTop: 4 }}>
-          <LedgerCards cards={day.entries} history={history} />
+          <LedgerCards cards={day.entries} picks={picks} />
           {day.body_metrics.map((m) => (
             <p key={m.logged_at}>
               {m.weight_kg} kg · {m.note || '体重记录'}

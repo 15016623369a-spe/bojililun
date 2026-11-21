@@ -90,6 +90,14 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
               {d.entries.map((c) => (
                 <p key={c.id}>{c.summary_title}</p>
               ))}
+              {d.entries.some((entry) => entry.entry_type === 'meal') && (
+                <small style={{ display: 'block' }}>
+                  蛋白质 {d.daily_summary.intake.protein_g ?? '—'} g · 碳水{' '}
+                  {d.daily_summary.intake.carbs_g ?? '—'} g · 脂肪 {d.daily_summary.intake.fat_g ?? '—'} g
+                  {d.daily_summary.intake.hasEstimates ? ' · 含估算' : ''}
+                  {d.daily_summary.intake.incomplete_fields.length ? ' · 部分数据缺失' : ''}
+                </small>
+              )}
               <small>
                 {d.daily_summary.totalSets} 组 · {d.daily_summary.totalVolumeKg} kg
               </small>

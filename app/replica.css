@@ -2152,3 +2152,26 @@ h3.fc-dict-name {
   min-height: 32px;
   color: var(--muted-2);
 }
+
+.fc-quick-pick {
+  margin: 10px 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
+}
+.fc-quick-pick legend {
+  color: var(--muted-2);
+  font-size: 13px;
+}
+.fc-quick-pick .fc-examples {
+  margin: 4px 0 0;
+}
+
+.fc-meal-item-edit {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--hair);
+}
+.fc-meal-item-edit h4 {
+  margin: 0 0 6px;
+}

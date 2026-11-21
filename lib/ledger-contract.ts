@@ -19,7 +19,7 @@ const context = {
   feeling_tags: list(text),
   confidence,
 };
-const item = object({
+const itemFields = {
   food_name: text,
   portion_text: nullableText,
   estimated_grams: number,
@@ -28,9 +28,37 @@ const item = object({
   carbs_g: number,
   fat_g: number,
   confidence,
-});
+};
+const item = object(
+  {
+    ...itemFields,
+    food_state: { enum: ['raw', 'cooked', 'unknown'] },
+    weight_basis: { enum: ['edible', 'bone_in', 'unknown'] },
+  },
+  Object.keys(itemFields),
+);
 const set = object({ weight_kg: number, reps: integer, duration_sec: integer });
 const movement = object({ exercise_name: text, sets: list(set) });
+const edits = object(
+  {
+    item_index: { type: 'integer', minimum: 0 },
+    measured_grams: { type: 'number', minimum: 0, maximum: 1000000 },
+    food_state: { enum: ['raw', 'cooked', 'unknown'] },
+    weight_basis: { enum: ['edible', 'bone_in', 'unknown'] },
+  },
+  ['item_index'],
+);
+const mealPick = object({
+  kind: { const: 'meal' },
+  question: text,
+  options: list(object({ label: text, edits: list(edits) }), 2),
+});
+const workoutPick = object({
+  kind: { const: 'workout' },
+  question: text,
+  exercise_index: { type: 'integer', minimum: 0 },
+  options: list(object({ label: text, sets: { type: 'integer', minimum: 1, maximum: 20 } }), 2),
+});
 export const parseSchema = {
   oneOf: [
     object({ route: { const: 'qa' }, question: text }),
@@ -39,8 +67,19 @@ export const parseSchema = {
       records: list(
         {
           oneOf: [
-            object({ ...context, entry_type: { const: 'meal' }, items: list(item, 1) }),
-            object({ ...context, entry_type: { const: 'workout' }, exercises: list(movement, 1) }),
+            object(
+              { ...context, entry_type: { const: 'meal' }, items: list(item, 1), quick_pick: mealPick },
+              [...Object.keys(context), 'entry_type', 'items'],
+            ),
+            object(
+              {
+                ...context,
+                entry_type: { const: 'workout' },
+                exercises: list(movement, 1),
+                quick_pick: workoutPick,
+              },
+              [...Object.keys(context), 'entry_type', 'exercises'],
+            ),
             object({ ...context, entry_type: { const: 'plan_draft' } }),
             object({
               ...context,
