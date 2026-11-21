@@ -408,3 +408,48 @@
     transition: none;
   }
 }
+
+.fc-record-controls {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 9px;
+}
+
+.fc .fc-record-controls .fc-record-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--hair-2);
+  border-radius: 13px;
+  background: var(--paper-2);
+  color: var(--ink-0);
+}
+
+.fc-record-icon svg {
+  width: 21px;
+  height: 21px;
+}
+
+.fc-ledger-card .fc-ledger-stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.fc-ledger-kind {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: rgb(21 22 19 / 8%);
+}
+
+.fc-ledger-kind svg {
+  width: 18px;
+  height: 18px;
+}

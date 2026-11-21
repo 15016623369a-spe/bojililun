@@ -46,6 +46,24 @@ export function MicIcon({ className }: P) {
   );
 }
 
+export function KeyboardIcon({ className }: P) {
+  return (
+    <svg {...base} className={className} aria-hidden>
+      <rect x="2.5" y="5.5" width="19" height="13" rx="2.5" />
+      <path d="M6.5 9.5h.01m3.66 0h.01m3.66 0h.01m3.66 0h.01M6.5 13h.01m3.66 0h.01m3.66 0h.01m3.66 0h.01M8.5 15.5h7" />
+    </svg>
+  );
+}
+
+export function CameraIcon({ className }: P) {
+  return (
+    <svg {...base} className={className} aria-hidden>
+      <path d="M5 6.5h3l1.5-2h5l1.5 2h3a2.5 2.5 0 0 1 2.5 2.5v8a2.5 2.5 0 0 1-2.5 2.5H5A2.5 2.5 0 0 1 2.5 17V9A2.5 2.5 0 0 1 5 6.5Z" />
+      <circle cx="12" cy="13" r="3.5" />
+    </svg>
+  );
+}
+
 export function CheckIcon({ className }: P) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>

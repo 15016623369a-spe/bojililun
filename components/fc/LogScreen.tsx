@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AskSheet from './AskSheet';
-import { MicIcon } from './icons';
+import { CameraIcon, KeyboardIcon, MicIcon } from './icons';
 import TabBar from './TabBar';
 import Timeline from './Timeline';
 
@@ -131,6 +131,8 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
     setListening(false);
     setHeard('');
   }, []);
+
+  const photoInput = useRef<HTMLInputElement>(null);
 
   const openComposer = useCallback(() => {
     setText('');
@@ -290,19 +292,50 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
 
       <div className="fc-dock">
         <div className="fc-dock-inner">
-          <button
-            type="button"
-            className={`fc-speak${recording ? ' rec' : ''}`}
-            onPointerDown={onDown}
-            onContextMenu={(e) => e.preventDefault()}
-            aria-label="按住说话记录"
-          >
-            <MicIcon />
-            {recording ? '松开结束' : phase === 'busy' ? '正在记…' : '按住说话'}
-          </button>
-          <button className="fc-ledger-type" onClick={openComposer}>
-            打字或拍照
-          </button>
+          <div className="fc-record-controls">
+            <button
+              type="button"
+              className="fc-record-icon"
+              aria-label="打字"
+              title="打字"
+              onClick={openComposer}
+            >
+              <KeyboardIcon />
+            </button>
+            <button
+              type="button"
+              className={`fc-speak${recording ? ' rec' : ''}`}
+              onPointerDown={onDown}
+              onContextMenu={(e) => e.preventDefault()}
+              aria-label="按住说话记录"
+            >
+              <MicIcon />
+              {recording ? '松开结束' : phase === 'busy' ? '正在记…' : '按住说话'}
+            </button>
+            <button
+              type="button"
+              className="fc-record-icon"
+              aria-label="拍照或选照片"
+              title="拍照或选照片"
+              disabled={working}
+              onClick={() => photoInput.current?.click()}
+            >
+              <CameraIcon />
+            </button>
+          </div>
+          <input
+            ref={photoInput}
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              const file = e.currentTarget.files?.[0];
+              e.currentTarget.value = '';
+              if (!file) return;
+              if (sheet !== 'compose') openComposer();
+              void onFile(file);
+            }}
+            hidden
+          />
           <TabBar active="log" />
         </div>
       </div>
@@ -349,30 +382,14 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
             )}
 
             <div className="fc-compose-bar">
-              <label className={`fc-attach${working ? ' disabled' : ''}`}>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    void onFile(e.target.files?.[0]);
-                    e.target.value = '';
-                  }}
-                  hidden
-                />
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <rect x="3" y="5" width="18" height="14" rx="3" />
-                  <circle cx="9" cy="10" r="1.6" />
-                  <path d="M4 17l4.5-4.5 3 3 3-2.5L20 17" />
-                </svg>
-                照片
-              </label>
+              <button
+                type="button"
+                className="fc-attach"
+                disabled={working}
+                onClick={() => photoInput.current?.click()}
+              >
+                <CameraIcon /> 照片
+              </button>
               <button
                 type="button"
                 className={`fc-hold${listening ? ' on' : ''}`}
