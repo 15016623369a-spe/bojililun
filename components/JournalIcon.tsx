@@ -4,6 +4,7 @@ const paths = {
   record: 'm4 16-1 5 5-1L20 8l-4-4L4 16Zm10-10 4 4M12 21h9',
   microphone: 'M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3ZM5 11a7 7 0 0 0 14 0m-7 7v3m-3 0h6',
   review: 'M4 19h16M6 15v-4m6 4V5m6 10V8',
+  profile: 'M12 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM5 20v-1a7 5 0 0 1 14 0v1',
   meal: 'M3 12h18a9 9 0 0 1-18 0Zm5 9h8M9 8c-2-2 2-2 0-5m5 5c-2-2 2-2 0-5',
   training: 'M6 8h3v8H6zM15 8h3v8h-3zM9 12h6M3 10v4m18-4v4',
   keyboard: 'M3 6h18v12H3zM6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10',

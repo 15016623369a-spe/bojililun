@@ -107,10 +107,13 @@ export function validateLabelData(labels: Uint8Array, metadata: unknown, expecte
   const actual = metadata as typeof SCULPTURE_METADATA;
   if (!actual || actual.binarySha256 !== expected.binarySha256
     || actual.modelSha256 !== expected.modelSha256
-    || JSON.stringify(actual.palette) !== JSON.stringify(expected.palette)
+    || JSON.stringify(actual.sculptureOrder) !== JSON.stringify(expected.sculptureOrder)
     || JSON.stringify(actual.meshOrder) !== JSON.stringify(expected.meshOrder)
     || actual.vertexCount !== labels.length || labels.length !== expected.vertexCount
     || actual.backgroundValue !== 254) throw new Error('分区版本不匹配');
-  const allowed = new Set([254, ...expected.palette.map((p) => p.byteValue)]);
+  // fine-v2 的 byteValue = sculptureOrder 下标，counts 为 0 的肌群不会出现在标签里。
+  const counts = expected.counts as Record<string, number>;
+  const allowed = new Set<number>([254]);
+  expected.sculptureOrder.forEach((id, byteValue) => { if ((counts[id] ?? 0) > 0) allowed.add(byteValue); });
   if (labels.some((id) => !allowed.has(id))) throw new Error('分区含有无效标签');
 }

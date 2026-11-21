@@ -1,3 +1,5 @@
+import { redirect } from 'next/navigation';
+import { needsTrainingSetup } from '@/lib/core/training-profile';
 import JournalShell from '@/components/JournalShell';
 import PendingPlan from '@/components/PendingPlan';
 import RecordToday from '@/components/RecordToday';
@@ -9,6 +11,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export default async function RecordPage({ searchParams }: { searchParams: Promise<{ workout?: string }> }) {
+  if (needsTrainingSetup()) redirect('/setup');
   const date = todayStr();
   const items = getPlanProgress(date).filter((item) => !item.done);
   const activeId = activeTraining()?.id ?? null;

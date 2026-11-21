@@ -9,6 +9,8 @@ import { buildMemoryBlock, extractMemoryCandidates, getAlwaysOnMemories, listMem
 import { findExercises, type ExerciseRow } from '../exercise';
 import { EQUIPMENT_LABEL, TARGET_LABEL } from '../exercise-label';
 import { addPlanItem, getPlan } from './workout';
+import { getTrainingProfile } from './training-profile';
+import { TRAINING_GOALS } from '../training-goals';
 import type { AssistantReply, FoodItem } from '../types';
 import type { RawItem } from '../ai/types';
 
@@ -57,7 +59,8 @@ export function cleanupDrafts(): void {
 function memoryBlockFor(query: string): string {
   const always = getAlwaysOnMemories();
   const relevant = searchMemories(query, 4).filter((m) => !always.some((a) => a.id === m.id));
-  return buildMemoryBlock([...always, ...relevant]);
+  const goal = getTrainingProfile().goal;
+  return [goal ? `当前训练目标：${TRAINING_GOALS[goal]}` : '', buildMemoryBlock([...always, ...relevant])].filter(Boolean).join('\n');
 }
 
 /* ---------------------------- 训练 / 器械意图 ---------------------------- */

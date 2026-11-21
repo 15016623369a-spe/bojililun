@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ACTIVITY, GOAL, type ActivityKey, type GoalKey, type Sex } from '@/lib/nutrition';
 
 export interface OnboardingInitial {
+  name?: string;
   sex?: string;
   age?: number;
   height_cm?: number;
@@ -12,7 +13,7 @@ export interface OnboardingInitial {
   goal?: string;
 }
 
-export default function Onboarding({ onDone, initial }: { onDone: () => void; initial?: OnboardingInitial }) {
+export default function Onboarding({ onDone, initial, onCancel, purpose }: { onDone: () => void; initial?: OnboardingInitial; onCancel?: () => void; purpose?: 'nutrition' }) {
   const [sex, setSex] = useState<Sex>(initial?.sex === 'female' ? 'female' : 'male');
   const [age, setAge] = useState(initial?.age ?? 25);
   const [height, setHeight] = useState(initial?.height_cm ?? 175);
@@ -30,7 +31,7 @@ export default function Onboarding({ onDone, initial }: { onDone: () => void; in
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          name: '我',
+          name: initial?.name ?? '我',
           sex,
           age,
           height_cm: height,
@@ -51,8 +52,8 @@ export default function Onboarding({ onDone, initial }: { onDone: () => void; in
   return (
     <div className="overlay">
       <div className="sheet">
-        <h1>{initial ? "更新资料" : "先认识你一下"}</h1>
-        <p className="sub">这些数字只用来算热量和蛋白质目标，之后随时可以在记忆里改。</p>
+        <h1>{purpose === 'nutrition' ? '每日营养目标' : initial ? '更新资料' : '先认识你一下'}</h1>
+        <p className="sub">根据身体数据和活动量估算每日热量与蛋白质目标。</p>
 
         <div className="field">
           <label>性别</label>
@@ -108,8 +109,9 @@ export default function Onboarding({ onDone, initial }: { onDone: () => void; in
         {err && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{err}</p>}
 
         <button className="btn primary" style={{ width: '100%', marginTop: 6 }} disabled={busy} onClick={submit}>
-          {busy ? '计算中…' : '开始使用'}
+          {busy ? '计算中…' : purpose === 'nutrition' ? '保存营养目标' : '开始使用'}
         </button>
+        {onCancel && <button type="button" className="journal-quiet" disabled={busy} onClick={onCancel}>取消</button>}
       </div>
     </div>
   );

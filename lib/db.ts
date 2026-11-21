@@ -8,7 +8,7 @@ const DB_PATH = path.resolve(process.env.FITCHECK_DB_PATH || path.join(DATA_DIR,
 export const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
 
 // Increment when the schema or column migrations change. Next.js keeps globalThis across hot reloads.
-const SCHEMA_REVISION = 7;
+const SCHEMA_REVISION = 8;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS profile (
@@ -24,6 +24,18 @@ CREATE TABLE IF NOT EXISTS profile (
   target_kcal INTEGER NOT NULL DEFAULT 2000,
   target_protein INTEGER NOT NULL DEFAULT 120,
   updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS training_profile (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  name TEXT,
+  sex TEXT CHECK (sex IN ('male', 'female', 'unspecified')),
+  goal TEXT CHECK (goal IN ('muscle', 'strength', 'weight', 'habit', 'record'))
+);
+
+CREATE TABLE IF NOT EXISTS weight_entry (
+  date TEXT PRIMARY KEY,
+  weight REAL NOT NULL CHECK (weight > 0)
 );
 
 CREATE TABLE IF NOT EXISTS food_cache (
@@ -74,6 +86,11 @@ CREATE TABLE IF NOT EXISTS exercise (
   attribution TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_ex_body ON exercise(body_part);
+
+CREATE TABLE IF NOT EXISTS exercise_preference (
+  exercise_id TEXT PRIMARY KEY REFERENCES exercise(id),
+  preference TEXT NOT NULL CHECK (preference IN ('liked', 'disliked'))
+);
 
 CREATE TABLE IF NOT EXISTS workout_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
