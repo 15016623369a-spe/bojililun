@@ -8,6 +8,7 @@ import type { MealType } from '@/lib/date';
 import FoodCard from '@/components/FoodCard';
 import MemoryProposal from '@/components/MemoryProposal';
 import Drawer from '@/components/Drawer';
+import Icon from '@/components/ui/Icon';
 
 type Msg =
   | { id: string; role: 'user'; text?: string; image?: string }
@@ -372,154 +373,114 @@ export default function Page() {
   const proteinPct = targetProtein > 0 ? Math.min(100, Math.round((protein / targetProtein) * 100)) : 0;
   const remaining = target - consumed;
 
-  return (
-    <div className="app">
-      <header className="hdr">
-        <div className="hdr-top">
-          <div className="brand">
-            <Link className="chat-back" href="/" aria-label="返回记录">
-              ‹
-            </Link>
-            拍照记录
-          </div>
-          <div className="hdr-actions">
-            <button
-              className={`chip-btn ${speakOn ? 'on' : ''}`}
-              onClick={() => {
-                setSpeakOn((v) => !v);
-                if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
-              }}
-              title={speakOn ? '语音播报已开' : '语音播报已关'}
-            >
-              {speakOn ? '🔊 播报' : '🔇 静音'}
-            </button>
-            <button className="chip-btn" onClick={() => setDrawer(true)}>
-              今日记录
-            </button>
-          </div>
-        </div>
+  const hasFood = msgs.some((m) => m.role === 'assistant' && m.kind === 'food');
+  const targets = profile ? {
+    protein: targetProtein || 120,
+    carb: target ? Math.round(target * .5 / 4) : 280,
+    fat: target ? Math.round(target * .3 / 9) : 70,
+  } : undefined;
+  const meter = (value: number, max: number) => Array.from({ length: 40 }, (_, i) =>
+    <i key={i} data-on={(max > 0 && i < Math.round(Math.min(1, value / max) * 40)) || undefined} />);
 
-        {profile && (
-          <div className="stats">
-            <div className="stat-row">
-              <span className="stat-label">
-                热量 · {remaining >= 0 ? `还剩 ${remaining} kcal` : `已超 ${Math.abs(remaining)} kcal`}
-              </span>
-              <span className="stat-value">
-                <b>{consumed}</b> / {target} kcal
-              </span>
-              <div className={`bar ${remaining < 0 ? 'over' : ''}`}>
-                <i style={{ width: `${kcalPct}%` }} />
-              </div>
-            </div>
-            <div className="stat-row">
-              <span className="stat-label">
-                蛋白质 · 还差 {Math.max(0, targetProtein - protein)} g
-              </span>
-              <span className="stat-value">
-                <b>{protein}</b> / {targetProtein} g
-              </span>
-              <div className="bar">
-                <i style={{ width: `${proteinPct}%` }} />
-              </div>
-            </div>
-          </div>
-        )}
+  return (
+    <div className="snap">
+      <header className="snap-head">
+        <Link className="snap-back" href="/" aria-label="返回记录"><Icon name="chevron-left" size={20} stroke={2} />记录</Link>
+        <div className="journal-head-actions">
+          <span className="journal-head-label">饮食识别</span>
+          <button type="button" className="journal-head-circle" aria-pressed={speakOn}
+            aria-label={speakOn ? '关闭语音播报' : '打开语音播报'} title={speakOn ? '语音播报已开' : '语音播报已关'}
+            onClick={() => {
+              setSpeakOn((v) => !v);
+              if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+            }}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" />{speakOn ? <path d="M15.5 9a4 4 0 0 1 0 6m2.5-8.5a7.5 7.5 0 0 1 0 11" /> : <path d="m16 9.5 5 5m0-5-5 5" />}
+            </svg>
+          </button>
+          <button type="button" className="journal-head-circle" aria-label="今日饮食记录" onClick={() => setDrawer(true)}><Icon name="list" size={17} stroke={1.9} /></button>
+        </div>
       </header>
 
-      <main className="chat" ref={scrollRef}>
-        {msgs.map((m) => {
+      {profile && <div className="snap-meters">
+        <div className="meter"><span className="meter-label">热量</span><span className="meter-ticks" aria-hidden="true">{meter(consumed, target)}</span>
+          <span className="meter-value"><b>{consumed}</b><em>/ {target}</em> kcal</span></div>
+        <div className="meter"><span className="meter-label">蛋白质</span><span className="meter-ticks" aria-hidden="true">{meter(protein, targetProtein)}</span>
+          <span className="meter-value"><b>{protein}</b><em>/ {targetProtein}</em> g</span></div>
+        <p className="snap-remaining">{remaining >= 0 ? `今天还剩 ${remaining} kcal` : `已超出 ${Math.abs(remaining)} kcal`}</p>
+      </div>}
+
+      <main className="snap-thread" ref={scrollRef}>
+        {msgs.map((m, index) => {
           if (m.role === 'user') {
+            const next = msgs[index + 1] as (Msg & { kind?: string }) | undefined;
+            const scanning = next?.role === 'assistant' && next.kind === 'pending';
+            // 识别结果卡里已经有这张照片，就不再单独显示一遍
+            if (m.image && !m.text && next?.role === 'assistant' && next.kind === 'food') return null;
             return (
-              <div className="msg user" key={m.id}>
-                {m.image && <img src={m.image} alt="上传的照片" />}
-                {m.text && <div>{m.text}</div>}
+              <div className="snap-msg user" key={m.id}>
+                {m.image && !(next?.role === 'assistant' && next.kind === 'food') && <div className="snap-photo" data-scanning={(scanning && Boolean(m.image)) || undefined}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={m.image} alt="上传的照片" />
+                  <span className="snap-scan" aria-hidden="true" />
+                </div>}
+                {m.text && <div className="snap-bubble">{m.text}</div>}
               </div>
             );
           }
           if (m.kind === 'text') {
-            return (
-              <div className="msg ai" key={m.id}>
-                <div className="bubble">{m.text}</div>
-              </div>
-            );
+            return <div className="snap-msg ai" key={m.id}><p>{m.text}</p></div>;
           }
           if (m.kind === 'pending') {
-            return (
-              <div className="msg ai pending" key={m.id}>
-                <div className="bubble">
-                  {m.text}
-                  <span className="dots" />
-                </div>
-              </div>
-            );
+            return <div className="snap-msg ai pending" key={m.id} role="status"><p>{m.text === '看照片' ? '正在识别这一餐' : m.text}<span className="snap-dots" aria-hidden="true"><i /><i /><i /></span></p></div>;
           }
           if (m.kind === 'food') {
+            const prev = msgs[index - 1];
+            const photo = m.photoUrl ?? (prev?.role === 'user' ? prev.image : undefined);
             return (
-              <div className="msg ai" key={m.id} style={{ maxWidth: '100%', width: '100%' }}>
-                <FoodCard
-                  mealType={m.mealType}
-                  items={m.items}
-                  note={m.note}
-                  status={m.status}
-                  onConfirm={(items) => confirmFood(m.draftId, items)}
-                />
+              <div className="snap-msg snap-slot" key={m.id}>
+                <FoodCard mealType={m.mealType} items={m.items} note={m.note} status={m.status} photoUrl={photo} targets={targets}
+                  onConfirm={(items) => confirmFood(m.draftId, items)} />
               </div>
             );
           }
           return (
-            <div className="msg ai" key={m.id} style={{ maxWidth: '100%', width: '100%' }}>
-              <MemoryProposal
-                candidates={m.candidates}
-                status={m.status}
-                onSave={(c) => saveMemories(m.id, c)}
-                onDismiss={() => dismissMemory(m.id)}
-              />
+            <div className="snap-msg snap-slot" key={m.id}>
+              <MemoryProposal candidates={m.candidates} status={m.status}
+                onSave={(c) => saveMemories(m.id, c)} onDismiss={() => dismissMemory(m.id)} />
             </div>
           );
         })}
+
+        {!hasFood && !busy && <button type="button" className="snap-capture" onClick={() => fileRef.current?.click()}>
+          <span className="snap-capture-icon"><Icon name="camera" size={30} stroke={1.6} /></span>
+          <b>拍一张这顿饭</b>
+          <small>识别后可以改份量，再记入这一餐</small>
+        </button>}
       </main>
 
-      {err && <div className="err">{err}</div>}
+      {err && <p className="snap-err" role="alert">{err}</p>}
 
-      <div className="quick">
+      <div className="snap-quick">
         {['今天练胸', '今天练背', '今天练腿', '今天练肩'].map((q) => (
-          <button key={q} onClick={() => void sendText(q)} disabled={busy}>
-            {q}
-          </button>
+          <button key={q} type="button" onClick={() => void sendText(q)} disabled={busy}>{q}</button>
         ))}
       </div>
 
-      <footer className="composer">
-        <button
-          className={`icon-btn mic ${listening ? 'on' : ''}`}
-          onClick={() => (listening ? stopVoice() : startVoice())}
-          disabled={busy}
-          title="语音输入"
-          aria-label="语音输入"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-            <rect x="9" y="3" width="6" height="11" rx="3" />
-            <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
-          </svg>
-        </button>
-        <button className="icon-btn" onClick={() => fileRef.current?.click()} disabled={busy} title="拍照 / 相册" aria-label="拍照或从相册选择">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.7l1.1-1.8h6.4L15.8 6h2.7A2.5 2.5 0 0 1 21 8.5v9A2.5 2.5 0 0 1 18.5 20h-13A2.5 2.5 0 0 1 3 17.5v-9Z" />
-            <circle cx="12" cy="12.8" r="3.4" />
-          </svg>
+      <footer className="snap-composer">
+        <button type="button" className={`snap-icon${listening ? ' on' : ''}`}
+          onClick={() => (listening ? stopVoice() : startVoice())} disabled={busy} title="语音输入" aria-label="语音输入">
+          <Icon name="mic" size={20} />
         </button>
         <input
           value={input}
-          placeholder={listening ? "正在听…说完会自动发送" : "吃了什么？或者今天想练什么…"}
+          placeholder={listening ? '正在听…说完会自动发送' : '吃了什么？或者今天想练什么…'}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.nativeEvent.isComposing) void sendText();
-          }}
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) void sendText(); }}
         />
-        <button className="send" onClick={() => void sendText()} disabled={busy || !input.trim()}>
-          发送
-        </button>
+        {input.trim()
+          ? <button type="button" className="snap-icon ink" onClick={() => void sendText()} disabled={busy} aria-label="发送"><Icon name="arrow-up" size={20} stroke={2.2} /></button>
+          : <button type="button" className="snap-icon ink" onClick={() => fileRef.current?.click()} disabled={busy} title="拍照 / 相册" aria-label="拍照或从相册选择"><Icon name="camera" size={20} /></button>}
       </footer>
 
       <input
@@ -543,8 +504,6 @@ export default function Page() {
           onDeleteMemory={deleteMemory}
         />
       )}
-
-
     </div>
   );
 }

@@ -11,7 +11,7 @@
 | 训练计时 | [计划与休息三屏](plan-and-rest.png)的右图。左图也可看首屏与计时的整体搭配，中间的黄抽屉属于早期配色。 |
 | 今日清单、记录一组、完成小结 | [训练执行三屏](concept-training-flow.png)。记一组时整屏柠檬黄，重量用黑色刻度尺调。 |
 | 动作库、日详情、月历 | [动作库与回顾详情](concept-library-review.png)。动作库抽屉已在计划页实施。 |
-| 建档、我的、饮食确认 | [建档、我的与饮食确认](concept-profile-meal.png)。建档规则已确认：目标必选，其余可跳过，并加一步挑常练动作。饮食拍照确认尚未重做。 |
+| 建档、我的、饮食确认 | [建档、我的与饮食确认](concept-profile-meal.png)。建档规则已确认：目标必选，其余可跳过，并加一步挑常练动作。三屏均已实施。 |
 | 色系、字与数、组件、动效与触感 | [视觉系统与动效](concept-system-motion.png)，可编辑源文件为 [concept-boards.html](concept-boards.html)。 |
 | 记录、语音、回顾 | [记录与回顾三屏](record-and-review.png)。 |
 | 训练统计 | [总览、肌群、动作三屏](training-stats.png)、[切换动效](training-stats-motion.mp4)。[回顾热图对照](review-heat-proposal.png)是单独的提案。 |
@@ -76,7 +76,8 @@ tone = max(0, (252 - 原图 R 通道) / 128)
 | 柠檬黄锚点 | 已实施。点到哪里就落在命中的表面点上，存成模型坐标，转身时跟着走，法线背向镜头时隐藏。未点选时提示在胸部。 |
 | 点选后的姿势详情 | 已实施。[PlanDetail](../../../components/fc/PlanDetail.tsx)：点阵人体以锚点为中心推近淡出，石膏姿势图由模糊放大落定，雾银抽屉从下方弹出。抽屉是半透明毛玻璃（`backdrop-filter`），上沿透出点阵和人物；可以下拉关闭，人物跟着轻微下沉放大。手机返回手势也可关闭。肌群到姿势的对应在 [plan-poses.ts](../../../lib/plan-poses.ts)，图片在 [public/plan-poses](../../../public/plan-poses/)，由 [plan-poses](plan-poses/) 的成稿裁出人物区。 |
 | 抽屉三个入口 | 「动作库」打开该肌群的多选动作抽屉，「我的动作库」只列常练动作（`preference=liked`），完成后统一写入今日计划。「开始训练」有进行中的训练就继续，有计划就新开一节，没有计划就先打开动作库。 |
-| 加练选动作 | `/train/extra` 暂用旧的 [BodyPicker](../../../components/fc/BodyPicker.tsx)，待和记录页一起重做。 |
+| 加练选动作 | 已实施。[SupplementalWorkout](../../../components/SupplementalWorkout.tsx)：和计划首屏同样的点阵人体与柠檬黄锚点，点肌群从动作抽屉里挑；挑中的动作排成带火花标记的横条，组数／次数／重量用和今日计划相同的圆钮 [Stepper](../../../components/ui/Stepper.tsx)，休息分段，底部「开始加练」。 |
+| 饮食拍照识别 | 已实施。[chat](../../../app/chat/page.tsx) 页头换成返回、播报和今日记录圆钮，热量蛋白质改为刻度条；空状态是点阵底的拍照卡。识别中照片上有柠檬黄扫描线，结果出来后照片并入 [FoodCard](../../../components/FoodCard.tsx)：上半是半调照片和识别置信度，下半珊瑚色面板显示总热量大字、半份／1／1.5／2 份整体份量、逐项 ±10 g、蛋白质／碳水／脂肪刻度条，「记入这一餐」后面板转浅。输入栏右侧在没文字时是拍照、有文字时变发送。 |
 | 训练 · 今日清单 | 已实施。[train/page.tsx](../../../app/train/page.tsx) 用大号日期起头，三个读数（动作 / 组数 / 含休息时长），每行动作右侧是组数点位，点一行在原处展开组数、次数、重量步进器和休息分段。「开始训练」悬浮在导航上方。热量、蛋白质改成刻度条放在页底。 |
 | 训练 · 记录一组 | 已实施。[TrainingRunner](../../../components/TrainingRunner.tsx) 整屏柠檬黄，大号重量可点按直接输入，下方黑色 [刻度尺](../../../components/ui/TickRuler.tsx) 按 0.5 kg 吸附。次数用 ± 圆钮。组卡条显示已完成 / 当前 / 未做。点缩略图弹出动作演示。 |
 | 训练 · 组间休息 | 已实施。雾银灰底，柠檬黄弧线逆时针收回，读秒用大号数字，下方点阵按秒点亮。可「+15 秒」或跳过，倒计时结束震两下。 |

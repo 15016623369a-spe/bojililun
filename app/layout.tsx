@@ -8,6 +8,7 @@ import './v-record.css';
 import './v-review.css';
 import './v-stats.css';
 import './v-me.css';
+import './v-extras.css';
 
 export const metadata: Metadata = {
   title: 'FitCheck · 健身记录',
