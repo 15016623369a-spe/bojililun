@@ -77,7 +77,7 @@ async function verifyHash(bytes: ArrayBuffer, expected: string) {
   if (actual !== expected) throw new Error('人体资源版本不匹配');
 }
 
-export default function SculptureBody({ recorded = [], selected = null, side = 'front', onPick, spin = false, variant = 'male', heatLevels, look = 'sculpture', anchor = null }: {
+export default function SculptureBody({ recorded = [], selected = null, side = 'front', onPick, spin = false, variant = 'male', heatLevels, heatPalette = 'sage', look = 'sculpture', anchor = null }: {
   recorded?: MuscleId[];
   selected?: MuscleId | null;
   side?: 'front' | 'back';
@@ -85,6 +85,7 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
   spin?: boolean;
   variant?: SculptureVariant;
   heatLevels?: ReadonlyMap<MuscleId, number>;
+  heatPalette?: 'sage' | 'lemon' | 'ink';
   /** halftone：计划首屏的点阵人体；sculpture：回顾等页面的石膏 + 热力着色 */
   look?: 'sculpture' | 'halftone';
   /** 跟随模型转动的柠檬黄锚点；转到背面被遮挡时隐藏 */
@@ -203,12 +204,14 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
     };
     refresh();
     const material = new THREE.MeshStandardMaterial({ color: halftone ? 0xe4e4e1 : 0xf3ede4, roughness: .88, metalness: 0, side: THREE.DoubleSide });
-    material.customProgramCacheKey = () => halftone ? 'sculpture-halftone-v1' : 'sculpture-ortho-feather-v1';
+    material.customProgramCacheKey = () => halftone ? 'sculpture-halftone-v1' : 'sculpture-ortho-feather-v2-' + heatPalette;
+    const heatColor = { sage: '#2f6a45', lemon: '#f2ed21', ink: '#151613' }[heatPalette];
+    const hoverColor = { sage: '#8fae94', lemon: '#91bce8', ink: '#8d8f89' }[heatPalette];
     material.onBeforeCompile = (shader) => {
       shader.uniforms.uMuscleHeat = { value: heat };
       // 点阵模式下选中/悬停只把该区压暗，圆点随之变大变深，不另上色
-      shader.uniforms.uMuscleGreen = { value: new THREE.Color(halftone ? '#8c8d88' : '#2F6A45') };
-      shader.uniforms.uMuscleHover = { value: new THREE.Color(halftone ? '#b3b4af' : '#8FAE94') };
+      shader.uniforms.uMuscleGreen = { value: new THREE.Color(halftone ? '#8c8d88' : heatColor) };
+      shader.uniforms.uMuscleHover = { value: new THREE.Color(halftone ? '#b3b4af' : hoverColor) };
       shader.vertexShader = shader.vertexShader.replace('#include <common>', `#include <common>
         attribute vec3 muscleIds;
         attribute vec2 muscleBary;
@@ -248,6 +251,11 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
           vec3 tint = state.r > 0.0 ? uMuscleGreen : uMuscleHover;
           float intensity = state.r > 0.0 ? state.r : state.g;
           diffuseColor.rgb = mix(diffuseColor.rgb, tint, intensity * feather);
+          // A hover rim keeps the recorded heat visible in the middle of the muscle.
+          if (${!halftone && heatPalette !== 'sage' ? 'true' : 'false'} && state.r > 0.0 && state.g > 0.0) {
+            float rim = 4.0 * feather * (1.0 - feather);
+            diffuseColor.rgb = mix(diffuseColor.rgb, uMuscleHover, 0.55 * rim);
+          }
         }
       `);
     };
@@ -504,7 +512,7 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
       }
       heat.dispose(); material.dispose(); renderer.dispose(); renderer.domElement.remove();
     };
-  }, []);
+  }, [heatPalette]);
 
   return <div className={`sculpture-viewer${look === 'halftone' ? ' is-halftone' : ''}`} data-status={status} data-selected={canonicalMuscle(selected) ?? ''} data-hovered={hovered ?? ''}
     data-recorded={[...new Set(recorded.map(canonicalMuscle).filter(Boolean))].join(',')}>

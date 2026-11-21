@@ -298,11 +298,44 @@
   font-variant-numeric: tabular-nums;
 }
 
-.fc-heat-panel {
-  margin-block: 12px;
-  border: 1px solid var(--hair);
-  border-radius: 20px;
-  background: var(--mist-panel);
+.fc-review-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.fc-ledger-review .fc-sculpture-overview {
+  background: linear-gradient(110deg, var(--sage), var(--paper-2) 70%);
+  border-color: var(--hair);
+}
+
+.fc-ledger-review .sculpture-hover {
+  color: var(--ink-0);
+  background: color-mix(in srgb, var(--mist) 55%, var(--mist-panel));
+  border: 1px solid color-mix(in srgb, var(--mist), var(--hair-2));
+}
+
+.fc-ledger-review .review-heat-legend i {
+  flex: none;
+  background: color-mix(in srgb-linear, var(--silver-3), var(--review-heat, var(--lemon)) var(--heat, 0%));
+}
+
+.fc-ledger-review .review-heat-legend i:nth-of-type(2) { --heat: 33%; }
+.fc-ledger-review .review-heat-legend i:nth-of-type(3) { --heat: 67%; }
+.fc-ledger-review .review-heat-legend i:nth-of-type(4) { --heat: 100%; }
+
+.fc-ledger-review[data-heat-palette='ink'] {
+  --review-heat: var(--ink-0);
+}
+
+.fc-ledger-review[data-heat-palette='ink'] .sculpture-hover {
+  background: var(--silver-3);
+  border-color: var(--hair-2);
+}
+
+.fc-review-records-title {
+  margin: 14px 0 8px;
+  font-size: 17px;
 }
 
 .fc-review-day,

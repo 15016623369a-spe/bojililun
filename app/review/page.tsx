@@ -8,9 +8,12 @@ import { exportJournal } from '@/lib/export';
 import { calcMuscleHeatmap, calcWeightTrend } from '@/lib/calculations';
 import { localDay } from '@/lib/ledger';
 import { periodRange } from '@/lib/period';
-import BodyHeat from '@/components/fc/BodyHeat';
+import SculptureBody from '@/components/fc/SculptureBody';
+import JournalIcon from '@/components/JournalIcon';
+import { getTrainingModelSex } from '@/lib/core/training-profile';
+import { sculptureGroup, sculptureVariant } from '@/lib/sculpture-groups';
+import type { MuscleId } from '@/lib/muscles';
 import JournalExport from '@/components/fc/JournalExport';
-import type { TimelineEntry } from '@/lib/types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -42,13 +45,35 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
     start,
     today,
   );
+  const levels = new Map<MuscleId, number>();
+  let strongestSide: 'front' | 'back' = 'back';
+  let strongestScore = 0;
+  for (const [id, value] of Object.entries(heat)) {
+    const group = sculptureGroup(id);
+    if (!group || !value.level) continue;
+    levels.set(group.id, Math.max(levels.get(group.id) ?? 0, value.level / 3));
+    if (group.side !== 'both' && value.score > strongestScore) {
+      strongestSide = group.side;
+      strongestScore = value.score;
+    }
+  }
+  const trainingDays = days.filter((d) => d.entries.some((e) => e.entry_type === 'workout')).length;
+  const groups = days.reduce((sum, d) => sum + d.daily_summary.totalSets, 0);
+  const periodLabel = { day: '今日', week: '本周', month: '本月' }[period];
+  const variant = sculptureVariant(getTrainingModelSex());
+  const hasRecords = days.some((d) => d.entries.length || d.body_metrics.length);
   return (
     <div className="fc">
-      <div className="fc-shell review fc-ledger-review">
+      <div className="fc-shell review fc-ledger-review" data-heat-palette="ink">
         <header>
-          <div className="fc-brand">
-            <LeafIcon />
-            FitCheck
+          <div className="fc-review-header">
+            <div className="fc-brand">
+              <LeafIcon />
+              FitCheck
+            </div>
+            <Link href="/me" className="journal-icon-button" aria-label="我的个人资料">
+              <JournalIcon name="profile" />
+            </Link>
           </div>
           <h1 className="fc-h1">回顾</h1>
         </header>
@@ -71,12 +96,45 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
         <p className="fc-range">
           {start} — {today}
         </p>
-        <div className="fc-heat-panel">
-          <BodyHeat
-            heat={Object.entries(heat)
-              .filter(([, v]) => v.level > 0)
-              .map(([id, v]) => ({ id, level: v.level / 3 }))}
-          />
+        <section className="review-overview fc-sculpture-overview" aria-label={periodLabel + '概览'}>
+          <figure className="review-figure" aria-label="训练部位雕塑热图">
+            <div className="review-body">
+              <SculptureBody
+                key={variant + period}
+                variant={variant}
+                look="sculpture"
+                heatPalette="ink"
+                side={strongestSide}
+                heatLevels={levels}
+                recorded={[...levels.keys()]}
+              />
+            </div>
+          </figure>
+          <div className="review-overview-metrics">
+            <h2>{periodLabel}概览</h2>
+            <dl>
+              <div>
+                <dt>训练天数</dt>
+                <dd>
+                  {trainingDays} <small>天</small>
+                </dd>
+              </div>
+              <div>
+                <dt>已记录训练组</dt>
+                <dd>
+                  {groups} <small>组</small>
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </section>
+        <div className="review-heat-legend" role="img" aria-label="按训练计分着色，由未训练到训练较多">
+          <span>未训练</span>
+          <i />
+          <i />
+          <i />
+          <i />
+          <span>训练较多</span>
         </div>
         {trend.latest !== null && (
           <div className="fc-weight-summary">
@@ -87,6 +145,8 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
             <span>7 日均重 {trend.points.at(-1)?.average7} kg</span>
           </div>
         )}
+        <h2 className="fc-review-records-title">{periodLabel}记录</h2>
+        {!hasRecords && <p className="journal-muted">这段时间还没有记录。</p>}
         {days
           .filter((d) => d.entries.length || d.body_metrics.length)
           .reverse()
