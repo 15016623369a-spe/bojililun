@@ -4,6 +4,7 @@ import './journal.css';
 import './replica.css';
 import './visual.css';
 import './v-train.css';
+import './v-record.css';
 
 export const metadata: Metadata = {
   title: 'FitCheck · 健身记录',
