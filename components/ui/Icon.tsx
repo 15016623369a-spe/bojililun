@@ -31,6 +31,8 @@ const PATHS = {
   bowl: 'M3.5 12h17a8.5 8.5 0 0 1-17 0ZM8 21h8M9.5 8.5c-1.4-1.4 1.4-1.6 0-4m5 4c-1.4-1.4 1.4-1.6 0-4',
   moon: 'M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z',
   note: 'M5 4h14v16H5zM9 9h6M9 13h6M9 17h3',
+  ban: 'M12 20.5a8.5 8.5 0 1 0 0-17 8.5 8.5 0 0 0 0 17ZM6 6l12 12',
+  search: 'M10.5 17.5a7 7 0 1 0 0-14 7 7 0 0 0 0 14Zm5-2 5 5',
 } as const;
 
 const FILLED = {
@@ -38,6 +40,7 @@ const FILLED = {
   play: 'M8 5.5v13l10.5-6.5z',
   pause: 'M7 5h3.2v14H7zM13.8 5H17v14h-3.2z',
   dot: 'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z',
+  'bookmark-fill': 'M6.2 3.2h11.6v17.6L12 16.3l-5.8 4.5Z',
 } as const;
 
 export type IconName = keyof typeof PATHS | keyof typeof FILLED;
