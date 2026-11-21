@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import type { PlanItem } from '@/lib/types';
-import JournalIcon from './JournalIcon';
+import Icon from './ui/Icon';
 
 export default function PendingPlan({ items, activeId }: { items: PlanItem[]; activeId: number | null }) {
   const router = useRouter();
@@ -41,25 +41,27 @@ export default function PendingPlan({ items, activeId }: { items: PlanItem[]; ac
     }
   }
 
-  return <section className="pending-plan" aria-label="今日待练">
-    <div className="pending-plan-head">
-      <b>待练 · {items.length} 个动作</b>
-      {activeId && <Link href={`/train/${activeId}`}>继续训练</Link>}
-      <button type="button" aria-expanded={!collapsed} aria-controls="pending-plan-list"
-        onClick={() => setCollapsed(!collapsed)}>{collapsed ? '展开' : '收起'}</button>
+  return <section className="pending" aria-label="今日待练">
+    <div className="pending-head">
+      <p className="kicker"><i aria-hidden="true" />待练 · {items.length} 个动作</p>
+      <Link className="chip" href={activeId ? `/train/${activeId}` : '/train'}>{activeId ? '继续训练' : '去训练'}<Icon name="arrow-right" size={14} stroke={2} /></Link>
+      <button type="button" className="pending-toggle" aria-expanded={!collapsed} aria-controls="pending-plan-list"
+        aria-label={collapsed ? '展开待练' : '收起待练'} onClick={() => setCollapsed(!collapsed)}>
+        <Icon name="chevron-down" size={18} />
+      </button>
     </div>
-    <ul id="pending-plan-list" hidden={collapsed}>
+    <ul id="pending-plan-list" className="pending-list" data-collapsed={collapsed || undefined}>
       {items.map((item) => <li key={item.id}>
-        <button className="plan-check" type="button" aria-label={`确认按计划完成${item.name}`}
+        <button className="pending-check" type="button" aria-label={`确认按计划完成${item.name}`}
           aria-pressed={completed === item.id} disabled={Boolean(activeId || pendingId || completed === item.id)}
-          onClick={() => void complete(item)}>{completed === item.id && <JournalIcon name="check" />}</button>
-        <Link className="pending-plan-item" href={`/exercises/${encodeURIComponent(item.exercise_id)}?from=today&item=${item.id}`}>
+          onClick={() => void complete(item)}>{completed === item.id && <Icon name="check" size={14} stroke={2.6} />}</button>
+        <Link className="pending-item" href={`/exercises/${encodeURIComponent(item.exercise_id)}?from=today&item=${item.id}`}>
           <strong>{item.name}</strong>
-          <small>{item.sets}组 × {item.reps}次</small>
-          <span aria-hidden="true">›</span>
+          <small>{item.sets} × {item.reps}{item.weight ? ` · ${item.weight} kg` : ''}</small>
+          <Icon name="chevron-right" size={16} className="row-chev" />
         </Link>
       </li>)}
     </ul>
-    {error && <p className="journal-error" role="alert">{error}</p>}
+    {error && <p className="form-err" role="alert">{error}</p>}
   </section>;
 }
