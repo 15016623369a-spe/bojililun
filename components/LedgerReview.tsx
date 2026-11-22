@@ -27,6 +27,8 @@ export type ReviewDay = {
   weight: number | null;
   /** 当天运动消耗（粗估 kcal），见 lib/exercise-burn */
   burn: number;
+  /** 记录页点阵电池里选的精力 1–5 */
+  energy: number | null;
 };
 
 export type HeatGroup = { id: MuscleId; label: string; level: number; side: 'front' | 'back' | 'both' };
@@ -210,11 +212,15 @@ function EnergyChart({ days, period, word, today }: { days: ReviewDay[]; period:
           <span className="energy-base" aria-hidden="true" />
           <span className="energy-burn" aria-hidden="true">{Array.from({ length: burnDots }, (_, i) => <i key={i} />)}</span>
           <small>{dense ? (Number(d.date.slice(8)) % 7 === 1 ? Number(d.date.slice(8)) : '') : weekdayOf(d.date).slice(1)}</small>
+          {!dense && <span className="energy-level" aria-hidden="true">{[1, 2, 3, 4, 5].map((n) => <i key={n} data-on={d.energy !== null && n <= d.energy || undefined} />)}</span>}
         </button>;
       })}
     </div>}
     {picked && <div className="energy-pick" key={picked.date}>
       <div className="energy-pick-head"><b className="big-num">{short(picked.date)}</b><span>{weekdayOf(picked.date)}</span>
+        {picked.energy !== null && <span className="mini-battery" aria-label={`精力 ${picked.energy * 20}%`}>
+          {[1, 2, 3, 4, 5].map((n) => <i key={n} data-on={n <= picked.energy! || undefined} />)}
+        </span>}
         <em>净 {Math.round(intakeOf(picked) - picked.burn).toLocaleString('zh-CN')} kcal</em></div>
       <div className="energy-split" aria-hidden="true">
         {macroKcal(picked).map((p) => <i key={p.key} style={{ flexGrow: p.value || 0, background: p.color }} />)}

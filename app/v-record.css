@@ -264,3 +264,52 @@
 .ledger-moves small i { margin-left: 2px; font-style: normal; font-size: 12px; font-weight: 500; color: var(--gray-1); }
 .fc.ledger-detail .fc-ledger-card[data-kind="workout"] > div:not(.fc-meal-item-edit) { display: none; }
 .fc.ledger-detail .fc-ledger-card[data-kind="workout"] { padding-top: 2px; }
+
+/* ---------- 记录 · 第四轮：点阵电池（今日精力）+ 细时间线 ---------- */
+.day-battery { margin: 4px 0 22px; }
+.day-battery-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+.day-battery-label { font-size: 13px; font-weight: 600; color: var(--ink-2); letter-spacing: .04em; }
+.day-battery-read { display: inline-flex; align-items: baseline; gap: 2px; }
+.day-battery-read .big-num { font-size: 26px; transition: color .3s; }
+.day-battery-read .big-num.empty { color: var(--gray-2, #a7a9a3); }
+.day-battery-read em { font-style: normal; font: 700 14px var(--font-num); color: var(--ink-2); }
+.day-battery-shell { display: flex; align-items: center; gap: 4px; }
+.day-battery-body {
+  flex: 1; display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; padding: 5px;
+  border-radius: 16px; box-shadow: inset 0 0 0 2px var(--ink-0);
+  background: rgb(255 255 255 / 28%); cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none;
+}
+.day-battery-body:focus-visible { outline: 2px solid var(--ink-0); outline-offset: 3px; }
+.day-battery-cell {
+  display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); place-items: center;
+  height: 40px; padding: 4px 6px; border-radius: 11px; background: transparent;
+  transition: background-color .28s var(--ease-out) calc(var(--i) * 55ms);
+}
+.day-battery-cell i { width: 7px; height: 7px; border-radius: 50%; background: rgb(21 22 19 / 18%);
+  transition: background-color .28s var(--ease-out) calc(var(--i) * 55ms), transform .35s var(--ease-spring) calc(var(--i) * 55ms); }
+.day-battery-cell[data-on] { background: var(--ink-0); }
+.day-battery-cell[data-on] i { background: var(--lemon); transform: scale(1.12); box-shadow: 0 0 6px rgb(242 237 33 / 45%); }
+.day-battery-nub { width: 7px; height: 20px; border-radius: 0 4px 4px 0; background: var(--ink-0); }
+.day-battery-error { margin: 6px 0 0; font-size: 12.5px; color: #b8402f; }
+
+/* 细时间线：取代原来的条形码刻度 */
+.day-line { position: relative; height: 54px; margin: 0 0 4px; }
+.day-line-track { position: absolute; left: 0; right: 0; top: 26px; height: 1px; background: rgb(21 22 19 / 18%); }
+.day-line-past { position: absolute; left: 0; top: 0; height: 1px; background: rgb(21 22 19 / 55%); }
+.day-line-track i { position: absolute; top: -2px; width: 1px; height: 5px; background: rgb(21 22 19 / 22%); }
+.day-line-track i[data-major] { top: -4px; height: 9px; background: rgb(21 22 19 / 45%); }
+.day-line-now { position: absolute; top: 22px; width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%; background: var(--lemon); box-shadow: 0 0 0 1.5px var(--ink-0), 0 0 10px 2px rgb(242 237 33 / 55%); }
+.day-line-mark { position: absolute; top: 12px; width: 28px; height: 30px; margin-left: -14px; padding: 0; display: grid; place-items: center; --mark: var(--ink-0); }
+.day-line-mark.meal { --mark: var(--coral); }
+.day-line-mark.weight { --mark: #5f8fc4; }
+.day-line-mark.note { --mark: var(--gray-1); }
+.day-line-mark i { width: 8px; height: 8px; border-radius: 50%; background: var(--mark); box-shadow: 0 0 0 2px var(--paper, #e2e3df); transition: transform .35s var(--ease-spring), box-shadow .3s; }
+.day-line-mark[data-active] i { transform: scale(1.45); box-shadow: 0 0 0 2px var(--paper, #e2e3df), 0 0 0 4.5px color-mix(in srgb, var(--mark) 30%, transparent); }
+.day-line-mark[data-pending] i { box-shadow: 0 0 0 2px var(--paper, #e2e3df), 0 0 0 4px rgb(240 99 81 / 35%); }
+.day-line-mark b { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); padding: 2px 6px; border-radius: 6px; background: var(--ink-0); color: #f1f2ee; font: 700 11px var(--font-num); white-space: nowrap; animation: num-in .3s var(--ease-out); }
+.day-line-axis { position: absolute; left: 0; right: 0; top: 36px; height: 14px; font: 500 11px var(--font-num); color: var(--gray-1); }
+.day-line-axis span { position: absolute; transform: translateX(-50%); }
+.day-line-axis span:first-child { transform: none; }
+.day-line-axis span:last-child { transform: translateX(-100%); }
+.is-ledger .deck { margin-top: 12px; }
+@media (prefers-reduced-motion: reduce) { .day-battery-cell, .day-battery-cell i { transition: none; } }

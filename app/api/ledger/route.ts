@@ -1,5 +1,6 @@
 import { getDb } from '@/lib/db';
 import { exportJournal, renderMarkdown } from '@/lib/export';
+import { dayEnergyRange } from '@/lib/day-energy';
 import {
   fillSets,
   chooseCardPick,
@@ -18,8 +19,12 @@ export async function GET(req: Request) {
     const p = new URL(req.url).searchParams,
       start = p.get('start') || localDay(new Date().toISOString()),
       end = p.get('end') || start;
-    const book = exportJournal(getDb(), user, start, end),
+    const db = getDb();
+    const book = exportJournal(db, user, start, end),
       md = p.get('format') === 'md';
+    // 记录页的「今日精力」一起导出（单独存在 day_energy 表）
+    const energy = dayEnergyRange(db, user, start, end);
+    for (const day of book.days) Object.assign(day, { energy_level: energy.get(day.date) ?? null });
     return new Response(md ? renderMarkdown(book) : JSON.stringify(book, null, 2), {
       headers: {
         'content-type': md ? 'text/markdown; charset=utf-8' : 'application/json',

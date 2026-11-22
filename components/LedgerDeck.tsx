@@ -92,17 +92,23 @@ export default function LedgerDeck({ items, cards, picks, nowMinutes, past = fal
   }
 
   return <section className="day-deck ledger-deck" aria-label={past ? '这天的记录' : '今天的记录'}>
-    <div className="day-ruler">
-      <div className="day-ruler-ticks" aria-hidden="true">
-        {Array.from({ length: span / 10 + 1 }, (_, i) => <i key={i} className={i % 6 === 0 ? 'hour' : undefined} />)}
+    {/* 一条细时间线：过去的一段颜色更深，每条记录是线上的一个小点，选中的放大并标出时间，柠檬黄点是现在 */}
+    <div className="day-line">
+      <div className="day-line-track" aria-hidden="true">
+        {now !== null && now > start && <span className="day-line-past" style={{ width: `${(Math.min(now, end) - start) / span * 100}%` }} />}
+        {Array.from({ length: Math.floor(span / 60) + 1 }, (_, h) => <i key={h} data-major={(start / 60 + h) % 6 === 0 || undefined}
+          style={{ left: `${(h * 60 / span * 100).toFixed(2)}%` }} />)}
       </div>
-      {items.map((item, i) => <button key={item.key} type="button" className={`day-mark ${item.kind === 'workout' ? 'training' : item.kind === 'meal' ? 'meal' : item.kind === 'body_metrics' ? 'weight' : 'note'}`}
-        data-active={i === active || undefined} style={{ left: `${((item.minutes - start) / span * 100).toFixed(2)}%` }}
-        aria-label={`${item.time} ${KIND[item.kind].label}`} onClick={() => go(i)} />)}
-      {now !== null && now >= start && now <= end && <span className="day-now" aria-hidden="true" style={{ left: `${((now - start) / span * 100).toFixed(2)}%` }} />}
-    </div>
-    <div className="day-ruler-axis" aria-hidden="true">
-      {labels.map((m) => <span key={m} style={{ left: `${((m - start) / span * 100).toFixed(2)}%` }}>{hhmm(m)}</span>)}
+      {now !== null && now >= start && now <= end && <span className="day-line-now" aria-hidden="true" style={{ left: `${((now - start) / span * 100).toFixed(2)}%` }} />}
+      {items.map((item, i) => <button key={item.key} type="button" className={`day-line-mark ${item.kind === 'workout' ? 'training' : item.kind === 'meal' ? 'meal' : item.kind === 'body_metrics' ? 'weight' : 'note'}`}
+        data-active={i === active || undefined} data-pending={item.pending || undefined}
+        style={{ left: `${((item.minutes - start) / span * 100).toFixed(2)}%` }}
+        aria-label={`${item.time} ${KIND[item.kind].label}`} onClick={() => go(i)}>
+        <i />{i === active && <b>{item.time}</b>}
+      </button>)}
+      <div className="day-line-axis" aria-hidden="true">
+        {labels.map((m) => <span key={m} style={{ left: `${((m - start) / span * 100).toFixed(2)}%` }}>{hhmm(m)}</span>)}
+      </div>
     </div>
 
     <div className="deck" ref={deck} onScroll={onScroll}>

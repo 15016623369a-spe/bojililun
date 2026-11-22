@@ -152,7 +152,8 @@ export function exportJournal(
 export function renderMarkdown(book: ReturnType<typeof exportJournal>) {
   const lines = ["# FitCheck 手账", ""];
   for (const day of book.days) {
-    lines.push("## " + day.date, "", "### 体征");
+    const level = (day as unknown as { energy_level?: number | null }).energy_level;
+    lines.push("## " + day.date, "", ...(level ? [`今日精力：${level} / 5`, ""] : []), "### 体征");
     for (const m of day.body_metrics)
       lines.push(
         `- ${m.logged_at} · ${m.weight_kg} kg · 体脂 ${m.body_fat_pct ?? "—"}% · ${m.source ?? "历史来源未知"} / ${m.confidence} · 原话：${m.raw_text ?? "—"} · 体感：${m.feeling_tags.join("、") || "—"} · 备注：${m.note ?? "—"}`,
