@@ -28,6 +28,7 @@ export default function TodayPlan({
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [showDone, setShowDone] = useState(false);
   const savedItems = useRef(initialItems);
   const saveQueue = useRef(Promise.resolve());
 
@@ -93,16 +94,36 @@ export default function TodayPlan({
   }
 
   const totalSets = items.reduce((a, x) => a + x.sets, 0);
+  const doneCount = items.filter((x) => x.done === 1).length;
+  // 计划里的动作都练完了：不再显示一张待办清单，主按钮改成加练
+  const allDone = items.length > 0 && doneCount === items.length && !activeSession;
+  const remainingSets = items.filter((x) => x.done !== 1).reduce((a, x) => a + x.sets, 0);
   const minutes = Math.round(items.reduce((a, x) => a + x.sets * (40 + x.rest_sec), 0) / 60);
   const startedAt = activeSession ? new Date(activeSession.startedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '';
 
   return (
-    <section className="today-plan">
-      <div className="readouts">
-        <div className="readout"><b className="big-num">{items.length}</b><span>个</span><em>动作</em></div>
-        <div className="readout"><b className="big-num">{totalSets}</b><span>组</span><em>计划组数</em></div>
-        <div className="readout"><b className="big-num">{minutes ? `≈${minutes}` : '—'}</b><span>分钟</span><em>含休息</em></div>
-      </div>
+    <section className="today-plan" data-done={allDone || undefined}>
+      {allDone ? (
+        <div className="plan-done" role="status">
+          <span className="plan-done-mark" aria-hidden="true">
+            {items.slice(0, 12).map((it, i, list) => <i key={it.id} style={{ transform: `rotate(${(i * 360 / list.length).toFixed(1)}deg)` }} />)}
+            <Icon name="check" size={22} stroke={2.6} />
+          </span>
+          <span className="plan-done-text">
+            <b>今日计划已完成</b>
+            <small>{items.length} 个动作 · {totalSets} 组</small>
+          </span>
+          <button type="button" className="plan-done-toggle" aria-expanded={showDone} onClick={() => { haptic(4); setShowDone((v) => !v); }}>
+            {showDone ? '收起' : '看清单'}<Icon name="chevron-down" size={15} stroke={2} />
+          </button>
+        </div>
+      ) : (
+        <div className="readouts">
+          <div className="readout"><b className="big-num">{items.length}</b><span>个</span><em>{doneCount ? `动作 · 已练 ${doneCount}` : '动作'}</em></div>
+          <div className="readout"><b className="big-num">{totalSets}</b><span>组</span><em>计划组数</em></div>
+          <div className="readout"><b className="big-num">{minutes ? `≈${minutes}` : '—'}</b><span>分钟</span><em>含休息</em></div>
+        </div>
+      )}
 
       {activeSession && (
         <Link href={`/train/${activeSession.id}`} className="live-banner">
@@ -110,7 +131,7 @@ export default function TodayPlan({
         </Link>
       )}
 
-      {items.length === 0 ? (
+      {allDone && !showDone ? null : items.length === 0 ? (
         <div className="empty-plan">
           <b>还没有安排动作</b>
           <p>回到人体上点一块肌肉挑几个动作，或者直接说「今天练胸，给我排四个动作」。</p>
@@ -161,17 +182,17 @@ export default function TodayPlan({
         </ol>
       )}
 
-      <Link href="/body" className="add-row">
+      {!allDone && <Link href="/body" className="add-row">
         <span className="add-row-icon" aria-hidden="true"><Icon name="plus" size={18} /></span>从动作库添加 · 也可以说「再加一个飞鸟」
-      </Link>
-
-      {err && <p className="form-err" role="alert">{err}</p>}
+      </Link>}
 
       {items.length > 0 && (
         <div className="start-dock">
-          <button type="button" className="ink-btn" onClick={start} disabled={busy || saving}>
-            <span>{busy ? '正在开始…' : activeSession ? '继续训练' : '开始训练'}</span>
-            <span className="ink-btn-meta">{totalSets} 组
+          {err && <p className="start-err" role="alert">{err}</p>}
+          <button type="button" className="ink-btn" data-extra={allDone || undefined} disabled={busy || saving}
+            onClick={allDone ? () => { haptic(10); router.push('/train/extra'); } : start}>
+            <span>{busy ? '正在开始…' : activeSession ? '继续训练' : allDone ? '加练' : doneCount ? '继续训练' : '开始训练'}</span>
+            <span className="ink-btn-meta">{allDone ? '挑几个动作再练' : doneCount ? `剩 ${remainingSets} 组` : `${totalSets} 组`}
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6" /></svg>
             </span>
           </button>

@@ -32,20 +32,39 @@ const HALFTONE_FRAG = `
     if (s.a < 0.002) return vec4(0.0);
     return vec4(toDisplay(s.rgb / s.a), s.a);
   }
+  // 雕塑本身是中性灰，没有色度；悬停 / 按下的肌群染成偏红、选中的染成偏绿，
+  // 这里把这两种色度识别出来，翻成「墨底亮点」的反相点阵。
+  vec2 marks(vec3 c) {
+    float chroma = max(max(c.r, c.g), c.b) - min(min(c.r, c.g), c.b);
+    return vec2(smoothstep(0.07, 0.2, chroma), step(c.r, c.g));
+  }
   void main() {
     vec2 px = gl_FragCoord.xy;
     vec4 m = lit(px / uRes);
     float l = dot(m.rgb, vec3(0.299, 0.587, 0.114));
     float g = clamp((l - 0.5) * 1.18 + 0.5, 0.0, 1.0) * 0.91;
     vec4 col = vec4(vec3(g), 1.0) * (m.a * 0.66);
+    vec3 ink = vec3(21.0, 22.0, 19.0) / 255.0;
+    col = mix(col, vec4(ink, 1.0) * m.a, marks(m.rgb).x);
     vec2 c = (floor(px / uCell) + 0.5) * uCell;
     vec4 s = lit(c / uRes);
     if (s.a > 0.35) {
-      float tone = max(0.0, (252.0 / 255.0 - s.r) / (128.0 / 255.0));
-      float r = (0.46 + min(1.22, tone) * 1.78) * uCell / 5.0;
-      float cov = 1.0 - smoothstep(r - uAA, r + uAA, length(px - c));
-      float a = (0.4 + min(1.0, tone) * 0.6) * cov * s.a;
-      col = vec4(vec3(20.0, 26.0, 20.0) / 255.0 * a, a) + col * (1.0 - a);
+      vec2 sm = marks(s.rgb);
+      if (sm.x > 0.5) {
+        // 反相：受光越多点越大，肌肉的起伏仍然读得出来
+        float v = clamp(sm.y > 0.5 ? s.g : s.r, 0.0, 1.0);
+        float r = (0.3 + v * 1.7) * uCell / 5.0;
+        float cov = 1.0 - smoothstep(r - uAA, r + uAA, length(px - c));
+        vec3 dotc = sm.y > 0.5 ? vec3(242.0, 237.0, 33.0) / 255.0 : vec3(236.0, 237.0, 232.0) / 255.0;
+        float a = cov * s.a;
+        col = vec4(dotc * a, a) + col * (1.0 - a);
+      } else {
+        float tone = max(0.0, (252.0 / 255.0 - s.r) / (128.0 / 255.0));
+        float r = (0.46 + min(1.22, tone) * 1.78) * uCell / 5.0;
+        float cov = 1.0 - smoothstep(r - uAA, r + uAA, length(px - c));
+        float a = (0.4 + min(1.0, tone) * 0.6) * cov * s.a;
+        col = vec4(vec3(20.0, 26.0, 20.0) / 255.0 * a, a) + col * (1.0 - a);
+      }
     }
     gl_FragColor = col;
   }
@@ -77,11 +96,13 @@ async function verifyHash(bytes: ArrayBuffer, expected: string) {
   if (actual !== expected) throw new Error('人体资源版本不匹配');
 }
 
-export default function SculptureBody({ recorded = [], selected = null, side = 'front', onPick, spin = false, variant = 'male', heatLevels, heatTint, heatPalette, look = 'sculpture', anchor = null }: {
+export default function SculptureBody({ recorded = [], selected = null, side = 'front', onPick, onHover, spin = false, variant = 'male', heatLevels, heatTint, heatPalette, look = 'sculpture', anchor = null }: {
   recorded?: MuscleId[];
   selected?: MuscleId | null;
   side?: 'front' | 'back';
   onPick?: (id: MuscleId) => void;
+  /** 悬停（鼠标）或按住（触屏）的肌群，松开或拖动时回到 null */
+  onHover?: (id: MuscleId | null) => void;
   spin?: boolean;
   variant?: SculptureVariant;
   heatLevels?: ReadonlyMap<MuscleId, number>;
@@ -101,6 +122,9 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
   const api = useRef<{ refresh: () => void; setSide: (side: 'front' | 'back') => void; anchor: () => void } | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [hovered, setHovered] = useState<MuscleId | null>(null);
+  const hoverCallback = useRef(onHover);
+  hoverCallback.current = onHover;
+  useEffect(() => { hoverCallback.current?.(hovered); }, [hovered]);
   useEffect(() => { api.current?.refresh(); }, [recorded, selected, heatLevels, heatTint]);
   useEffect(() => { api.current?.setSide(side); }, [side]);
   useEffect(() => { api.current?.anchor(); }, [anchor?.muscle]);
@@ -187,8 +211,9 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
     let dirty = true;
     const PALETTE = { sage: { heat: '#2f6a45', hover: '#8fae94' }, lemon: { heat: '#f2ed21', hover: '#91bce8' }, ink: { heat: '#151613', hover: '#8d8f89' } };
     const palette = heatPalette ? PALETTE[heatPalette] : null;
-    const DEFAULT_TINT = halftone ? '#8c8d88' : palette?.heat ?? '#D9503C';
-    const HOVER = halftone ? '#b3b4af' : palette?.hover ?? '#b6b7b1';
+    // 点阵模式下这两种颜色只是给后处理的标记（绿 = 选中、红 = 悬停 / 按下），屏幕上看到的是反相点阵
+    const DEFAULT_TINT = halftone ? '#2fe62f' : palette?.heat ?? '#D9503C';
+    const HOVER = halftone ? '#e62f2f' : palette?.hover ?? '#b6b7b1';
     // 墨黑 / 柠檬黄色板下悬停在已着色的肌群上时，画一圈浅色边，中间仍能看出热度
     const rimOnHover = !halftone && Boolean(heatPalette) && heatPalette !== 'sage';
     const tint = { value: new THREE.Color(DEFAULT_TINT) };
@@ -215,7 +240,7 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
     };
     refresh();
     const material = new THREE.MeshStandardMaterial({ color: halftone ? 0xe4e4e1 : 0xe9e8e3, roughness: .88, metalness: 0, side: THREE.DoubleSide });
-    material.customProgramCacheKey = () => halftone ? 'sculpture-halftone-v1' : `sculpture-ortho-feather-v2-${rimOnHover ? 'rim' : 'plain'}`;
+    material.customProgramCacheKey = () => halftone ? 'sculpture-halftone-v2' : `sculpture-ortho-feather-v2-${rimOnHover ? 'rim' : 'plain'}`;
     material.onBeforeCompile = (shader) => {
       shader.uniforms.uMuscleHeat = { value: heat };
       // 点阵模式下选中/悬停只把该区压暗，圆点随之变大变深，不另上色
@@ -356,11 +381,13 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
     const onDown = (event: PointerEvent) => {
       if (!event.isPrimary || event.button !== 0) { dragged = true; updateHover(null); return; }
       down = { x: event.clientX, y: event.clientY, id: event.pointerId }; dragged = false;
+      // 触屏没有悬停：按下就先把手指下的肌群翻成反相，松手才算选中，拖动则取消
+      if (halftone && event.pointerType !== 'mouse') updateHover(pickAt(event.clientX, event.clientY));
     };
     const onMove = (event: PointerEvent) => {
       pointer = { x: event.clientX, y: event.clientY };
       if (down && Math.hypot(event.clientX-down.x, event.clientY-down.y) > 5) dragged = true;
-      if (down) updateHover(null);
+      if (down && (dragged || !halftone || event.pointerType === 'mouse')) updateHover(null);
       else needsHover = event.pointerType !== 'touch';
     };
     const onUp = (event: PointerEvent) => {

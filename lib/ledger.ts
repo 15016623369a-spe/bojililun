@@ -1,6 +1,7 @@
 import { applyMealOption, prepareMealPick, type QuickPick } from "./quick-pick";
 import type { DatabaseSync } from "node:sqlite";
 import dictionary from "../data/exercises-seed.json";
+import { MUSCLES } from "./muscles";
 import {
   formatWorkoutSummary,
   type Item,
@@ -9,6 +10,9 @@ import {
   type SetDetail,
 } from "./calculations";
 export type Source = "manual" | "photo" | "voice" | "scale";
+const MUSCLE_IDS = new Set<string>(MUSCLES.map((m) => m.id));
+const knownMuscles = (list: unknown): string[] =>
+  Array.isArray(list) ? [...new Set(list.map(String).filter((id) => MUSCLE_IDS.has(id)))] : [];
 export interface Draft {
   entry_type: "meal" | "workout" | "plan_draft" | "body_metrics";
   summary_title: string;
@@ -215,8 +219,9 @@ export function saveBatch(
         return {
           exercise_id: e?.id ?? null,
           exercise_name: e?.name_zh ?? m.exercise_name,
-          primary_muscles: e?.primary_muscles ?? [],
-          secondary_muscles: e?.secondary_muscles ?? [],
+          // 词典优先；词典里没有的动作（多为旧训练表同步来的）沿用传入的肌群，只收已知肌群 id
+          primary_muscles: e?.primary_muscles ?? knownMuscles(m.primary_muscles),
+          secondary_muscles: e?.secondary_muscles ?? knownMuscles(m.secondary_muscles),
           sets: m.sets,
         };
       });

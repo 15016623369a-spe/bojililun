@@ -13,8 +13,10 @@ async function countOf(url: string, signal: AbortSignal) {
 }
 
 /** 点选肌群后的姿势详情：灰白石膏姿势 + 雾银抽屉（动作库 / 我的动作库 / 开始训练）。 */
-export default function PlanDetail({ muscle, muscleLabel, region, pose, planCount, activeSession, closing, libraryOpen, onOpenLibrary, onClose }: {
+export default function PlanDetail({ muscle, muscleLabel, region, pose, planCount, planDone = false, activeSession, closing, libraryOpen, onOpenLibrary, onClose }: {
   muscle: MuscleId;
+  /** 今日计划已全部练完：主按钮改成加练 */
+  planDone?: boolean;
   muscleLabel: string;
   region: string;
   pose: PlanPose;
@@ -79,6 +81,7 @@ export default function PlanDetail({ muscle, muscleLabel, region, pose, planCoun
   async function start() {
     if (starting) return;
     if (activeSession) { router.push(`/train/${activeSession}`); return; }
+    if (planDone) { router.push('/train/extra'); return; }
     if (planCount === 0) { onOpenLibrary('all'); return; }
     setStarting(true);
     setError('');
@@ -99,7 +102,8 @@ export default function PlanDetail({ muscle, muscleLabel, region, pose, planCoun
   }
 
   const count = (n?: number) => (n === undefined ? '' : `${n} 个`);
-  const startMeta = activeSession ? '继续上一节' : planCount ? `今日 ${planCount} 个动作` : '先挑动作';
+  const startMeta = activeSession ? '继续上一节' : planDone ? '今日计划已完成' : planCount ? `今日 ${planCount} 个动作` : '先挑动作';
+  const startLabel = activeSession ? '继续训练' : planDone ? '加练' : '开始训练';
 
   return (
     <div className="plan-detail" data-closing={closing || undefined} data-dragging={drag.live || undefined}
@@ -116,6 +120,8 @@ export default function PlanDetail({ muscle, muscleLabel, region, pose, planCoun
         </div>
       </header>
 
+      {/* 抽屉上方任意位置点一下就收起，回到点阵人体 */}
+      <button type="button" className="plan-detail-backdrop" onClick={onClose} aria-label="收起，回到点选肌群" tabIndex={-1} />
       <figure className="plan-detail-figure">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={`/plan-poses/${pose}.jpg`} alt={`${region}展示姿势`} draggable={false} />
@@ -140,7 +146,7 @@ export default function PlanDetail({ muscle, muscleLabel, region, pose, planCoun
         </div>
         {error && <p className="plan-error" role="alert">{error}</p>}
         <button type="button" className="plan-start" onClick={() => void start()} disabled={starting}>
-          <span>{starting ? '正在开始…' : '开始训练'}</span>
+          <span>{starting ? '正在开始…' : startLabel}</span>
           <span className="plan-start-meta">{startMeta}
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6" /></svg>
           </span>

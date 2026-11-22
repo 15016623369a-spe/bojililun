@@ -4,6 +4,49 @@ import dictionary from '../data/exercises-seed.json';
 import { saveBatch, type Draft } from './ledger';
 import type { FoodItem } from './types';
 import type { Movement } from './calculations';
+import { MUSCLES, muscleMatchesExercise } from './muscles';
+import { idsForTarget } from './energy';
+import { mentionedMuscles } from './journal';
+
+type SeedExercise = (typeof dictionary)[number];
+
+/**
+ * 旧训练表的动作 → 主要 / 次要肌群。判定与统计页的 primaryMuscleActivity 一致：
+ * 词典有肌群就用词典；否则按动作库的 target / body_part 匹配，再退到动作名里提到的部位。
+ * 手账的 calcMuscleHeatmap 只认这两个字段，缺了回顾热图就是空的。
+ */
+function legacyMuscles(
+  db: DatabaseSync,
+  row: { exercise_id?: unknown; exercise_name: string; target?: unknown; body_part?: unknown },
+  dict: SeedExercise | undefined,
+) {
+  if (dict?.primary_muscles?.length)
+    return { primary: [...dict.primary_muscles], secondary: [...(dict.secondary_muscles ?? [])] };
+  const meta = row.exercise_id
+    ? db.prepare('SELECT name,target,body_part,secondary_muscles FROM exercise WHERE id=?').get(String(row.exercise_id))
+    : undefined;
+  const ex = {
+    name: String(meta?.name || row.exercise_name),
+    target: String(meta?.target || row.target || ''),
+    body_part: String(meta?.body_part || row.body_part || ''),
+  };
+  const matches = MUSCLES.filter((muscle) => muscleMatchesExercise(muscle, ex));
+  const candidates = idsForTarget(ex.target);
+  const primary =
+    matches.find((muscle) => muscle.include)?.id ??
+    matches[0]?.id ??
+    (candidates.includes('delt_side') ? 'delt_side' : candidates[0]) ??
+    mentionedMuscles(row.exercise_name)[0];
+  let secondary: string[] = [];
+  try {
+    const listed = JSON.parse(String(meta?.secondary_muscles ?? '[]'));
+    if (Array.isArray(listed)) secondary = listed.flatMap((target) => idsForTarget(String(target)));
+  } catch { /* 没有次要肌群不影响主要肌群 */ }
+  return {
+    primary: primary ? [primary] : [],
+    secondary: [...new Set(secondary)].filter((id) => id !== primary),
+  };
+}
 
 // Legacy screens continue writing their own tables. A durable dirty queue bridges those writes.
 export function installBridge(db: DatabaseSync) {
@@ -24,6 +67,15 @@ export function installBridge(db: DatabaseSync) {
     db.exec(
       `INSERT OR IGNORE INTO ledger_dirty SELECT '${kind}',${key} FROM ${table} WHERE NOT EXISTS(SELECT 1 FROM ledger_requests WHERE user_id='local' AND request_id='legacy/${kind}/'||${table}.${key})`,
     );
+  }
+  // 一次性补齐：早先同步过来的旧训练没有写肌群，重新同步一次（id 和删除状态保持不变）
+  db.exec('CREATE TABLE IF NOT EXISTS ledger_backfill(name TEXT PRIMARY KEY)');
+  if (!db.prepare("SELECT 1 FROM ledger_backfill WHERE name='legacy-workout-muscles'").get()) {
+    for (const kind of ['workout', 'journal'])
+      db.exec(
+        `INSERT OR IGNORE INTO ledger_dirty SELECT '${kind}',substr(request_key,16,length(request_key)-17) FROM entries WHERE user_id='local' AND entry_type='workout' AND request_key LIKE 'legacy/${kind}/%/0' AND actions LIKE '%"primary_muscles":[]%'`,
+      );
+    db.exec("INSERT INTO ledger_backfill VALUES('legacy-workout-muscles')");
   }
 }
 export function flushLegacy(db: DatabaseSync) {
@@ -76,11 +128,12 @@ export function flushLegacy(db: DatabaseSync) {
           for (const row of db.prepare('SELECT * FROM session_set WHERE session_id=? ORDER BY id').all(id)) {
             const name = String(row.exercise_name),
               dict = dictionary.find((e) => e.legacy_id === row.exercise_id || e.name_zh === name);
+            const muscles = moves.has(name) ? null : legacyMuscles(db, { ...row, exercise_name: name }, dict);
             const m = moves.get(name) ?? {
               exercise_id: dict?.id ?? null,
               exercise_name: name,
-              primary_muscles: [],
-              secondary_muscles: [],
+              primary_muscles: muscles?.primary ?? [],
+              secondary_muscles: muscles?.secondary ?? [],
               sets: [],
             };
             m.sets.push({
@@ -138,11 +191,13 @@ export function flushLegacy(db: DatabaseSync) {
             ).map((m) => {
               const num = (v?: string) =>
                 v && /^\d+(?:\.\d+)?(?:kg|公斤|次|秒)?$/i.test(v.trim()) ? parseFloat(v) : null;
+              const dict = dictionary.find((e) => e.name_zh === m.name || e.aliases?.includes(m.name));
+              const muscles = legacyMuscles(db, { exercise_name: m.name }, dict);
               return {
                 exercise_name: m.name,
-                exercise_id: null,
-                primary_muscles: [],
-                secondary_muscles: [],
+                exercise_id: dict?.id ?? null,
+                primary_muscles: muscles.primary,
+                secondary_muscles: muscles.secondary,
                 sets: Array.from({ length: m.sets ?? 0 }, () => ({
                   weight_kg: num(m.weight),
                   reps: num(m.reps),

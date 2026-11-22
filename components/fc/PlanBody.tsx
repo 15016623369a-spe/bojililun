@@ -9,16 +9,13 @@ import type { MuscleId } from '@/lib/muscles';
 import { canonicalMuscle, sculptureGroup, type SculptureVariant } from '@/lib/sculpture-groups';
 import { PLAN_POSES, planPoseFor } from '@/lib/plan-poses';
 
-/** 首屏提示锚点：参考图里只亮胸部一个柠檬黄点。 */
-const HINT: SculptureAnchor = { muscle: 'chest_mid', label: '胸部' };
-
 function haptic(ms = 8) {
   try { navigator.vibrate?.(ms); } catch { /* iOS Safari 没有振动接口 */ }
 }
 
 export default function PlanBody({ variant = 'male', todayPlan, activeSession = null, initialMuscle }: {
   variant?: SculptureVariant;
-  todayPlan: { date: string; exerciseIds: string[] };
+  todayPlan: { date: string; exerciseIds: string[]; allDone?: boolean };
   activeSession?: number | null;
   initialMuscle?: MuscleId;
 }) {
@@ -32,6 +29,7 @@ export default function PlanBody({ variant = 'male', todayPlan, activeSession = 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [origin, setOrigin] = useState('50% 36%');
+  const [hovered, setHovered] = useState<MuscleId | null>(null);
   const stage = useRef<HTMLDivElement>(null);
   const openTimer = useRef<number>(0);
   const lock = useRef(false);
@@ -40,7 +38,8 @@ export default function PlanBody({ variant = 'male', todayPlan, activeSession = 
   const close = useCallback(() => {
     setSheet(null);
     setDetail((state) => (state === 'open' ? 'closing' : state));
-    window.setTimeout(() => setDetail(null), 320);
+    // 回到首屏时不留常亮的选中块，人体恢复成纯点阵
+    window.setTimeout(() => { setDetail(null); setPicked(null); }, 320);
   }, []);
 
   // 手机返回手势关闭详情：打开时压一层历史记录
@@ -119,14 +118,27 @@ export default function PlanBody({ variant = 'male', todayPlan, activeSession = 
 
   const group = picked ? sculptureGroup(picked) : null;
   const pose = picked ? planPoseFor(picked) : null;
-  const anchor: SculptureAnchor = picked && group ? { muscle: picked, label: group.label } : HINT;
+  const anchor: SculptureAnchor = picked && group ? { muscle: picked, label: group.label } : null;
+  // 大标题就是读数：空闲时是「点选肌群」，手指压住或鼠标停在哪块肌肉，就换成那块的名字
+  const focus = picked ?? hovered;
+  const focusGroup = focus ? sculptureGroup(focus) : null;
+  const focusRegion = focus ? PLAN_POSES[planPoseFor(focus)].label : null;
 
   return (
     <div className="plan-root fc">
-      <div ref={stage} className="plan-stage" data-detail={detail ?? undefined} style={{ transformOrigin: origin }}>
+      <header className="plan-title" data-focus={focus ? (picked ? 'picked' : 'hover') : undefined} aria-live="polite">
+        <div className="plan-title-main" key={focusGroup?.label ?? 'idle'}>{focusGroup?.label ?? '点选肌群'}</div>
+        <p>
+          <span className="plan-title-side">{side === 'front' ? '正面' : '背面'}</span>
+          {focusRegion
+            ? <span key={focusRegion} className="plan-title-hint">{focusRegion}<em>{picked ? '进入' : <><span className="on-touch">松手进入</span><span className="on-mouse">点击进入</span></>}</em></span>
+            : <span className="plan-title-hint"><span className="on-touch">按住一块肌肉看名字，松手进入</span><span className="on-mouse">指向一块肌肉看名字，点击进入</span></span>}
+        </p>
+      </header>
+      <div ref={stage} className="plan-stage" data-detail={detail ?? undefined} data-focus={focus ? '' : undefined} style={{ transformOrigin: origin }}>
         <div className="plan-dots" aria-hidden="true" />
         <SculptureBody look="halftone" key={variant} variant={variant} side={side} selected={picked}
-          onPick={onPick} anchor={anchor} />
+          onPick={onPick} onHover={setHovered} anchor={anchor} />
       </div>
       <button type="button" className="plan-rotate" onClick={() => setSide((s) => (s === 'front' ? 'back' : 'front'))}
         aria-label={side === 'front' ? '转到背面' : '转到正面'}>
@@ -145,6 +157,7 @@ export default function PlanBody({ variant = 'male', todayPlan, activeSession = 
           region={PLAN_POSES[pose].label}
           pose={pose}
           planCount={planned.size}
+          planDone={Boolean(todayPlan.allDone) && planned.size === todayPlan.exerciseIds.length}
           activeSession={activeSession}
           onOpenLibrary={(which) => setSheet(which)}
           onClose={dismiss}

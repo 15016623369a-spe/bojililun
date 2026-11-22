@@ -54,8 +54,10 @@ function macroLine(d: ReviewDay) {
  * 回顾（手账数据）：容量柱、训练读数、肌群热图、体重和按日记录。
  * 数据与计分沿用 main 的 exportJournal / calcMuscleHeatmap / calcWeightTrend，这里不改口径。
  */
-export default function LedgerReview({ period, today, days, groups, side, variant, trainingDays, totalSets, weight }: {
+export default function LedgerReview({ period, today, days, groups, side, variant, trainingDays, totalSets, weight, statsHref }: {
   period: 'day' | 'week' | 'month';
+  /** 训练统计入口：挂在容量标题旁，带上当前区间 */
+  statsHref: string;
   today: string;
   days: ReviewDay[];
   groups: HeatGroup[];
@@ -86,7 +88,12 @@ export default function LedgerReview({ period, today, days, groups, side, varian
 
   return <>
     <section className="review-total">
-      <p className="review-total-label">{word}训练容量</p>
+      <div className="review-total-head">
+        <p className="review-total-label">{word}训练容量</p>
+        <Link className="stats-chip" href={statsHref}>
+          <span className="stats-chip-bars" aria-hidden="true"><i /><i /><i /><i /></span>训练统计<Icon name="chevron-right" size={15} stroke={2} />
+        </Link>
+      </div>
       <div className="review-total-num"><SplitNumber value={total} /><em>kg</em></div>
 
       {period !== 'day' && <div className={`review-bars ${period}`} role="group" aria-label={`${word}每天的训练容量`}>
@@ -128,11 +135,10 @@ export default function LedgerReview({ period, today, days, groups, side, varian
         <h2 className="v-section-title">肌群热力图</h2>
         {selected && <button type="button" className="chip" onClick={() => inspect(null)}>全部<Icon name="close" size={13} stroke={2} /></button>}
       </div>
-      <div className="review-model dotted large">
-        {recorded.length
-          ? <SculptureBody key={variant + period} variant={variant} look="sculpture" heatTint={HEAT_TINT} side={side}
-            heatLevels={levels} recorded={recorded} selected={selected} onPick={(id) => inspect(id)} />
-          : <p className="review-model-empty">{word}还没有训练记录</p>}
+      <div className="review-model dotted large" data-empty={recorded.length ? undefined : ''}>
+        <SculptureBody key={variant + period} variant={variant} look="sculpture" heatTint={HEAT_TINT} side={side}
+          heatLevels={levels} recorded={recorded} selected={selected} onPick={(id) => inspect(id)} />
+        {!recorded.length && <p className="review-model-note"><i aria-hidden="true" />{word}还没有训练，练过的肌群会在这里变蓝</p>}
       </div>
       <div className="heat-legend" aria-label="按训练计分着色，由未训练到训练较多">
         <span>未训练</span>

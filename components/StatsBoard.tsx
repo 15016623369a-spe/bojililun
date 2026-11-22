@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import Link from 'next/link';
 import type { CSSProperties } from 'react';
 import { imageUrl } from '@/lib/exercise-label';
@@ -45,45 +45,31 @@ export default function StatsBoard(props: {
   variant: SculptureVariant;
   initialView: View;
 }) {
-  const [view, setView] = useState<View>(props.initialView);
-  const [dir, setDir] = useState(1);
+  const root = useRef<HTMLDivElement>(null);
 
-  // 视图写进地址栏，切换周期或刷新后停在同一页
+  // 三段都在同一页，往下滑依次出现；带 view 参数进来时直接滚到那一段
   useEffect(() => {
-    const url = new URL(window.location.href);
-    url.searchParams.set('view', view);
-    window.history.replaceState(window.history.state, '', url);
-    document.querySelectorAll<HTMLAnchorElement>('[data-period-link]').forEach((a) => {
-      const href = new URL(a.href);
-      href.searchParams.set('view', view);
-      a.href = href.toString();
-    });
-  }, [view]);
+    const sections = [...(root.current?.querySelectorAll<HTMLElement>('.stats-sec') ?? [])];
+    if (props.initialView !== 'overview') document.getElementById(`stats-${props.initialView}`)?.scrollIntoView({ block: 'start' });
+    if (!('IntersectionObserver' in window)) return;
+    // 只有脚本接管后才把未进入视口的段落藏起来，首段直接显示，避免闪一下
+    sections.forEach((el) => { if (el.getBoundingClientRect().top < window.innerHeight) el.dataset.in = ''; });
+    if (root.current) root.current.dataset.ready = '';
+    const io = new IntersectionObserver((entries) => {
+      for (const entry of entries) if (entry.isIntersecting) { (entry.target as HTMLElement).dataset.in = ''; io.unobserve(entry.target); }
+    }, { rootMargin: '0px 0px -12% 0px' });
+    sections.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, [props.initialView]);
 
-  function go(next: View) {
-    if (next === view) return;
-    haptic(6);
-    setDir(ORDER.indexOf(next) > ORDER.indexOf(view) ? 1 : -1);
-    setView(next);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  return <>
-    <div className="stats-stage" data-view={view}>
-      <div key={view} className="stats-view" style={{ '--dir': dir } as CSSProperties}>
-        {view === 'overview' && <Overview {...props} />}
-        {view === 'muscles' && <Muscles {...props} />}
-        {view === 'exercises' && <Exercises {...props} />}
-      </div>
-    </div>
-    <div className="journal-footer stats-footer">
-      <nav className="journal-nav stats-nav" aria-label="统计视图" data-view={view}>
-        {ORDER.map((key) => <button key={key} type="button" aria-current={key === view ? 'page' : undefined} onClick={() => go(key)}>
-          <span>{VIEW_LABEL[key]}</span>
-        </button>)}
-      </nav>
-    </div>
-  </>;
+  return <div className="stats-scroll" ref={root}>
+    {ORDER.map((key, i) => <section key={key} id={`stats-${key}`} className="stats-sec" data-sec={key} aria-labelledby={`stats-${key}-title`}>
+      <h2 className="stats-sec-head" id={`stats-${key}-title`}><em>{String(i + 1).padStart(2, '0')}</em>{VIEW_LABEL[key]}<i aria-hidden="true" /></h2>
+      {key === 'overview' && <Overview {...props} />}
+      {key === 'muscles' && <Muscles {...props} />}
+      {key === 'exercises' && <Exercises {...props} />}
+    </section>)}
+  </div>;
 }
 
 /* ---------------- 总览 ---------------- */
