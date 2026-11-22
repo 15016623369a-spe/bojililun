@@ -107,8 +107,7 @@ export default function LedgerDeck({ items, cards, picks, nowMinutes }: {
 
     <div className="deck" ref={deck} onScroll={onScroll}>
       {items.length === 0 && <div className="deck-card empty">
-        <span className="deck-kind"><Icon name="mic" size={17} />开始记录</span>
-        <b className="big-num">--:--</b>
+        <Icon name="note" size={23} />
         <strong>今天还没有记录</strong>
         <small>用下方的键盘、录音或相机记第一条。</small>
       </div>}
@@ -117,8 +116,8 @@ export default function LedgerDeck({ items, cards, picks, nowMinutes }: {
         <button type="button" className="deck-card-body" aria-pressed={i === active} onClick={() => go(i)}>
           <span className="deck-kind"><Icon name={KIND[item.kind].icon} size={17} />{KIND[item.kind].label}
             {item.pending && <em className="deck-pending">{item.kind === 'meal' ? '可校正' : '待补'}</em>}</span>
-          <b className="big-num">{item.time}</b>
           <strong>{item.title}</strong>
+          <time className="deck-time">{item.time}</time>
           {item.sub && <small>{item.sub}</small>}
         </button>
       </article>)}
@@ -130,7 +129,7 @@ export default function LedgerDeck({ items, cards, picks, nowMinutes }: {
     </div>}
 
     {pick && <div className="fc ledger-detail" key={pick.key}>
-      <header className="ledger-detail-hd"><span>{KIND[pick.kind].label}明细</span><b>{pick.time}</b></header>
+      <header className="ledger-detail-hd"><h2>{KIND[pick.kind].label}明细</h2></header>
       {card?.entry_type === 'workout' && card.exercises.length > 0 && <ol className="ledger-moves">
         {card.exercises.map((m, i) => {
           const volume = m.sets.reduce((sum, set) => sum + (set.weight_kg ?? 0) * (set.reps ?? 0), 0);

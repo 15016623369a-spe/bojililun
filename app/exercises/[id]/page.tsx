@@ -3,6 +3,7 @@ import JournalShell from "@/components/JournalShell";
 import { notFound } from "next/navigation";
 import AddToPlanButton from "@/components/AddToPlanButton";
 import ExerciseMedia from "@/components/ExerciseMedia";
+import StickyDetailBar from "@/components/ui/StickyDetailBar";
 import {
   BODY_LABEL,
   EQUIPMENT_LABEL,
@@ -41,6 +42,7 @@ export default async function ExerciseDetailPage({
     steps = [];
   }
   const displayZh = ex.zh_name || zhAlias(ex.name);
+  const back = fromToday ? { href: "/log", label: "今天" } : { href: "/exercises", label: "动作库" };
 
   // 数据集的“整段说明”和“分步要点”内容基本重复，只保留分步
   const norm = (t: string) => t.replace(/[\s。，,、；;：:！!？?\-—–]/g, "");
@@ -64,12 +66,9 @@ export default async function ExerciseDetailPage({
       active={fromToday ? "record" : "plan"}
       title={displayZh || ex.name}
       subtitle={displayZh !== ex.name ? ex.name : undefined}
-      back={
-        fromToday
-          ? { href: "/log", label: "今天" }
-          : { href: "/exercises", label: "动作库" }
-      }
+      back={back}
     >
+      <StickyDetailBar title={displayZh || ex.name} back={back} />
       <div className="detail">
         <ExerciseMedia
           id={ex.id}

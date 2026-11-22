@@ -97,7 +97,7 @@ export default function SupplementalWorkout({ variant }: { variant: SculptureVar
             <div className="steppers">
               <Stepper label="组数" value={pick.sets} unit="组" step={1} min={1} max={20} onChange={(v) => update(pick.id, { sets: v })} />
               <Stepper label="次数" value={pick.reps} unit="次" step={1} min={1} max={100} onChange={(v) => update(pick.id, { reps: v })} />
-              <Stepper label="重量" value={pick.weight} unit="kg" step={2.5} min={0} max={500} onChange={(v) => update(pick.id, { weight: v })} />
+              <Stepper label="重量" value={pick.weight} unit="kg" step={2.5} min={0} max={1000} onChange={(v) => update(pick.id, { weight: v })} />
             </div>
             <div className="rest-seg" role="radiogroup" aria-label={`${pick.name}组间休息`}>
               <span>组间休息</span>

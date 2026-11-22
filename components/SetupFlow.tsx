@@ -9,6 +9,7 @@ import { MODEL_IMAGES } from './TrainingProfileForm';
 import JournalIcon from './JournalIcon';
 import Icon from './ui/Icon';
 import TickRuler from './ui/TickRuler';
+import Stepper from './ui/Stepper';
 
 const GOAL_NOTE: Record<TrainingGoal, string> = {
   muscle: '多吃一点，重量慢慢往上加',
@@ -151,9 +152,9 @@ export default function SetupFlow() {
       </div>}
 
       {step === 'weight' && <div className="setup-weight">
-        <div className="weight-editor-num"><b className="big-num">{(weight ?? 70).toFixed(1).split('.')[0]}<span className="dim">.{(weight ?? 70).toFixed(1).split('.')[1]}</span></b><em>kg</em></div>
-        <TickRuler value={weight ?? 70} min={30} max={180} step={0.1} major={10} label="体重刻度尺" unit="kg" onChange={setWeight} />
-        {weight === null && <p className="setup-hint">左右滑动刻度尺；不想填可以跳过。</p>}
+        <Stepper readout label="体重" value={weight ?? 70} unit="kg" step={0.1} min={20} max={400} onChange={setWeight} />
+        <TickRuler value={weight ?? 70} min={20} max={400} step={0.1} major={10} label="体重刻度尺" unit="kg" onChange={setWeight} />
+        {weight === null && <p className="setup-hint">按加减、滑动刻度或点数字输入，也可以跳过。</p>}
       </div>}
 
       {step === 'restriction' && <div className="setup-options">
@@ -197,7 +198,7 @@ export default function SetupFlow() {
 
     <footer className="setup-foot">
       {error && <p className="form-err" role="alert">{error}</p>}
-      <button type="button" className="ink-btn" disabled={!canNext || saving} onClick={() => { if (step === 'weight' && weight === null) setWeight(70); if (last) void finish(); else move(1); }}>
+      <button type="button" className="ink-btn" disabled={!canNext || saving} onClick={() => { if (last) void finish(); else move(1); }}>
         <span>{saving ? '正在保存…' : last ? (liked.size ? `完成 · 加入 ${liked.size} 个动作` : '完成，开始使用') : '下一步'}</span>
         <span className="ink-btn-meta">{step === 'goal' && !goal ? '选一项' : null}<Icon name={last ? 'check' : 'arrow-right'} size={20} stroke={2} /></span>
       </button>

@@ -7,6 +7,7 @@ import { muscleById, type MuscleId } from "@/lib/muscles";
 import { sculptureGroup } from "@/lib/sculpture-groups";
 import JournalIcon from "@/components/JournalIcon";
 import Icon from "@/components/ui/Icon";
+import useSheetDismiss from "@/components/ui/useSheetDismiss";
 import type { ExercisePreference } from "@/lib/core/exercise-preferences";
 
 interface DictItem {
@@ -114,6 +115,7 @@ export default function ExerciseSheet({
   preference?: "liked";
 }) {
   const router = useRouter();
+  const { panel, handle, requestClose, dragging, closing } = useSheetDismiss(Boolean(muscle), Boolean(selection?.saving), onClose);
   const [data, setData] = useState<DictResult | null>(null);
   const [busyList, setBusyList] = useState(false);
   const [busyMore, setBusyMore] = useState(false);
@@ -224,11 +226,11 @@ export default function ExerciseSheet({
         setShowSelected(false);
         trayToggle.current?.focus();
       }
-      else onClose();
+      else requestClose();
     };
     window.addEventListener("keydown", close);
     return () => window.removeEventListener("keydown", close);
-  }, [muscle, active, onClose, reviewing]);
+  }, [muscle, active, requestClose, reviewing]);
 
   useEffect(() => {
     if (!toast) return;
@@ -291,15 +293,18 @@ export default function ExerciseSheet({
 
   return (
     <>
-      <div className="fc-mask dict" onClick={onClose}>
+      <div className="fc-mask dict" data-closing={closing || undefined} onClick={requestClose}>
         <div
           className={`fc-sheet fc-dict-sheet${active ? " fc-dict-detail" : ""}${selection ? " fc-dict-picker" : ""}`}
+          ref={panel}
+          data-dragging={dragging || undefined}
           role="dialog"
           tabIndex={-1}
           aria-modal="true"
           aria-label={`${title ?? "肌群"}动作列表`}
           onClick={(e) => e.stopPropagation()}
         >
+          <button type="button" className="fc-dict-grip" aria-label="收起动作抽屉" disabled={selection?.saving} {...handle} />
           {active ? (
             <>
               <div className="fc-dict-detail-top">
@@ -313,7 +318,7 @@ export default function ExerciseSheet({
                 <button
                   type="button"
                   className="fc-dict-close"
-                  onClick={onClose}
+                  onClick={requestClose}
                 >
                   关闭
                 </button>
@@ -457,7 +462,7 @@ export default function ExerciseSheet({
                 <button
                   type="button"
                   className="fc-dict-close"
-                  onClick={onClose}
+                  onClick={requestClose}
                 >
                   关闭
                 </button>
@@ -643,7 +648,7 @@ export default function ExerciseSheet({
                         <Icon name={reviewing ? "chevron-left" : "chevron-right"} size={15} />
                       </span>
                     </button>
-                  ) : <p className="fc-picker-empty">点 ＋ 选动作，可连续添加</p>}
+                  ) : <p className="fc-picker-empty">{!loading && !listError && items.length > 0 ? "可连续选择多个动作" : ""}</p>}
                   {selection.error && (
                     <p className="fc-note" role="alert">
                       {selection.error}
@@ -651,14 +656,23 @@ export default function ExerciseSheet({
                   )}
                   <button
                     type="button"
-                    className="fc-btn primary"
-                    disabled={selection.saving || selection.selected.size === 0}
+                    className="fc-btn primary fc-picker-submit"
+                    data-empty={selectedChoices.length === 0 || undefined}
+                    disabled={selection.saving || selectedChoices.length === 0}
                     onClick={async () => {
                       const addedItemIds = await selection.complete();
                       if (addedItemIds) (onSelectionComplete ?? onClose)(addedItemIds);
                     }}
                   >
-                    {selection.saving ? "加入中…" : `加入${selection?.label ?? "今日训练"}`}
+                    {selection.saving
+                      ? "加入中…"
+                      : selectedChoices.length > 0
+                        ? `加入${selection.label ?? "今日训练"} · ${selectedChoices.length} 个`
+                        : loading
+                          ? "正在找动作…"
+                          : listError || items.length === 0
+                            ? "暂无可选动作"
+                            : "先选一个动作"}
                   </button>
                 </div>
               )}

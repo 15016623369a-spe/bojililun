@@ -76,9 +76,9 @@
 .empty-plan { padding: 34px 6px; text-align: center; border-top: 1px solid var(--hairline); }
 .empty-plan b { font-size: 17px; }
 .training-complete { margin: 0 0 14px; font-size: 15px; font-weight: 600; }
-.completed-actions { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
+.completed-actions { display: flex; align-items: center; gap: 10px; }
 .completed-actions .ink-btn { flex: 1; }
-.completed-actions .ghost-pill { flex: none; }
+.completed-actions .ghost-pill { flex: none; background: var(--silver-2); }
 
 .start-dock {
   position: fixed; left: 0; right: 0; bottom: calc(88px + env(safe-area-inset-bottom));
@@ -176,20 +176,7 @@ html:has(.v-runner) body { background: var(--canvas); }
 .runner-ex h1 { margin: 0; font-size: 23px; font-weight: 700; letter-spacing: -.01em; }
 .runner-ex p { margin: 5px 0 0; font-size: 13px; color: var(--runner-soft); font-variant-numeric: tabular-nums; }
 .runner-ex .sep { margin: 0 6px; opacity: .5; }
-.field-label { margin: 24px 0 2px; font-size: 13px; font-weight: 600; color: var(--runner-soft); letter-spacing: .04em; }
-.big-value { display: flex; align-items: flex-end; gap: 6px; }
-.big-value .big-num { font-size: clamp(96px, 30vw, 124px); }
-.big-value button.big-num, .big-value input.big-num { padding: 0; border: 0; background: transparent; text-align: left; }
-.big-value input.big-num { width: 100%; outline: none; caret-color: var(--ink-0); }
-.big-value > em { font-style: normal; font-size: 22px; font-weight: 700; margin-bottom: 12px; }
 .v-runner[data-mode="set"] .big-num .dim { color: var(--gray-1); }
-.v-runner[data-mode="set"] .tick-ruler { margin-top: 14px; }
-.big-value.reps .big-num { font-size: 70px; }
-.reps-row { display: flex; align-items: flex-end; justify-content: space-between; margin-top: 4px; }
-.reps-buttons { display: flex; gap: 10px; padding-bottom: 4px; }
-.round { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: rgb(21 22 19 / 10%); color: var(--ink-0); transition: transform .15s var(--ease-out); }
-.round.ink { background: var(--ink-0); color: var(--lemon); }
-.round:active { transform: scale(.9); }
 
 .runner-set-dots { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 20px; }
 .runner-set-dots i { width: 10px; height: 10px; border-radius: 50%; background: rgb(21 22 19 / 14%); }
@@ -282,31 +269,53 @@ html:has(.v-runner) body { background: var(--canvas); }
 .runner-action-chooser li small { flex: none; color: var(--runner-soft); }
 .rest-foot .runner-action-chooser { grid-column: 1 / -1; }
 
-.lookbook-heading {
-  display: flex; justify-content: space-between; align-items: end; gap: 12px; padding: 0 0 8px;
+.training-lookbook :is(button, a) { -webkit-tap-highlight-color: transparent; }
+.training-lookbook :is(button, a):focus-visible { outline: 2px solid var(--ink-0); outline-offset: -2px; }
+.lookbook-heading { padding-bottom: 8px; }
+.lookbook-heading .lookbook-date { display: flex; align-items: baseline; gap: 8px; margin: 0 0 6px; font-size: 13px; font-weight: 600; }
+.lookbook-date time { color: var(--gray-1); font: 600 13px var(--font-num); }
+.lookbook-heading h2 {
+  margin: 0; color: var(--ink-0); font-size: clamp(29px, 10vw, 45px);
+  line-height: 1.08; font-weight: 730; letter-spacing: -.07em; overflow-wrap: anywhere;
 }
-.lookbook-heading p { margin: 0; font-size: 12px; }
-.lookbook-heading span { margin-left: 5px; color: var(--gray-1); font: 650 13px var(--font-num); }
-.lookbook-heading h2 { margin: 4px 0 0; font-size: clamp(21px, 6vw, 28px); line-height: 1.12; letter-spacing: -.05em; }
-.lookbook-heading .lookbook-status { text-align: right; flex-shrink: 0; color: var(--ink-2); }
+.lookbook-heading .lookbook-status { margin: 7px 0 0; color: var(--gray-1); font-size: 13px; }
 
-.lookbook-stage { position: relative; isolation: isolate; height: clamp(235px, calc(100svh - 460px), 480px); }
+.lookbook-stage { position: relative; isolation: isolate; height: clamp(170px, calc(100svh - 510px), 465px); }
+.lookbook-stage .plan-dots {
+  background-image: radial-gradient(circle, rgb(133 135 127 / 40%) 0 .74px, transparent .98px);
+  mask-image: radial-gradient(ellipse at center, #000 25%, transparent 82%);
+}
 .lookbook-stage .sculpture-viewer { position: absolute; inset: 0; width: 100%; height: 100%; }
 .lookbook-stage canvas { touch-action: pan-y !important; }
 .lookbook-turn {
-  position: absolute; right: 0; top: 8px; min-height: 44px; padding-inline: 13px;
-  color: var(--ink-0); background: var(--silver-3); border-radius: 999px; font-size: 12px;
+  position: absolute; right: 0; top: 2px; min-height: 44px; padding-inline: 8px;
+  display: flex; align-items: center; gap: 5px; color: var(--ink-2); font-size: 12px;
 }
-.lookbook-hint { position: absolute; bottom: 0; left: 0; margin: 0; color: var(--gray-1); font-size: 12px; pointer-events: none; }
-.lookbook-regions { display: flex; flex-wrap: wrap; gap: 0 11px; min-height: 44px; margin-top: 8px; }
+.lookbook-region-rail { display: flex; align-items: center; justify-content: space-between; gap: 6px 10px; min-height: 44px; }
+.lookbook-hint { flex-shrink: 0; margin: 0; color: var(--gray-1); font-size: 12px; }
+.lookbook-regions { min-width: 0; display: flex; overflow-x: auto; scrollbar-width: none; }
 .lookbook-regions button {
-  min-height: 44px; display: inline-flex; gap: 5px; align-items: center; padding: 0 8px;
-  color: var(--ink-0); font-size: 13px; text-decoration: underline; text-decoration-color: var(--hairline); text-underline-offset: 5px;
+  min-height: 44px; padding-inline: 8px; flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px;
+  color: var(--ink-0); font-size: 13px; text-decoration: underline; text-decoration-color: var(--hairline); text-underline-offset: 4px;
 }
-.lookbook-regions i { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-0); }
-.lookbook-regions i[data-state="planned"] { background: var(--lemon); box-shadow: 0 0 0 1px rgb(21 22 19 / 20%); }
-.training-lookbook .training-week { border-block: 1px solid var(--hairline); padding-block: 6px; margin-top: 6px; }
-.training-lookbook .training-week a { min-height: 48px; gap: 3px; }
+.lookbook-regions i { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-0); }
+.lookbook-regions i[data-state="planned"] { background: var(--lemon); box-shadow: 0 0 0 1px rgb(21 22 19 / 24%); }
+
+.lookbook-week { border-block: 1px solid var(--hairline); padding: 8px 0 5px; }
+.lookbook-week-head { margin: 0 0 3px; font-size: 12px; font-weight: 650; }
+.lookbook-week .training-week { gap: 3px; }
+.lookbook-week .training-week a { min-height: 45px; gap: 3px; border-radius: 12px; }
+.lookbook-week .training-week a[aria-current] {
+  background: rgb(255 255 255 / 32%); color: var(--ink-0); box-shadow: inset 0 0 0 1px rgb(21 22 19 / 18%);
+}
+.lookbook-week .training-week a:not([aria-current]) { color: var(--ink-2); }
+.lookbook-week .training-week a span { color: var(--gray-1); }
+.lookbook-week .training-week a i { width: 5px; height: 5px; }
+.lookbook-week .training-week a:not([data-state]) i { height: 2px; }
+.lookbook-week .training-week a[data-state="planned"] i { box-shadow: 0 0 0 1px rgb(21 22 19 / 24%); }
+.training-list-toggle { min-height: 46px; }
+.training-list-meta { display: inline-flex; align-items: center; gap: 6px; color: var(--gray-1); font-size: 13px; font-weight: 500; }
+
 
 .lookbook-drawer {
   position: fixed; inset: auto 0 0; padding: 0; margin: 0 auto; width: min(100%, 560px);
@@ -322,9 +331,9 @@ html:has(.v-runner) body { background: var(--canvas); }
 .lookbook-close { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; background: var(--silver-3); }
 .lookbook-actions { list-style: none; margin: 16px 0 0; padding: 0; border-top: 1px solid var(--hairline); }
 .lookbook-actions li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px 0; border-bottom: 1px solid var(--hairline); }
-.lookbook-actions b { font-size: 16px; }
+.lookbook-actions b { font-size: 17px; font-weight: 650; }
 .lookbook-actions small { display: block; margin-top: 4px; color: var(--gray-1); font-size: 13px; }
-.lookbook-actions li > span { flex-shrink: 0; font-size: 13px; }
+.lookbook-actions li > span { flex-shrink: 0; padding: 4px 8px; border-radius: 99px; background: rgb(21 22 19 / 7%); font-size: 12px; }
 .lookbook-empty { font-size: 14px; margin: 16px 0; }
 .lookbook-add {
   display: flex; min-height: 48px; align-items: center; justify-content: space-between; margin-top: 8px;
@@ -337,3 +346,46 @@ html:has(.v-runner) body { background: var(--canvas); }
 .finish-inline p { margin: 0 0 8px; font-size: 13px; }
 .finish-inline > div { display: flex; gap: 8px; justify-content: flex-end; }
 .finish-inline button { min-height: 44px; }
+
+.stepper-head { display: flex; justify-content: center; align-items: baseline; gap: 8px; }
+.stepper-head small { font-size: 12px; color: var(--gray-1); }
+.stepper-body .stepper-adjust { flex: none; }
+.stepper:not(.stepper-readout) .stepper-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; }
+.stepper:not(.stepper-readout) .stepper-adjust { width: 100%; height: 44px; border-radius: 10px; }
+.stepper:not(.stepper-readout) .stepper-value { grid-column: 1 / -1; grid-row: 1; min-height: 38px; align-items: center; }
+.stepper-value { flex: 1; overflow: hidden; }
+.stepper-value .stepper-number {
+  min-width: 0; width: auto; height: auto; border: 0; border-radius: 0; padding: 3px 1px;
+  background: transparent; font: 700 20px/1.05 var(--font-num); color: var(--ink-0); text-align: center;
+}
+.stepper-value button.stepper-number { display: block; white-space: nowrap; }
+.stepper-value input.stepper-number { width: 100%; }
+.stepper-value .dim { color: var(--gray-1); }
+.stepper-number:focus-visible { outline: 2px solid var(--ink-0); outline-offset: -2px; border-radius: 5px; }
+.stepper-readout { padding: 0; background: transparent; box-shadow: none; }
+.stepper-readout .stepper-head { justify-content: space-between; }
+.stepper-readout .stepper-body { gap: 10px; }
+.stepper-readout .stepper-adjust { width: 46px; height: 46px; }
+.stepper-readout .stepper-adjust:last-child { color: var(--lemon); background: var(--ink-0); }
+.stepper-readout .stepper-label { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.stepper-readout .stepper-value { align-items: baseline; overflow: visible; gap: 5px; }
+.stepper-readout .stepper-number { font-size: clamp(34px, 13vw, 64px); letter-spacing: -.06em; }
+.stepper-readout .stepper-value input.stepper-number { flex: 1; }
+.stepper-readout .stepper-value em { font-size: 14px; }
+.runner-quantities { display: grid; gap: 14px; margin-top: 20px; }
+.v-runner[data-mode="set"] .runner-quantities .tick-ruler { margin: 0; }
+.weight-editor .stepper-readout, .setup-weight .stepper-readout { margin-bottom: 12px; }
+
+.today-plan :is(button, a, summary) { -webkit-tap-highlight-color: transparent; }
+.today-plan summary:focus-visible { outline: 2px solid var(--ink-0); outline-offset: -2px; border-radius: 6px; }
+.plan-row-chevron { color: var(--gray-1); transition: transform .2s var(--ease-out); }
+.plan-item[data-open] .plan-row-chevron { transform: rotate(180deg); }
+.plan-more { margin-top: 10px; border-top: 1px solid var(--hairline); }
+.plan-more summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; list-style: none; cursor: pointer; font-size: 13px; }
+.plan-more summary::-webkit-details-marker { display: none; }
+.plan-more summary small { display: inline-flex; align-items: center; gap: 6px; color: var(--gray-1); font-size: 12px; }
+.plan-more[open] summary svg { transform: rotate(180deg); }
+.plan-more .rest-seg { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; margin-top: 4px; }
+.plan-more .rest-seg button { min-height: 44px; padding-inline: 5px; border: 1px solid var(--hairline); }
+.plan-more .text-danger { min-height: 44px; }
+@media (prefers-reduced-motion: reduce) { .plan-row-chevron { transition: none; } }

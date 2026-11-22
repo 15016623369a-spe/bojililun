@@ -101,7 +101,7 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
         setToast(draft.source === 'photo' ? '已记入手账 · 估算' : '已记入手账');
       }
     } catch (e) {
-      setRecordError((e as Error).message);
+      setRecordError(e instanceof TypeError ? '连接中断，草稿已保留。' : (e as Error).message);
     } finally {
       setPhase('idle');
       setActiveRequest('');
@@ -301,13 +301,16 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
 
       {recoverySlot && createPortal(<section className="record-recovery" aria-label="待保存的记录">
         {drafts.map((draft) => <article key={draft.request_id}>
-          <div>
-            <strong>{activeRequest === draft.request_id ? '正在保存' : '待保存'} · {draft.source === 'photo' ? '照片记录' : draft.source === 'voice' ? '语音记录' : '文字记录'}</strong>
+          <header className="record-recovery-head">
+            <div>
+              <span>{activeRequest === draft.request_id ? '正在保存' : '待保存'}</span>
+              <strong>{draft.source === 'photo' ? '照片记录' : draft.source === 'voice' ? '语音记录' : '文字记录'}</strong>
+              {draft.text && <p>{draft.text}</p>}
+            </div>
             {draft.photo && <img src={draft.photo} alt="待保存的照片" />}
-            {draft.text && <p>{draft.text}</p>}
-          </div>
+          </header>
           {!working && <div className="record-recovery-actions">
-            <button type="button" onClick={() => void submit(draft)}>重试</button>
+            <button type="button" className="record-retry" onClick={() => void submit(draft)}>重试保存</button>
             {draft.source !== 'photo' && <button type="button" onClick={() => {
               setText(draft.text);
               setSheet('compose');

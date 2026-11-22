@@ -64,9 +64,9 @@ export default function LedgerCards({
         <article className="fc-card fc-ledger-card" data-kind={c.entry_type} key={c.id}>
           <RecordStamp kind={c.entry_type} loggedAt={c.logged_at} />
           <h3>{c.summary_title}</h3>
-          {c.has_photo && <img className="record-card-photo" src={`/api/ledger/photo/${c.id}`} alt="记录原图" loading="lazy" />}
-          {c.entry_type === 'meal' && c.confidence === 'estimated' && <small className="record-estimated">估算</small>}
-          {c.entry_type === 'meal' && (
+          {c.entry_type === 'meal' && <header className="record-meal-meta">
+            {c.has_photo && <img className="record-card-photo" src={`/api/ledger/photo/${c.id}`} alt="记录原图" loading="lazy" />}
+            {c.confidence === 'estimated' && <small className="record-estimated">估算</small>}
             <button
               type="button"
               className="record-nutrition-toggle"
@@ -76,23 +76,13 @@ export default function LedgerCards({
                 localStorage.setItem('ledger.hideKcal', hideKcal ? '0' : '1');
               }}
             >
-              <small>{hideKcal ? '显示热量估算' : formatDisplayKcal(calcMealTotals(c.items).kcal)}</small>
+              <span>{hideKcal ? '显示热量估算' : formatDisplayKcal(calcMealTotals(c.items).kcal)}</span>
             </button>
-          )}
+          </header>}
+          {c.entry_type !== 'meal' && c.has_photo && <img className="record-card-photo" src={`/api/ledger/photo/${c.id}`} alt="记录原图" loading="lazy" />}
           {c.exercises.map((m, index) => (
             <div key={index}>{formatWorkoutSummary(m.sets, m.exercise_name)}</div>
           ))}
-          {c.items
-            .filter((i) => i.nutrition_basis)
-            .map((i) => {
-              const basis = i.nutrition_basis!;
-              const label = { tfda: '台湾食药署', usda: 'USDA', ai: 'AI' }[basis.source];
-              return (
-                <small key={i.id} style={{ display: 'block' }}>
-                  {i.food_name} · {label}估算 · {basis.assumption ?? i.portion_text ?? '份量未注明'}
-                </small>
-              );
-            })}
           {c.note && <p className="fc-ledger-note">{c.note}</p>}
           {picks[c.id] && (
             <fieldset className="fc-quick-pick">
@@ -112,6 +102,17 @@ export default function LedgerCards({
               </div>
             </fieldset>
           )}
+          {c.items
+            .filter((i) => i.nutrition_basis)
+            .map((i) => {
+              const basis = i.nutrition_basis!;
+              const label = { tfda: '台湾食药署', usda: 'USDA', ai: 'AI' }[basis.source];
+              return (
+                <small key={i.id} className="record-nutrition-source">
+                  {i.food_name} · {label}估算 · {basis.assumption ?? i.portion_text ?? '份量未注明'}
+                </small>
+              );
+            })}
           <details className="fc-ledger-edit">
             <summary>编辑</summary>
             <form

@@ -670,7 +670,16 @@
 .fc-dict-picker .fc-dict-src { margin: 14px 0 4px; }
 
 .fc-picker-actions { display: grid; gap: 8px; padding-top: 8px; }
-.fc-picker-actions .fc-btn.primary { height: 52px; }
+.fc-picker-actions .fc-picker-submit {
+  height: 52px;
+  transition: background-color .18s ease, color .18s ease, box-shadow .18s ease;
+}
+.fc-picker-actions .fc-picker-submit[data-empty] {
+  background: rgb(21 22 19 / 7%);
+  color: var(--gray-1);
+  box-shadow: inset 0 0 0 1px rgb(21 22 19 / 7%);
+  opacity: 1;
+}
 .fc-picker-tray {
   display: flex;
   align-items: center;
@@ -739,7 +748,7 @@
 .fc-picker-skeleton span i + i { width: min(58%, 88px); height: 9px; margin-top: 8px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .plan-stage, .plan-detail, .plan-detail *, .sculpture-anchor *, .fc-dict-sheet, .fc-picker-mark, .fc-picker-mark * {
+  .plan-stage, .plan-detail, .plan-detail *, .sculpture-anchor *, .fc-dict-sheet, .fc-picker-mark, .fc-picker-mark *, .fc-picker-submit {
     animation: none !important;
     transition: none !important;
   }
@@ -749,4 +758,45 @@
 /* Plan shares the ledger tab bar, including its press-and-hold record action. */
 .is-plan .fc-tabs {
   margin: 0;
+}
+
+/* 详情阅读位置。大标题离开视口后，用轻量标题栏维持上下文。 */
+.sticky-detail-marker { display: block; height: 1px; margin-bottom: -1px; pointer-events: none; }
+.sticky-detail-anchor { position: sticky; top: env(safe-area-inset-top); z-index: 22; height: 0; margin-inline: -24px; }
+.sticky-detail-bar {
+  display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center;
+  min-height: 52px; padding-inline: 12px; text-align: center;
+  background: rgb(226 227 223 / 94%); border-bottom: 1px solid var(--hairline);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  opacity: 0; visibility: hidden; transform: translateY(-7px);
+  transition: opacity .2s ease, transform .2s var(--ease-out), visibility 0s linear .2s;
+}
+.sticky-detail-bar[data-visible] { opacity: 1; visibility: visible; transform: none; transition-delay: 0s; }
+.sticky-detail-bar a { display: grid; place-items: center; min-height: 44px; color: var(--ink-0); border-radius: 50%; }
+.sticky-detail-bar span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: 650; }
+@media (min-width: 620px) { .sticky-detail-anchor { margin-inline: -28px; } }
+
+/* 动作抽屉手势只从顶部把手开始，内容列表保持原生滚动。 */
+.fc-dict-sheet::before { content: none; }
+.fc-dict-grip {
+  display: grid; place-items: center; flex: none; width: 72px; height: 28px; margin: -10px auto 4px;
+  touch-action: none; cursor: grab; -webkit-tap-highlight-color: transparent;
+}
+.fc-dict-grip::before { content: ''; width: 40px; height: 4px; border-radius: 999px; background: rgb(21 22 19 / 28%); }
+.fc-mask.dict {
+  transition: background-color .22s ease;
+}
+.fc-dict-sheet {
+  transform: translateY(var(--sheet-offset, 0px));
+  transition: transform .27s cubic-bezier(.22,.88,.3,1.05);
+  animation: drawer-in .32s var(--ease-out);
+}
+.fc-dict-sheet[data-dragging] { animation: none; transition: none; }
+.fc-mask.dict[data-closing] { background: transparent; }
+.fc-mask.dict[data-closing] .fc-dict-sheet { animation: none; transform: translateY(105%); transition: transform .22s var(--ease-out); }
+.plan-root:has(.fc-mask.dict) .plan-detail { transition: scale .22s var(--ease-out), border-radius .22s var(--ease-out); }
+.plan-root:has(.fc-mask.dict:not([data-closing])) .plan-detail { scale: .985; border-radius: 14px; }
+@media (prefers-reduced-motion: reduce) {
+  .sticky-detail-bar, .fc-mask.dict, .plan-root:has(.fc-mask.dict) .plan-detail { animation: none; transition: none; }
+  .plan-root:has(.fc-mask.dict) .plan-detail { scale: 1; }
 }
