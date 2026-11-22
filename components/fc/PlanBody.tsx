@@ -144,6 +144,7 @@ export default function PlanBody({ variant = 'male', todayPlan, activeSession = 
           muscleLabel={group?.label ?? ''}
           region={PLAN_POSES[pose].label}
           pose={pose}
+          variant={variant}
           planCount={planned.size}
           activeSession={activeSession}
           onOpenLibrary={(which) => setSheet(which)}

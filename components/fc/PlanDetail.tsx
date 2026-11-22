@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } fr
 import { useRouter } from 'next/navigation';
 import JournalIcon from '@/components/JournalIcon';
 import type { MuscleId } from '@/lib/muscles';
+import type { SculptureVariant } from '@/lib/sculpture-groups';
 import type { PlanPose } from '@/lib/plan-poses';
 
 async function countOf(url: string, signal: AbortSignal) {
@@ -13,11 +14,12 @@ async function countOf(url: string, signal: AbortSignal) {
 }
 
 /** 点选肌群后的姿势详情：灰白石膏姿势 + 雾银抽屉（动作库 / 我的动作库 / 开始训练）。 */
-export default function PlanDetail({ muscle, muscleLabel, region, pose, planCount, activeSession, closing, libraryOpen, onOpenLibrary, onClose }: {
+export default function PlanDetail({ muscle, muscleLabel, region, pose, variant, planCount, activeSession, closing, libraryOpen, onOpenLibrary, onClose }: {
   muscle: MuscleId;
   muscleLabel: string;
   region: string;
   pose: PlanPose;
+  variant: SculptureVariant;
   planCount: number;
   activeSession: number | null;
   closing: boolean;
@@ -116,9 +118,9 @@ export default function PlanDetail({ muscle, muscleLabel, region, pose, planCoun
         </div>
       </header>
 
-      <figure className="plan-detail-figure">
+      <figure className="plan-detail-figure" data-variant={variant} data-pose={pose}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`/plan-poses/${pose}.jpg`} alt={`${region}展示姿势`} draggable={false} />
+        <img src={`/plan-poses/${variant === 'female' ? 'female/' : ''}${pose}.jpg`} alt={`${region}展示姿势`} draggable={false} />
       </figure>
 
       <section className="plan-drawer" onPointerDown={onDragStart} onPointerMove={onDragMove}
