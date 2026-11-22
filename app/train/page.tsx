@@ -3,7 +3,7 @@ import JournalShell from '@/components/JournalShell';
 import TodayPlan from '@/components/TodayPlan';
 import BigDate from '@/components/ui/BigDate';
 import { MEAL_LABEL } from '@/lib/date';
-import { daySessions, getPlan, sessionTotals, todayStr } from '@/lib/core/workout';
+import { activeTraining, daySessions, getPlan, sessionTotals, todayStr } from '@/lib/core/workout';
 import { journalForDate } from '@/lib/core/journal';
 import { hasRecordedData } from '@/lib/journal';
 import { todaySnapshot } from '@/lib/core/meals';
@@ -36,7 +36,7 @@ export default function TrainPage() {
     ? quickWorkouts.filter((entry) => (entry.payload?.exercises ?? []).some(hasRecordedData))
     : quickWorkouts;
   const totals = sessionTotals(details);
-  const activeSession = details.find((d) => !d.session.ended_at)?.session ?? null;
+  const activeSession = activeTraining() ?? details.find(({ session }) => !session.ended_at)?.session ?? null;
   const images = Object.fromEntries(plan.map((item) => {
     const image = getExercise(item.exercise_id)?.image;
     return [item.exercise_id, image ? imageUrl(image) : ''];
@@ -52,7 +52,7 @@ export default function TrainPage() {
     <JournalShell active="plan" title="今日计划" today={today} className="is-train"
       headerAction={<div className="journal-head-actions">
         <span className="journal-head-label">今日计划</span>
-        <Link className="journal-head-circle" href="/body" aria-label="回到点选肌群">
+        <Link className="journal-head-circle" href="/atlas" aria-label="回到点选肌群">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="5" r="2.2" /><path d="M7 9.5h10M12 9.5v5m0 0-3 6m3-6 3 6" /></svg>
         </Link>
       </div>}

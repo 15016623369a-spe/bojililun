@@ -3,21 +3,16 @@ import JournalShell from '@/components/JournalShell';
 import TabBar from '@/components/fc/TabBar';
 import PlanBody from '@/components/fc/PlanBody';
 import { activeTraining, getPlan, todayStr } from '@/lib/core/workout';
-import { getTrainingModelSex } from '@/lib/core/training-profile';
-import { sculptureGroup, sculptureVariant, type SculptureVariant } from '@/lib/sculpture-groups';
+import { getBodyModelSettings } from '@/lib/core/body-model';
 
 export const metadata = { title: '计划 · FitCheck' };
 export const dynamic = 'force-dynamic';
 
-export default async function BodyPage({ searchParams }: { searchParams: Promise<{ body?: string; muscle?: string }> }) {
-  const sp = await searchParams;
+export default async function BodyPage() {
   const today = todayStr();
   const plan = getPlan(today);
   const active = activeTraining();
-  const forced = sp.body === 'male' || sp.body === 'female' ? (sp.body as SculptureVariant) : null;
-  const variant = forced ?? sculptureVariant(getTrainingModelSex());
-
-  const initialMuscle = sculptureGroup(sp.muscle ?? '')?.id;
+  const { preference, profileModel } = await getBodyModelSettings();
 
   return (
     <JournalShell active="plan" title="点选肌群" today={today} className="is-plan" navigation={<TabBar active="body" />}
@@ -28,8 +23,8 @@ export default async function BodyPage({ searchParams }: { searchParams: Promise
           {plan.length > 0 && <b className="journal-head-badge">{plan.length}</b>}
         </Link>
       </div>}>
-      <PlanBody key={today + variant + (initialMuscle ?? '')} variant={variant} initialMuscle={initialMuscle} activeSession={active?.id ?? null}
-        todayPlan={{ date: today, exerciseIds: plan.map((item) => item.exercise_id) }} />
+      <PlanBody key={today} profileModel={profileModel} modelPreference={preference} activeSession={active?.id ?? null}
+        todayPlan={{ date: today, items: plan.map(({ exercise_id, done }) => ({ exercise_id, done })) }} />
     </JournalShell>
   );
 }

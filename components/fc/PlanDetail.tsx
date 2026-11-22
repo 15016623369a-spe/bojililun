@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import JournalIcon from '@/components/JournalIcon';
+import PlanModelSwitch from './PlanModelSwitch';
 import type { MuscleId } from '@/lib/muscles';
 import type { SculptureVariant } from '@/lib/sculpture-groups';
 import type { PlanPose } from '@/lib/plan-poses';
@@ -14,15 +15,16 @@ async function countOf(url: string, signal: AbortSignal) {
 }
 
 /** 点选肌群后的姿势详情：灰白石膏姿势 + 雾银抽屉（动作库 / 我的动作库 / 开始训练）。 */
-export default function PlanDetail({ muscle, muscleLabel, region, pose, variant, planCount, activeSession, closing, libraryOpen, onOpenLibrary, onClose }: {
+export default function PlanDetail({ muscle, muscleLabel, region, pose, variant, modelChoice, onModelChange, pendingCount, activeSession, libraryOpen, onOpenLibrary, onClose }: {
   muscle: MuscleId;
   muscleLabel: string;
   region: string;
   pose: PlanPose;
   variant: SculptureVariant;
-  planCount: number;
+  pendingCount: number;
   activeSession: number | null;
-  closing: boolean;
+  modelChoice: SculptureVariant | null;
+  onModelChange: (model: SculptureVariant | null) => void;
   /** 动作库抽屉开着时，Esc 交给抽屉处理 */
   libraryOpen: boolean;
   onOpenLibrary: (which: 'all' | 'liked') => void;
@@ -38,10 +40,11 @@ export default function PlanDetail({ muscle, muscleLabel, region, pose, variant,
   const moved = useRef(false);
 
   function onDragStart(event: PointerEvent<HTMLElement>) {
-    if ((event.target as HTMLElement).closest('.plan-drawer-rows, .plan-start')) return;
+    const target = event.target as Element;
+    if (!event.isPrimary || target.closest('.plan-drawer-rows, .plan-start')) return;
     dragStart.current = { y: event.clientY, t: performance.now(), id: event.pointerId };
     moved.current = false;
-    event.currentTarget.setPointerCapture(event.pointerId);
+    target.setPointerCapture(event.pointerId);
     setDrag({ dy: 0, live: true });
   }
   function onDragMove(event: PointerEvent<HTMLElement>) {
@@ -81,7 +84,7 @@ export default function PlanDetail({ muscle, muscleLabel, region, pose, variant,
   async function start() {
     if (starting) return;
     if (activeSession) { router.push(`/train/${activeSession}`); return; }
-    if (planCount === 0) { onOpenLibrary('all'); return; }
+    if (pendingCount === 0) { onOpenLibrary('all'); return; }
     setStarting(true);
     setError('');
     try {
@@ -94,6 +97,7 @@ export default function PlanDetail({ muscle, muscleLabel, region, pose, variant,
       if (!res.ok || !data.session) throw new Error(data.error ?? '开始训练失败');
       try { navigator.vibrate?.(14); } catch { /* 无振动接口 */ }
       router.push(`/train/${data.session.id}`);
+      router.refresh();
     } catch (err) {
       setError((err as Error).message);
       setStarting(false);
@@ -101,18 +105,18 @@ export default function PlanDetail({ muscle, muscleLabel, region, pose, variant,
   }
 
   const count = (n?: number) => (n === undefined ? '' : `${n} 个`);
-  const startMeta = activeSession ? '继续上一节' : planCount ? `今日 ${planCount} 个动作` : '先挑动作';
+  const startLabel = activeSession ? '继续训练' : pendingCount ? '开始训练' : '选动作';
 
   return (
-    <div className="plan-detail" data-closing={closing || undefined} data-dragging={drag.live || undefined}
+    <div className="plan-detail" inert={libraryOpen} aria-hidden={libraryOpen || undefined} data-dragging={drag.live || undefined}
       style={{ '--drag': `${drag.dy.toFixed(1)}px` } as CSSProperties}
       role="dialog" aria-modal="true" aria-label={`${region} · ${muscleLabel}`}>
       <div className="plan-detail-dots" aria-hidden="true" />
       <header className="plan-detail-head">
         <div className="journal-brand"><JournalIcon name="brand" />FitCheck</div>
         <div className="journal-head-actions">
-          <span className="journal-head-label">训练计划</span>
-          <button type="button" className="journal-head-circle" onClick={onClose} aria-label="返回点选肌群">
+          <PlanModelSwitch choice={modelChoice} onChange={onModelChange} />
+          <button type="button" className="journal-head-circle plan-detail-close" onClick={onClose} aria-label="返回点选肌群">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
           </button>
         </div>
@@ -124,7 +128,10 @@ export default function PlanDetail({ muscle, muscleLabel, region, pose, variant,
       </figure>
 
       <section className="plan-drawer" onPointerDown={onDragStart} onPointerMove={onDragMove}
-        onPointerUp={onDragEnd} onPointerCancel={onDragEnd}>
+        onPointerUp={onDragEnd} onPointerCancel={() => {
+          dragStart.current = null;
+          setDrag({ dy: 0, live: false });
+        }}>
         <button type="button" className="plan-drawer-grab" onClick={() => { if (!moved.current) onClose(); }} aria-label="收起" />
         <p className="plan-kicker"><i aria-hidden="true" />已选部位 · {region}</p>
         <h2 className="plan-drawer-title">{muscleLabel}</h2>
@@ -142,8 +149,8 @@ export default function PlanDetail({ muscle, muscleLabel, region, pose, variant,
         </div>
         {error && <p className="plan-error" role="alert">{error}</p>}
         <button type="button" className="plan-start" onClick={() => void start()} disabled={starting}>
-          <span>{starting ? '正在开始…' : '开始训练'}</span>
-          <span className="plan-start-meta">{startMeta}
+          <span>{starting ? '正在开始…' : startLabel}</span>
+          <span className="plan-start-meta">{pendingCount > 0 && !activeSession && `今日 ${pendingCount} 个动作`}
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6" /></svg>
           </span>
         </button>

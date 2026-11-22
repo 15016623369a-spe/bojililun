@@ -86,12 +86,14 @@ export default function TodayPlan({
       if (!res.ok || !data.session) throw new Error(data.error ?? '开始训练失败');
       haptic(14);
       router.push(`/train/${data.session.id}`);
+      router.refresh();
     } catch (e) {
       setErr((e as Error).message);
       setBusy(false);
     }
   }
 
+  const pendingSets = items.reduce((sum, item) => sum + (item.done ? 0 : item.sets), 0);
   const totalSets = items.reduce((a, x) => a + x.sets, 0);
   const minutes = Math.round(items.reduce((a, x) => a + x.sets * (40 + x.rest_sec), 0) / 60);
   const startedAt = activeSession ? new Date(activeSession.startedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '';
@@ -114,7 +116,7 @@ export default function TodayPlan({
         <div className="empty-plan">
           <b>还没有安排动作</b>
           <p>回到人体上点一块肌肉挑几个动作，或者直接说「今天练胸，给我排四个动作」。</p>
-          <Link className="ghost-pill" href="/body">去点选肌群</Link>
+          <Link className="ghost-pill" href="/atlas">去点选肌群</Link>
         </div>
       ) : (
         <ol className="plan-rows">
@@ -161,17 +163,17 @@ export default function TodayPlan({
         </ol>
       )}
 
-      <Link href="/body" className="add-row">
+      <Link href="/atlas" className="add-row">
         <span className="add-row-icon" aria-hidden="true"><Icon name="plus" size={18} /></span>从动作库添加 · 也可以说「再加一个飞鸟」
       </Link>
 
       {err && <p className="form-err" role="alert">{err}</p>}
 
-      {items.length > 0 && (
+      {(pendingSets > 0 || activeSession) && (
         <div className="start-dock">
           <button type="button" className="ink-btn" onClick={start} disabled={busy || saving}>
             <span>{busy ? '正在开始…' : activeSession ? '继续训练' : '开始训练'}</span>
-            <span className="ink-btn-meta">{totalSets} 组
+            <span className="ink-btn-meta">{pendingSets > 0 && `${pendingSets} 组`}
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6" /></svg>
             </span>
           </button>

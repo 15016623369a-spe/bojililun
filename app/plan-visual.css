@@ -146,7 +146,7 @@
 
 .plan-stage {
   position: relative;
-  height: clamp(440px, calc(100dvh - 268px), 720px);
+  height: clamp(320px, calc(100dvh - 304px), 720px);
   margin: 0 -12px;
   transition: transform .52s var(--ease-out), opacity .42s ease, filter .52s ease;
 }
@@ -231,20 +231,105 @@
 @keyframes anchor-ring { from { transform: scale(1); opacity: 1; } to { transform: scale(3.2); opacity: 0; } }
 @keyframes anchor-label { from { opacity: 0; transform: translateX(-4px); } to { opacity: 1; transform: none; } }
 
-.plan-root .plan-rotate {
+.plan-overview-controls {
   display: flex;
   align-items: center;
-  gap: 7px;
-  margin: 4px auto 0;
-  padding: 8px 14px;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 6px auto 3px;
+}
+.plan-model-switch {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 999px;
+  background: rgb(21 22 19 / 7%);
+}
+.plan-model-switch button,
+.plan-overview-controls .plan-rotate {
+  min-height: 38px;
+  padding: 4px 10px;
+  border: 0;
   border-radius: 999px;
   color: var(--ink-2);
-  font-size: 13.5px;
-  letter-spacing: .03em;
-  transition: background .2s;
+  font: inherit;
+  font-size: 13px;
 }
-.plan-root .plan-rotate:hover { background: rgb(21 22 19 / 5%); }
-.plan-root .plan-rotate svg { color: var(--gray-1); }
+.plan-model-switch button[aria-pressed="true"] {
+  background: var(--ink);
+  color: white;
+}
+.plan-overview-controls .plan-rotate {
+  background: rgb(21 22 19 / 7%);
+}
+.plan-picker-row {
+  display: flex;
+  justify-content: center;
+}
+.plan-muscle-picker {
+  min-height: 36px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+.plan-muscle-picker span { margin-left: 4px; }
+.plan-muscle-dialog {
+  position: fixed;
+  inset: auto 0 0;
+  width: min(100%, 560px);
+  max-width: 100%;
+  max-height: min(72dvh, 620px);
+  margin: 0 auto;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 24px 24px 0 0;
+  background: var(--silver-3);
+  color: var(--ink-0);
+}
+.plan-muscle-dialog::backdrop { background: rgb(21 22 19 / 22%); }
+.plan-muscle-panel {
+  display: flex;
+  flex-direction: column;
+  max-height: min(72dvh, 620px);
+}
+.plan-muscle-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 24px 12px;
+}
+.plan-muscle-head h2 { margin: 0; font-size: 24px; }
+.plan-muscle-list {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 24px max(24px, env(safe-area-inset-bottom));
+}
+.plan-muscle-list section { padding: 12px 0; border-top: 1px solid rgb(21 22 19 / 10%); }
+.plan-muscle-list h3 { margin: 0 0 8px; color: var(--ink-2); font-size: 13px; }
+.plan-muscle-options { display: flex; flex-wrap: wrap; gap: 6px; }
+.plan-muscle-options button {
+  min-height: 40px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgb(21 22 19 / 7%);
+  color: var(--ink-0);
+  font-size: 14px;
+}
+.plan-muscle-options button:hover { background: rgb(21 22 19 / 12%); }
+.plan-muscle-picker:focus-visible,
+.plan-muscle-dialog :focus-visible {
+  outline: 1px solid var(--ink-2);
+  outline-offset: 2px;
+}
+.plan-overview-controls :focus-visible,
+.plan-model-switch :focus-visible {
+  outline: 2px solid var(--ink-0);
+  outline-offset: 2px;
+}
 
 /* ---------- 点选后的姿势详情 ---------- */
 
@@ -262,7 +347,6 @@
   background: var(--silver-3);
   animation: detail-in .36s ease both;
 }
-.plan-detail[data-closing] { animation: detail-out .3s ease both; }
 
 /* 点阵铺满整屏，抽屉是毛玻璃，下面看得见点阵和人物 */
 .plan-detail-dots {
@@ -313,7 +397,6 @@
 .plan-detail-figure[data-variant="female"]:is([data-pose="legs"], [data-pose="glutes"]) img {
   height: 73%;
 }
-.plan-detail[data-closing] .plan-detail-figure img { animation: figure-out .3s ease both; }
 
 /* 雾银毛玻璃抽屉：上沿透出点阵与人物，高光压在最上沿 */
 .plan-drawer {
@@ -366,7 +449,6 @@
   background: linear-gradient(90deg, transparent, rgb(255 255 255 / 95%) 30%, rgb(255 255 255 / 95%) 70%, transparent);
   pointer-events: none;
 }
-.plan-detail[data-closing] .plan-drawer { animation: drawer-out .3s ease both; }
 .plan-detail .plan-drawer-grab {
   position: relative;
   align-self: center;

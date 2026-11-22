@@ -206,11 +206,13 @@ export default function ExerciseSheet({
   useEffect(() => {
     if (!muscle) return;
     const close = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key !== "Escape") return;
+      if (active) setActive(null);
+      else onClose();
     };
     window.addEventListener("keydown", close);
     return () => window.removeEventListener("keydown", close);
-  }, [muscle, onClose]);
+  }, [muscle, active, onClose]);
 
   useEffect(() => {
     if (!toast) return;
@@ -277,6 +279,7 @@ export default function ExerciseSheet({
         <div
           className={`fc-sheet fc-dict-sheet${active ? " fc-dict-detail" : ""}`}
           role="dialog"
+          tabIndex={-1}
           aria-modal="true"
           aria-label={`${title ?? "肌群"}动作列表`}
           onClick={(e) => e.stopPropagation()}

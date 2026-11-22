@@ -1,11 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import ExerciseSheet from './ExerciseSheet';
 import SculptureBody, { type SculptureAnchor } from './SculptureBody';
 import PlanDetail from './PlanDetail';
+import PlanModelSwitch from './PlanModelSwitch';
+import PlanMusclePicker from './PlanMusclePicker';
+import { BODY_MODEL_COOKIE, parseBodyModel } from '@/lib/body-model-preference';
 import type { MuscleId } from '@/lib/muscles';
+import type { PlanItem } from '@/lib/types';
 import { canonicalMuscle, sculptureGroup, type SculptureVariant } from '@/lib/sculpture-groups';
 import { PLAN_POSES, planPoseFor } from '@/lib/plan-poses';
 
@@ -16,66 +20,97 @@ function haptic(ms = 8) {
   try { navigator.vibrate?.(ms); } catch { /* iOS Safari 没有振动接口 */ }
 }
 
-export default function PlanBody({ variant = 'male', todayPlan, activeSession = null, initialMuscle }: {
-  variant?: SculptureVariant;
-  todayPlan: { date: string; exerciseIds: string[] };
+type PlanExercise = Pick<PlanItem, 'exercise_id' | 'done'>;
+type Library = 'all' | 'liked';
+type PlanLayer = 'muscle' | 'library';
+
+function pushLayer(layer: PlanLayer, value: string) {
+  const url = new URL(window.location.href);
+  if (url.searchParams.get(layer) === value) return;
+  url.searchParams.set(layer, value);
+  if (layer === 'muscle') url.searchParams.delete('library');
+  window.history.pushState({ fitcheckPlanLayer: layer }, '', url);
+}
+
+function closeLayer(layer: PlanLayer) {
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has(layer)) return;
+  if (window.history.state?.fitcheckPlanLayer === layer) {
+    window.history.back();
+    return;
+  }
+  url.searchParams.delete(layer);
+  if (layer === 'muscle') url.searchParams.delete('library');
+  window.history.replaceState(null, '', url);
+}
+
+export default function PlanBody({ profileModel, modelPreference, todayPlan, activeSession = null }: {
+  profileModel: SculptureVariant;
+  modelPreference: SculptureVariant | null;
+  todayPlan: { date: string; items: PlanExercise[] };
   activeSession?: number | null;
-  initialMuscle?: MuscleId;
 }) {
   const router = useRouter();
-  const [side, setSide] = useState<'front' | 'back'>(initialMuscle && sculptureGroup(initialMuscle)?.side === 'back' ? 'back' : 'front');
-  const [picked, setPicked] = useState<MuscleId | null>(initialMuscle ?? null);
-  const [detail, setDetail] = useState<'open' | 'closing' | null>(initialMuscle ? 'open' : null);
-  const [sheet, setSheet] = useState<'all' | 'liked' | null>(null);
+  const query = useSearchParams();
+  const picked = canonicalMuscle(query.get('muscle'));
+  const group = sculptureGroup(picked);
+  const library = query.get('library');
+  const sheet = picked && (library === 'all' || library === 'liked') ? library : null;
+  const [localPreference, setLocalPreference] = useState<SculptureVariant | null>();
+  const choice = localPreference === undefined
+    ? parseBodyModel(query.get('body')) ?? modelPreference
+    : localPreference;
+  const variant = choice ?? profileModel;
+  const [side, setSide] = useState<'front' | 'back'>(group?.side === 'back' ? 'back' : 'front');
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
-  const [saved, setSaved] = useState<{ source: string[]; ids: string[] }>();
+  const [saved, setSaved] = useState<{ source: PlanExercise[]; items: PlanExercise[] }>();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [origin, setOrigin] = useState('50% 36%');
-  const stage = useRef<HTMLDivElement>(null);
-  const openTimer = useRef<number>(0);
+  const root = useRef<HTMLDivElement>(null);
+  const detailTrigger = useRef<HTMLElement | null>(null);
   const lock = useRef(false);
-  const planned = new Set(saved && saved.source === todayPlan.exerciseIds ? saved.ids : todayPlan.exerciseIds);
+  const lastLayer = useRef<PlanLayer | null>(null);
+  const items = saved?.source === todayPlan.items ? saved.items : todayPlan.items;
+  const planned = new Set(items.map((item) => item.exercise_id));
+  const pendingCount = items.filter((item) => !item.done).length;
 
-  const close = useCallback(() => {
-    setSheet(null);
-    setDetail((state) => (state === 'open' ? 'closing' : state));
-    window.setTimeout(() => setDetail(null), 320);
-  }, []);
-
-  // 手机返回手势关闭详情：打开时压一层历史记录
   useEffect(() => {
-    if (detail !== 'open') return;
-    const onPop = () => close();
-    window.addEventListener('popstate', onPop);
-    return () => window.removeEventListener('popstate', onPop);
-  }, [detail, close]);
-
-  useEffect(() => () => window.clearTimeout(openTimer.current), []);
-
-  function onPick(id: MuscleId) {
-    const muscle = canonicalMuscle(id) ?? id;
-    haptic();
-    setPicked(muscle);
     setSelected(new Set());
     setError('');
-    window.clearTimeout(openTimer.current);
-    // 先让锚点落到肌肉上，再推近进入姿势详情
-    openTimer.current = window.setTimeout(() => {
-      const dot = stage.current?.querySelector('.sculpture-anchor');
-      const box = stage.current?.getBoundingClientRect();
-      if (dot && box) {
-        const r = dot.getBoundingClientRect();
-        setOrigin(`${((r.left - box.left) / box.width * 100).toFixed(1)}% ${((r.top - box.top) / box.height * 100).toFixed(1)}%`);
-      }
-      history.pushState({ planDetail: muscle }, '');
-      setDetail('open');
-    }, 340);
+  }, [picked]);
+
+  useEffect(() => {
+    const layer = sheet ? 'library' : picked ? 'muscle' : null;
+    if (layer === lastLayer.current) return;
+    lastLayer.current = layer;
+    if (layer === null) detailTrigger.current?.focus({ preventScroll: true });
+    if (layer === 'muscle') root.current?.querySelector<HTMLButtonElement>('.plan-detail-close')?.focus();
+    if (layer === 'library') root.current?.querySelector<HTMLDivElement>('.fc-dict-sheet')?.focus();
+  }, [picked, sheet]);
+
+  function changeModel(model: SculptureVariant | null) {
+    const url = new URL(window.location.href);
+    if (model === choice && !url.searchParams.has('body')) return;
+    document.cookie = `${BODY_MODEL_COOKIE}=${model ?? ''}; Path=/; SameSite=Lax; Max-Age=${model ? 31536000 : 0}`;
+    setLocalPreference(model);
+    if (url.searchParams.has('body')) {
+      url.searchParams.delete('body');
+      const layer = window.history.state?.fitcheckPlanLayer;
+      window.history.replaceState(layer ? { fitcheckPlanLayer: layer } : null, '', url);
+    }
+    router.refresh();
   }
 
-  function dismiss() {
-    if (history.state?.planDetail) history.back();
-    else close();
+  function onPick(id: MuscleId, trigger: HTMLElement | null = null) {
+    const muscle = canonicalMuscle(id);
+    if (!muscle || canonicalMuscle(new URLSearchParams(window.location.search).get('muscle'))) return;
+    detailTrigger.current = trigger;
+    haptic();
+    pushLayer('muscle', muscle);
+  }
+
+  function openLibrary(which: Library) {
+    pushLayer('library', which);
   }
 
   function toggle(exerciseId: string) {
@@ -101,9 +136,9 @@ export default function PlanBody({ variant = 'male', todayPlan, activeSession = 
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ date: todayPlan.date, exerciseIds: [...selected] }),
       });
-      const result = await response.json() as { items?: { exercise_id: string }[]; error?: string };
+      const result = await response.json() as { items?: PlanExercise[]; error?: string };
       if (!response.ok || !result.items) throw new Error(result.error || '保存失败，请重试');
-      setSaved({ source: todayPlan.exerciseIds, ids: result.items.map((item) => item.exercise_id) });
+      setSaved({ source: todayPlan.items, items: result.items });
       setSelected(new Set());
       haptic(12);
       router.refresh();
@@ -117,38 +152,43 @@ export default function PlanBody({ variant = 'male', todayPlan, activeSession = 
     }
   }
 
-  const group = picked ? sculptureGroup(picked) : null;
   const pose = picked ? planPoseFor(picked) : null;
   const anchor: SculptureAnchor = picked && group ? { muscle: picked, label: group.label } : HINT;
 
   return (
-    <div className="plan-root fc">
-      <div ref={stage} className="plan-stage" data-detail={detail ?? undefined} style={{ transformOrigin: origin }}>
-        <div className="plan-dots" aria-hidden="true" />
-        <SculptureBody look="halftone" key={variant} variant={variant} side={side} selected={picked}
-          onPick={onPick} anchor={anchor} />
+    <div ref={root} className="plan-root fc">
+      <div inert={Boolean(picked)} aria-hidden={picked ? true : undefined}>
+        <div className="plan-overview-controls">
+          <PlanModelSwitch choice={choice} onChange={changeModel} />
+          <button type="button" className="plan-rotate" onClick={() => setSide((current) => current === 'front' ? 'back' : 'front')}>
+            {side === 'front' ? '看背面' : '看正面'}
+          </button>
+        </div>
+        <div className="plan-stage" data-detail={picked ? 'open' : undefined}>
+          <div className="plan-dots" aria-hidden="true" />
+          <SculptureBody look="halftone" key={variant} variant={variant} side={side} selected={picked}
+            onPick={onPick} anchor={anchor} />
+        </div>
+        <PlanMusclePicker onPick={(id, trigger) => {
+          setSide(sculptureGroup(id)?.side === 'back' ? 'back' : 'front');
+          onPick(id, trigger);
+        }} />
       </div>
-      <button type="button" className="plan-rotate" onClick={() => setSide((s) => (s === 'front' ? 'back' : 'front'))}
-        aria-label={side === 'front' ? '转到背面' : '转到正面'}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v4.5h-4.5" />
-        </svg>
-        拖动旋转
-      </button>
 
-      {detail && picked && pose && (
+      {picked && pose && (
         <PlanDetail
           libraryOpen={sheet !== null}
-          closing={detail === 'closing'}
           muscle={picked}
           muscleLabel={group?.label ?? ''}
           region={PLAN_POSES[pose].label}
           pose={pose}
           variant={variant}
-          planCount={planned.size}
+          modelChoice={choice}
+          onModelChange={changeModel}
+          pendingCount={pendingCount}
           activeSession={activeSession}
-          onOpenLibrary={(which) => setSheet(which)}
-          onClose={dismiss}
+          onOpenLibrary={openLibrary}
+          onClose={() => closeLayer('muscle')}
         />
       )}
 
@@ -156,7 +196,7 @@ export default function PlanBody({ variant = 'male', todayPlan, activeSession = 
         muscle={sheet ? picked : null}
         grouped
         preference={sheet === 'liked' ? 'liked' : undefined}
-        onClose={() => setSheet(null)}
+        onClose={() => closeLayer('library')}
         selection={{ planned, selected, toggle, saving, error, complete }}
       />
     </div>
