@@ -13,7 +13,9 @@ function haptic(ms = 8) {
   try { navigator.vibrate?.(ms); } catch { /* iOS Safari 没有振动接口 */ }
 }
 
-export default function PlanBody({ variant = 'male', todayPlan, activeSession = null, initialMuscle, mode = 'plan' }: {
+export default function PlanBody({ variant = 'male', todayPlan, activeSession = null, activeMeta, initialMuscle, mode = 'plan' }: {
+  /** 进行中那一节的下一项，例如「杠铃卧推 · 剩 4 组」 */
+  activeMeta?: string;
   /** extra：加练。挑好的动作作为加练项（火花标记）加入今日计划，再回今日计划开练 */
   mode?: 'plan' | 'extra';
   variant?: SculptureVariant;
@@ -164,6 +166,7 @@ export default function PlanBody({ variant = 'male', todayPlan, activeSession = 
           planDone={mode === 'plan' && Boolean(todayPlan.allDone) && planned.size === todayPlan.exerciseIds.length}
           extra={mode === 'extra'}
           activeSession={activeSession}
+          activeMeta={activeMeta}
           onOpenLibrary={(which) => setSheet(which)}
           onClose={dismiss}
         />

@@ -124,6 +124,9 @@ export default function ExerciseSheet({
   // 「我的动作库」里点「从全部动作添加」后切到这块肌肉的全部动作，点一下就收进我的动作库
   const [browseAll, setBrowseAll] = useState(false);
   const cart = useRef<HTMLButtonElement>(null);
+  // 刚选中、正在飞进「完成」的那几行：先留在列表里做收起动画，结束后从列表移走
+  const [leaving, setLeaving] = useState<ReadonlySet<string>>(new Set());
+  const pickedNames = useRef<Record<string, string>>({});
   const list = useRef<HTMLDivElement>(null);
   const listScroll = useRef(0);
   const listRequest = useRef<AbortController | null>(null);
@@ -158,24 +161,25 @@ export default function ExerciseSheet({
     setBrowseAll(false);
   }, [muscle, grouped]);
 
-  /** 选中时缩略图沿弧线飞进底部「完成」按钮，按钮弹一下，像把商品丢进购物车 */
+  /** 选中时整行卡片缩小、沿弧线被丢进底部「完成」按钮，按钮弹一下，像把商品丢进购物车 */
   function flyToCart(row: HTMLElement | null) {
-    const from = row?.querySelector<HTMLElement>(".fc-dict-gif");
     const to = cart.current;
-    if (!from || !to || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const a = from.getBoundingClientRect();
+    if (!row || !to || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const a = row.getBoundingClientRect();
     const b = to.getBoundingClientRect();
-    const ghost = from.cloneNode(true) as HTMLElement;
-    ghost.className = "fc-dict-gif cart-ghost";
+    const ghost = row.cloneNode(true) as HTMLElement;
+    ghost.classList.add("cart-ghost-row");
+    ghost.removeAttribute("data-leaving");
     Object.assign(ghost.style, { left: `${a.left}px`, top: `${a.top}px`, width: `${a.width}px`, height: `${a.height}px` });
     document.body.appendChild(ghost);
     const dx = b.left + b.width / 2 - (a.left + a.width / 2);
     const dy = b.top + b.height / 2 - (a.top + a.height / 2);
     const flight = ghost.animate([
-      { transform: "translate(0, 0) scale(1) rotate(0deg)", opacity: 1 },
-      { transform: `translate(${dx * 0.42}px, ${dy * 0.42 - 90}px) scale(.72) rotate(-8deg)`, opacity: 1, offset: 0.45 },
-      { transform: `translate(${dx}px, ${dy}px) scale(.16) rotate(4deg)`, opacity: 0.15 },
-    ], { duration: 640, easing: "cubic-bezier(.45, 0, .35, 1)" });
+      { transform: "translate(0, 0) scale(1)", opacity: 1, borderRadius: "16px" },
+      { transform: "translate(0, -6px) scale(.94)", opacity: 1, borderRadius: "20px", offset: 0.18 },
+      { transform: `translate(${dx * 0.5}px, ${dy * 0.5 - 70}px) scale(.42) rotate(-4deg)`, opacity: 1, borderRadius: "28px", offset: 0.58 },
+      { transform: `translate(${dx}px, ${dy}px) scale(.06) rotate(3deg)`, opacity: 0.2, borderRadius: "40px" },
+    ], { duration: 680, easing: "cubic-bezier(.45, 0, .3, 1)" });
     flight.onfinish = () => {
       ghost.remove();
       to.animate([{ transform: "scale(1)" }, { transform: "scale(1.05)" }, { transform: "scale(.98)" }, { transform: "scale(1)" }], { duration: 360, easing: "ease-out" });
@@ -202,7 +206,12 @@ export default function ExerciseSheet({
     if (!selection || selection.saving || selection.planned.has(item.id)) return;
     const adding = !selection.selected.has(item.id);
     selection.toggle(item.id);
-    if (adding) flyToCart(row);
+    pickedNames.current[item.id] = item.zh_name || item.name;
+    if (adding) {
+      flyToCart(row?.closest<HTMLElement>(".swipe-row") ?? row);
+      setLeaving((current) => new Set(current).add(item.id));
+      window.setTimeout(() => setLeaving((current) => { const next = new Set(current); next.delete(item.id); return next; }), 460);
+    }
     if (adding && browseAll && item.preference !== "liked") {
       setLiked(item, true).then(() => setToast(`已收进我的动作库：${item.zh_name || item.name}`)).catch(() => setToast("收藏失败，动作仍已选中"));
     }
@@ -566,9 +575,12 @@ export default function ExerciseSheet({
                       );
 
                     const mine = Boolean(preference) && !browseAll;
+                    // 选中的动作已经「丢进」完成按钮，列表里不再显示；已在计划的照常显示为不可选
+                    if (!planned && selection.selected.has(it.id) && !leaving.has(it.id)) return null;
                     return (
                       <SwipeRow
                         key={it.id}
+                        leaving={leaving.has(it.id)}
                         selected={Boolean(selected)}
                         actions={<>
                           <button type="button" className="swipe-act info" onClick={() => showDetails(it)}>
@@ -640,6 +652,16 @@ export default function ExerciseSheet({
               </div>
               {selection && (
                 <div className="fc-dict-actions">
+                  {selection.selected.size > 0 && (
+                    <div className="cart-tray" aria-label="已选动作">
+                      {[...selection.selected].map((id) => {
+                        const name = pickedNames.current[id] ?? items.find((x) => x.id === id)?.zh_name ?? "已选动作";
+                        return <button key={id} type="button" className="cart-chip" onClick={() => selection.toggle(id)} aria-label={`取消选择${name}`}>
+                          {name}<span aria-hidden="true">×</span>
+                        </button>;
+                      })}
+                    </div>
+                  )}
                   {selection.error && (
                     <p className="fc-note" role="alert">
                       {selection.error}
@@ -676,7 +698,8 @@ export default function ExerciseSheet({
 }
 
 /** 左滑露出操作：横向拖动超过一半就停在打开位置；打开时点前景先收回，不触发选中 */
-function SwipeRow({ children, actions, width, selected }: {
+function SwipeRow({ children, actions, width, selected, leaving = false }: {
+  leaving?: boolean;
   children: React.ReactNode;
   actions: React.ReactNode;
   width: number;
@@ -719,7 +742,7 @@ function SwipeRow({ children, actions, width, selected }: {
     swallow.current = false;
   }
 
-  return <div className="fc-dict-select-row swipe-row" data-selected={selected} data-open={x !== 0 || undefined}>
+  return <div className="fc-dict-select-row swipe-row" data-selected={selected} data-open={x !== 0 || undefined} data-leaving={leaving || undefined}>
     <div className="swipe-actions" style={{ width }} onClick={() => setX(0)}>{actions}</div>
     <div className="swipe-front" data-dragging={dragging || undefined} style={{ transform: `translateX(${x}px)` }}
       onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onClickCapture={clickCapture}>

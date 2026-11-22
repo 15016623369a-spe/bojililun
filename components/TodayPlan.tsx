@@ -20,7 +20,7 @@ export default function TodayPlan({
 }: {
   initialItems: PlanItem[];
   images: Record<string, string>;
-  activeSession: { id: number; startedAt: string } | null;
+  activeSession: { id: number; startedAt: string; next?: { name: string; setsLeft: number } } | null;
 }) {
   const router = useRouter();
   const [items, setItems] = useState<PlanItem[]>(initialItems);
@@ -191,8 +191,9 @@ export default function TodayPlan({
           {err && <p className="start-err" role="alert">{err}</p>}
           <button type="button" className="ink-btn" data-extra={allDone || undefined} disabled={busy || saving}
             onClick={allDone ? () => { haptic(10); router.push('/train/extra'); } : start}>
-            <span>{busy ? '正在开始…' : activeSession ? '继续训练' : allDone ? '加练' : doneCount ? '继续训练' : '开始训练'}</span>
-            <span className="ink-btn-meta">{allDone ? '挑几个动作再练' : doneCount ? `剩 ${remainingSets} 组` : `${totalSets} 组`}
+            <span>{busy ? '正在开始…' : activeSession ? '继续训练' : allDone ? '再加一组' : doneCount ? '接着练' : '开始训练'}</span>
+            <span className="ink-btn-meta">{activeSession?.next ? `${activeSession.next.name} · 剩 ${activeSession.next.setsLeft} 组`
+              : allDone ? '今日计划已完成' : doneCount ? `剩 ${remainingSets} 组` : `${totalSets} 组`}
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6" /></svg>
             </span>
           </button>

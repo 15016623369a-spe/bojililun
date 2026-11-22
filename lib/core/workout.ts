@@ -184,6 +184,31 @@ export function activeTraining(): SessionRow | null {
   return row ? plain(row) : null;
 }
 
+/**
+ * 真正还在进行的训练：开着的那一节里还有没练完的计划动作。
+ * 队列里的动作都练完了、只是没点「结束训练」的那一节不算，返回 null。
+ */
+export function liveTraining(): { session: SessionRow; next: { name: string; setsLeft: number } } | null {
+  const active = activeTraining();
+  if (!active) return null;
+  const db = getDb();
+  for (const item of sessionPlan(active)) {
+    const row = db.prepare('SELECT done, sets FROM plan_item WHERE id = ?').get(item.id) as { done: number; sets: number } | undefined;
+    if (!row || row.done) continue;
+    const logged = (db.prepare('SELECT COUNT(*) AS n FROM session_set WHERE session_id = ? AND plan_item_id = ?').get(active.id, item.id) as { n: number }).n;
+    return { session: active, next: { name: item.name, setsLeft: Math.max(1, row.sets - logged) } };
+  }
+  return null;
+}
+
+/** 把「队列都练完、但没点结束」的那一节收尾：结束时间取最后一组的时间 */
+function closeFinishedTraining() {
+  const active = activeTraining();
+  if (!active || liveTraining()) return;
+  getDb().prepare(`UPDATE session SET ended_at = COALESCE((SELECT MAX(created_at) FROM session_set WHERE session_id = ?), started_at)
+    WHERE id = ? AND ended_at IS NULL`).run(active.id, active.id);
+}
+
 export function sessionPlan(session: SessionRow): PlanItem[] {
   return session.plan_json ? JSON.parse(session.plan_json) as PlanItem[] : getPlan(session.date);
 }
@@ -200,6 +225,7 @@ export function startSession({
   const db = getDb();
   db.exec('BEGIN IMMEDIATE');
   try {
+    if (guided || supplemental) closeFinishedTraining();
     const active = guided || supplemental ? activeTraining() : null;
     if (active) {
       if (supplemental) throw new Error('已有训练进行中，请先完成该节训练');

@@ -2,7 +2,7 @@ import JournalShell from '@/components/JournalShell';
 import PlanBody from '@/components/fc/PlanBody';
 import PlanPill from '@/components/PlanPill';
 import TabBar from '@/components/fc/TabBar';
-import { activeTraining, getPlan, todayStr } from '@/lib/core/workout';
+import { getPlan, liveTraining, todayStr } from '@/lib/core/workout';
 import { getTrainingModelSex } from '@/lib/core/training-profile';
 import { sculptureVariant } from '@/lib/sculpture-groups';
 
@@ -13,12 +13,13 @@ export const dynamic = 'force-dynamic';
 export default function SupplementalWorkoutPage() {
   const today = todayStr();
   const plan = getPlan(today);
-  const active = activeTraining();
+  const live = liveTraining();
+  const active = live?.session ?? null;
   const variant = sculptureVariant(getTrainingModelSex());
   return <JournalShell active="plan" title="加练" today={today} className="is-plan is-extra" navigation={<TabBar active="body" />}
     back={{ href: '/train', label: '今日计划' }}
     hero={<></>} headerAction={<PlanPill total={plan.length} done={plan.filter((item) => item.done === 1).length} live={Boolean(active)} />}>
-    <PlanBody key={today + variant} mode="extra" variant={variant} activeSession={active?.id ?? null}
+    <PlanBody key={today + variant} mode="extra" variant={variant} activeSession={active?.id ?? null} activeMeta={live ? `${live.next.name} · 剩 ${live.next.setsLeft} 组` : undefined}
       todayPlan={{ date: today, exerciseIds: plan.filter((item) => item.done !== 1).map((item) => item.exercise_id) }} />
   </JournalShell>;
 }

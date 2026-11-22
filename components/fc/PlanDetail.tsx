@@ -14,7 +14,7 @@ async function countOf(url: string, signal: AbortSignal) {
 }
 
 /** 点选肌群后的姿势详情：灰白石膏姿势 + 雾银抽屉（动作库 / 我的动作库 / 开始训练）。 */
-export default function PlanDetail({ muscle, muscleLabel, region, pose, variant, planCount, planDone = false, extra = false, activeSession, closing, libraryOpen, onOpenLibrary, onClose }: {
+export default function PlanDetail({ muscle, muscleLabel, region, pose, variant, planCount, planDone = false, extra = false, activeSession, activeMeta, closing, libraryOpen, onOpenLibrary, onClose }: {
   muscle: MuscleId;
   /** 今日计划已全部练完：主按钮改成加练 */
   planDone?: boolean;
@@ -26,6 +26,7 @@ export default function PlanDetail({ muscle, muscleLabel, region, pose, variant,
   variant: SculptureVariant;
   planCount: number;
   activeSession: number | null;
+  activeMeta?: string;
   closing: boolean;
   /** 动作库抽屉开着时，Esc 交给抽屉处理 */
   libraryOpen: boolean;
@@ -107,8 +108,8 @@ export default function PlanDetail({ muscle, muscleLabel, region, pose, variant,
   }
 
   const count = (n?: number) => (n === undefined ? '' : `${n} 个`);
-  const startMeta = activeSession ? '继续上一节' : extra ? '加入今日计划' : planDone ? '今日计划已完成' : planCount ? `今日 ${planCount} 个动作` : '先挑动作';
-  const startLabel = activeSession ? '继续训练' : extra ? '挑加练动作' : planDone ? '加练' : '开始训练';
+  const startMeta = activeSession ? activeMeta ?? '回到正在进行的训练' : extra ? '加入今日计划' : planDone ? '今日计划已完成' : planCount ? `今日 ${planCount} 个动作` : '先挑动作';
+  const startLabel = activeSession ? '继续训练' : extra ? '挑加练动作' : planDone ? '再加一组' : '开始训练';
 
   return (
     <div className="plan-detail" data-closing={closing || undefined} data-dragging={drag.live || undefined}

@@ -2,7 +2,7 @@ import Link from 'next/link';
 import JournalShell from '@/components/JournalShell';
 import TodayPlan from '@/components/TodayPlan';
 import BigDate from '@/components/ui/BigDate';
-import { daySessions, getPlan, sessionTotals, todayStr } from '@/lib/core/workout';
+import { daySessions, getPlan, liveTraining, sessionTotals, todayStr } from '@/lib/core/workout';
 import { journalForDate } from '@/lib/core/journal';
 import { hasRecordedData } from '@/lib/journal';
 import { todaySnapshot } from '@/lib/core/meals';
@@ -44,7 +44,9 @@ export default function TrainPage() {
   const ledgerDay = exportJournal(getDb(), 'local', today, today).days[0];
   const mealCards = ledgerDay.entries.filter((c) => c.entry_type === 'meal');
   const burn = dayExerciseBurn(trainedSessions.map((d) => d.session), ledgerDay.entries, snap.profile?.weight_kg ?? 70);
-  const activeSession = details.find((d) => !d.session.ended_at)?.session ?? null;
+  // 只有还有没练完动作的那一节才算「训练中」
+  const live = liveTraining();
+  const activeSession = live?.session ?? null;
   const images = Object.fromEntries(plan.map((item) => {
     const image = getExercise(item.exercise_id)?.image;
     return [item.exercise_id, image ? imageUrl(image) : ''];
@@ -72,7 +74,7 @@ export default function TrainPage() {
       )}
 
       <TodayPlan key={today} initialItems={plan} images={images} activeSession={activeSession
-        ? { id: activeSession.id, startedAt: activeSession.started_at } : null} />
+        ? { id: activeSession.id, startedAt: activeSession.started_at, next: live!.next } : null} />
 
       {(trainedSessions.length > 0 || listedQuickWorkouts.length > 0) && (
         <section className="v-section">
