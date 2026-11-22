@@ -171,6 +171,8 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
           ))}
         <JournalExport today={today} />
         <div className="fc-more">
+          <Link href={`/stats?period=${period === 'month' ? 'month' : 'week'}`}>训练统计</Link>
+          <Link href={`/history/calendar?date=${today}&period=${period}`}>训练月历</Link>
           <Link href="/train">训练计划</Link>
           <Link href="/exercises">动作库</Link>
           <Link href="/me">我的</Link>

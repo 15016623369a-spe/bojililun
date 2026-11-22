@@ -11,7 +11,7 @@
 | 训练计时 | [计划与休息三屏](plan-and-rest.png)的右图。左图也可看首屏与计时的整体搭配，中间的黄抽屉属于早期配色。 |
 | 今日清单、记录一组、完成小结 | [训练执行三屏](concept-training-flow.png)。记一组时整屏柠檬黄，重量用黑色刻度尺调。 |
 | 动作库、日详情、月历 | [动作库与回顾详情](concept-library-review.png)。动作库抽屉已在计划页实施。 |
-| 建档、我的、饮食确认 | [建档、我的与饮食确认](concept-profile-meal.png)。建档能否跳过仍待用户确认。 |
+| 建档、我的、饮食确认 | [建档、我的与饮食确认](concept-profile-meal.png)。建档规则已确认：目标必选，其余可跳过，并加一步挑常练动作。三屏均已实施。 |
 | 色系、字与数、组件、动效与触感 | [视觉系统与动效](concept-system-motion.png)，可编辑源文件为 [concept-boards.html](concept-boards.html)。 |
 | 记录、语音、回顾 | [记录与回顾三屏](record-and-review.png)。 |
 | 训练统计 | [总览、肌群、动作三屏](training-stats.png)、[切换动效](training-stats-motion.mp4)。[回顾热图对照](review-heat-proposal.png)是单独的提案。 |
@@ -65,18 +65,36 @@ tone = max(0, (252 - 原图 R 通道) / 128)
 
 ## 实施进度与代码位置
 
-按阶段落地，每个阶段单独开 PR：① 全局色系、导航和计划页；② 训练流程；③ 记录与回顾；④ 统计。已和用户确认：部位姿势图男女共用一套。
+按阶段落地，每个阶段单独开 PR：① 全局色系、导航和计划页；② 训练流程；③ 记录与回顾；④ 统计（四个阶段均已实施）。已和用户确认：部位姿势图男女共用一套。
 
 | 内容 | 状态与位置 |
 | --- | --- |
 | 色系与字体 | 已实施。令牌在 [globals.css](../../../app/globals.css) 的 `:root`：`--silver` `#E7E8E4`、`--silver-2` `#E2E3DF`、`--silver-3` `#DCDDDA`、`--ink-0` `#151613`、`--lemon` `#F2ED21`、`--mist` `#91BCE8`、`--coral` `#F06351`、`--lilac` `#BDADF0`、`--olive` `#A9AF79`、`--dot` `#B5B9B4`。旧变量名（`--forest`、`--paper` 等）映射到新色，旧页面先跟着换色，结构在各自阶段重做。字体顺序为 Helvetica Neue → 苹方。 |
 | 新版样式文件 | [visual.css](../../../app/visual.css) 最后加载，覆盖旧的 journal / replica 样式。旧样式里 `.fc button` 的特异性是 0,1,1，新规则要带一层父级才压得住。 |
-| 悬浮胶囊导航 | 已实施。[JournalNav](../../../components/JournalNav.tsx) 只留文字，底部有一层与页面同色的渐隐。 |
+| 悬浮胶囊导航 | 已实施。主导航统一用手账的 [TabBar](../../../components/fc/TabBar.tsx)（计划 · 记录 · 回顾，记录可长按录音），[JournalShell](../../../components/JournalShell.tsx) 默认渲染它；训练统计用自己的页内胶囊。样式在 [visual.css](../../../app/visual.css) 的 `.fc-tabs`。 |
 | 计划首屏点阵 | 已实施。[SculptureBody](../../../components/fc/SculptureBody.tsx) 的 `look="halftone"` 在 GPU 上做两遍：中性灰雕塑渲染进纹理，再按 3 CSS px 的格子采样亮度画圆点，算法与上文原稿一致。只绕竖轴转，禁止缩放。背景点阵由 CSS 画，固定在屏幕上。回顾页仍用默认的 `look="sculpture"`。 |
 | 柠檬黄锚点 | 已实施。点到哪里就落在命中的表面点上，存成模型坐标，转身时跟着走，法线背向镜头时隐藏。未点选时提示在胸部。 |
-| 点选后的姿势详情 | 已实施。[PlanDetail](../../../components/fc/PlanDetail.tsx)：点阵人体以锚点为中心推近淡出，石膏姿势图由模糊放大落定，雾银抽屉从下方弹出。手机返回手势可关闭。肌群到姿势的对应在 [plan-poses.ts](../../../lib/plan-poses.ts)，图片在 [public/plan-poses](../../../public/plan-poses/)，由 [plan-poses](plan-poses/) 的成稿裁出人物区。 |
+| 点选后的姿势详情 | 已实施。[PlanDetail](../../../components/fc/PlanDetail.tsx)：点阵人体以锚点为中心推近淡出，石膏姿势图由模糊放大落定，雾银抽屉从下方弹出。抽屉是半透明毛玻璃（`backdrop-filter`），上沿透出点阵和人物；可以下拉关闭，人物跟着轻微下沉放大。手机返回手势也可关闭。肌群到姿势的对应在 [plan-poses.ts](../../../lib/plan-poses.ts)，图片在 [public/plan-poses](../../../public/plan-poses/)，由 [plan-poses](plan-poses/) 的成稿裁出人物区。 |
 | 抽屉三个入口 | 「动作库」打开该肌群的多选动作抽屉，「我的动作库」只列常练动作（`preference=liked`），完成后统一写入今日计划。「开始训练」有进行中的训练就继续，有计划就新开一节，没有计划就先打开动作库。 |
-| 加练选动作 | `/train/extra` 暂用旧的 [BodyPicker](../../../components/fc/BodyPicker.tsx)，训练阶段重做。 |
+| 加练选动作 | 已实施。[SupplementalWorkout](../../../components/SupplementalWorkout.tsx)：和计划首屏同样的点阵人体与柠檬黄锚点，点肌群从动作抽屉里挑；挑中的动作排成带火花标记的横条，组数／次数／重量用和今日计划相同的圆钮 [Stepper](../../../components/ui/Stepper.tsx)，休息分段，底部「开始加练」。 |
+| 饮食拍照识别 | 已实施。[chat](../../../app/chat/page.tsx) 页头换成返回、播报和今日记录圆钮，热量蛋白质改为刻度条；空状态是点阵底的拍照卡。识别中照片上有柠檬黄扫描线，结果出来后照片并入 [FoodCard](../../../components/FoodCard.tsx)：上半是半调照片和识别置信度，下半珊瑚色面板显示总热量大字、半份／1／1.5／2 份整体份量、逐项 ±10 g、蛋白质／碳水／脂肪刻度条，「记入这一餐」后面板转浅。输入栏右侧在没文字时是拍照、有文字时变发送。 |
+| 训练 · 今日清单 | 已实施。[train/page.tsx](../../../app/train/page.tsx) 用大号日期起头，三个读数（动作 / 组数 / 含休息时长），每行动作右侧是组数点位，点一行在原处展开组数、次数、重量步进器和休息分段。「开始训练」悬浮在导航上方。热量、蛋白质改成刻度条放在页底。 |
+| 训练 · 记录一组 | 已实施。[TrainingRunner](../../../components/TrainingRunner.tsx) 整屏柠檬黄，大号重量可点按直接输入，下方黑色 [刻度尺](../../../components/ui/TickRuler.tsx) 按 0.5 kg 吸附。次数用 ± 圆钮。组卡条显示已完成 / 当前 / 未做。点缩略图弹出动作演示。 |
+| 训练 · 组间休息 | 已实施。雾银灰底，柠檬黄弧线逆时针收回，读秒用大号数字，下方点阵按秒点亮。可「+15 秒」或跳过，倒计时结束震两下。 |
+| 训练 · 完成小结 | 已实施。最后一组保存后留在本页：[点阵数字](../../../components/ui/DotDigits.tsx) 总时长、每组落在时间线上的竖条、柠檬黄容量卡、组数卡、各动作容量刻度条。本节估算 1RM 超过以前最好成绩时出淡紫「新纪录」卡。 |
+| 记录 | 以 main 的手账页 `/log` 为准（11 月 22 日确认）。下面三行是此前为 `/` 做的版本，路由已转到 `/log`，组件暂留以便把时间刻度、横向卡片或语音态移植进手账页。 |
+| 记录 · 一天（未接入） | [RecordDeck](../../../components/RecordDeck.tsx) 仍用于日详情；[RecordToday](../../../components/RecordToday.tsx) 不再接入路由。 |
+| 记录 · 待练（未接入） | [PendingPlan](../../../components/PendingPlan.tsx)。 |
+| 记录 · 语音（未接入） | [VoiceOverlay](../../../components/VoiceOverlay.tsx)；手账页长按录音用的是 [fc/VoiceOverlay](../../../components/fc/VoiceOverlay.tsx)。 |
+| 回顾 | 以 main 的手账页 `/review` 为准，热图用墨黑色板（`heatPalette="ink"`）。此前为 `/history` 做的周月概览（[ReviewJournal](../../../components/ReviewJournal.tsx)：容量柱、频次／容量热图）已转到 `/review`，组件暂留。3D 模型同时支持 `heatPalette` 固定色板和 `heatTint` 任意色。 |
+| 回顾 · 日 | 日视图沿用记录页的时间刻度与横向卡片，下方是当天实练部位的小模型。 |
+| 回顾 · 日详情 | [history/[date]](../../../app/history/[date]/page.tsx)：大号日期、时间刻度与卡片、训练读数（容量柠檬黄）、每节训练一张卡（动作和组次沿用可编辑的 ExerciseRecord），饮食表格放进雾白卡片。 |
+| 回顾 · 月历 | [history/calendar](../../../app/history/calendar/page.tsx)：「11 月」大字，每天一个 3×3 点阵，点数表示当日容量（有训练没负重 1 点，有负重按本月最高日折算 2–9 点），今天柠檬黄底、选中珊瑚描边、右上珊瑚小点表示有饮食。 |
+| 训练统计 | 已实施。[StatsBoard](../../../components/StatsBoard.tsx)：底部胶囊换成页内导航「总览／肌群／动作」，视图横移切换，当前视图写进地址栏 `view=`。总览：本期容量大字、每日（季年为每月）容量柱、次数／天数／组数，下方「训练容量」柠檬黄卡和「运动时间」雾蓝卡，点卡片切换指标时保留选中日期，柱高、读数、单位和强调色一起换。肌群：项目男女雕塑的二维正反面，练过的肌群有圆点，选中为珊瑚；下方珊瑚面板显示该肌群本期容量、占比刻度和组数，「查看肌群对比」展开按组数／容量／次数／时长的逐日对比。动作：PR／8–12 RM／12–15 RM 切换，淡紫卡里是数值和曲线，PR 的问号原处展开 Epley 公式，下面列出其他动作。 |
+| 我的 | 已实施。[TrainingProfileDashboard](../../../components/TrainingProfileDashboard.tsx)：点阵底的雕塑小像、名字和目标／限制／常练标签；体重用大号分段数字、近 30 天变化和点柱趋势，「更新体重」原处展开刻度尺（0.1 kg 吸附）。训练目标、伤病与限制在行内展开编辑；动作偏好进二级页，营养目标沿用原来的估算弹层。 |
+| 动作偏好 | [ExercisePreferences](../../../components/ExercisePreferences.tsx)：范围切换是滑块在三格间移动；每行右侧是两格图标开关（书签＝常练、禁止＝不喜欢），墨黑滑块弹到选中的格子，再点一次取消。整行向右滑加入常练、向左滑标为不喜欢，过阈值轻震；先在界面上变过去，保存失败会弹回并抖动。常练的缩略图右上有柠檬黄书签角标，不喜欢的整行变灰。在「我的动作库」「不喜欢」里移出的动作先收起再消失，底部出撤销提示。 |
+| 建档 | 已实施，用户已确认规则。[SetupFlow](../../../components/SetupFlow.tsx) 一屏一问共 5 步：默认模型、训练目标（必选）、体重（刻度尺）、伤病限制、挑常练动作。除目标外每步右上角可「跳过，稍后填写」；最后一步按部位列出动作，选中的写入「我的动作库」。 |
+| 图标 | 统一用 [Icon](../../../components/ui/Icon.tsx) 的线性 SVG（24 网格、1.8 描边），替换 ‹ › → ✓ + 等文字符号，后续页面沿用。 |
 | 触感 | Android 用 `navigator.vibrate`；iOS Safari 网页没有振动接口，靠锚点落点、勾选回弹等视觉反馈代替。 |
 
 ## 交接时怎样看复刻结果

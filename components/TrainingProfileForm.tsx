@@ -45,7 +45,7 @@ export default function TrainingProfileForm({ mode, today, initial, onClose }: {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || '保存失败，请重试');
-      if (setup) router.replace('/');
+      if (setup) router.replace('/log');
       onClose?.();
       router.refresh();
     } catch (err) {

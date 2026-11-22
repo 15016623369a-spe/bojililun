@@ -66,7 +66,7 @@ export default async function ExerciseDetailPage({
       subtitle={displayZh !== ex.name ? ex.name : undefined}
       back={
         fromToday
-          ? { href: "/", label: "今天" }
+          ? { href: "/log", label: "今天" }
           : { href: "/exercises", label: "动作库" }
       }
     >

@@ -1,0 +1,154 @@
+/* ============================================================
+   新版视觉 · 训练统计：总览 / 肌群 / 动作
+   ============================================================ */
+
+.journal-shell.is-stats { padding-bottom: calc(118px + env(safe-area-inset-bottom)); overflow-x: hidden; transition: background-color .5s var(--ease-out); }
+.journal-shell.is-stats:has(.stats-stage[data-view="muscles"]) { --paper: var(--silver-3); --page-rgb: 220 221 218; background: var(--silver-3); padding-bottom: 0; }
+
+/* 页内导航：沿用炭黑胶囊 */
+.is-stats:has(.stats-stage[data-view="muscles"]) .stats-footer { background: none; }
+.stats-nav button {
+  display: grid; place-items: center; min-width: 76px; height: 44px; padding: 0 18px; border-radius: 999px;
+  color: rgb(236 237 232 / 72%); font-size: 15px; letter-spacing: .04em;
+  transition: color .25s, background-color .3s var(--ease-out);
+}
+.stats-nav button:hover { color: #f1f2ee; }
+.stats-nav button[aria-current] { background: linear-gradient(#f1f2ee, #e4e5e0); color: var(--ink-0); font-weight: 600; box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgb(0 0 0 / 35%); }
+.stats-nav[data-view="muscles"] button[aria-current] { background: linear-gradient(#f9c3ba, #f3a99c); }
+.stats-nav[data-view="exercises"] button[aria-current] { background: linear-gradient(#e2dafa, #cfc3f5); }
+
+/* 视图横移 */
+.stats-view { animation: view-in .45s var(--ease-out) both; }
+@keyframes view-in { from { opacity: 0; transform: translateX(calc(var(--dir, 1) * 28px)); } to { opacity: 1; transform: none; } }
+
+/* ---------- 总览 ---------- */
+.stats-overview { padding-top: 14px; }
+.stats-big { animation: num-in .45s var(--ease-out) both; }
+@keyframes num-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.stats-delta { margin: 8px 0 0; font-size: 13px; color: var(--gray-1); }
+.stats-trend-head { display: flex; align-items: baseline; justify-content: space-between; margin-top: 26px; }
+.stats-trend-head .v-section-title { margin: 0; }
+.stats-trend-head span { display: inline-flex; align-items: baseline; gap: 8px; }
+.stats-trend-head small { font: 500 12.5px var(--font-num); color: var(--gray-1); }
+.stats-trend-head b { font: 700 16px var(--font-num); }
+.stats-bars { margin-top: 12px; }
+.stats-bars .review-bar-fill { transition: height .55s var(--ease-out); }
+.stats-overview[data-metric="time"] .review-bar[data-picked] .review-bar-track { background: rgb(145 188 232 / 38%); }
+.stats-overview[data-metric="time"] .review-bar[data-picked] .review-bar-fill { background: repeating-linear-gradient(90deg, rgb(21 22 19 / 72%) 0 1.2px, var(--mist) 1.2px 4.6px); }
+.stats-overview[data-metric="time"] .review-bars.month .review-bar[data-picked] .review-bar-fill { background: repeating-linear-gradient(90deg, rgb(21 22 19 / 72%) 0 1px, var(--mist) 1px 3px); }
+.stats-overview .readouts { margin-top: 24px; }
+.stats-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 4px; }
+.stats-tile {
+  display: grid; gap: 12px; padding: 14px 16px 16px; border-radius: 24px; text-align: left; color: var(--ink-0);
+  background: rgb(255 255 255 / 45%); box-shadow: inset 0 1px 0 rgb(255 255 255 / 70%);
+  transition: background-color .45s var(--ease-out), transform .2s var(--ease-out);
+}
+.stats-tile:active { transform: scale(.98); }
+.stats-tile.volume[aria-pressed="true"] { background: var(--lemon); box-shadow: inset 0 1px 0 rgb(255 255 255 / 45%); }
+.stats-tile.time[aria-pressed="true"] { background: var(--mist); box-shadow: inset 0 1px 0 rgb(255 255 255 / 45%); }
+.stats-tile .tile-num { margin-top: 2px; flex-wrap: wrap; row-gap: 2px; }
+.stats-tile .tile-num b { font-size: 34px; }
+.stats-tile .tile-num em { font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.tile-ticks { display: flex; align-items: flex-end; gap: 2px; height: 26px; }
+.tile-ticks i { flex: 1; max-width: 3px; background: var(--ink-0); opacity: .22; border-radius: 1px; transition: height .5s var(--ease-out); }
+.tile-ticks i[data-on] { opacity: .85; }
+.stats-overview .hint a { color: var(--ink-0); font-weight: 600; margin-left: 6px; }
+
+/* ---------- 肌群 ---------- */
+.stats-bodies {
+  position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 6px -16px 0; padding: 8px 4px 6px;
+}
+.stats-bodies::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background-image: radial-gradient(circle at center, rgb(150 152 146 / 60%) 0 .8px, transparent 1.05px); background-size: 7px 7px;
+  -webkit-mask-image: linear-gradient(transparent, #000 8%, #000 92%, transparent); mask-image: linear-gradient(transparent, #000 8%, #000 92%, transparent);
+}
+.stats-body { position: relative; margin: 0; }
+.stats-body-img { position: relative; width: 82%; margin: 0 auto; aspect-ratio: 420 / 960; }
+.stats-body-img img { position: absolute; inset: 0; width: 100%; height: 100%; user-select: none; filter: grayscale(1) contrast(1.04) brightness(1.02); }
+.stats-body figcaption { text-align: center; font-size: 12.5px; color: var(--ink-2); margin-top: 2px; }
+.body-dot { position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; padding: 0; border-radius: 50%; }
+.body-dot::after {
+  content: ''; position: absolute; left: 50%; top: 50%; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; border-radius: 50%;
+  background: var(--ink-0); box-shadow: 0 0 0 2px rgb(255 255 255 / 85%); opacity: 0;
+  transition: transform .35s var(--ease-spring), opacity .25s, background-color .25s;
+}
+.body-dot[data-trained]::after { opacity: .9; }
+.body-dot[data-selected]::after {
+  width: 12px; height: 12px; margin: -6px 0 0 -6px; background: var(--coral); opacity: 1;
+  box-shadow: 0 0 0 2.5px #fff, 0 0 0 4px rgb(240 99 81 / 55%), 0 0 14px 4px rgb(240 99 81 / 45%);
+  animation: dot-pop .45s var(--ease-spring);
+}
+.body-dot:disabled { cursor: default; }
+@keyframes dot-pop { from { transform: scale(.3); } to { transform: none; } }
+
+.muscle-panel {
+  position: relative; margin: 10px -24px 0; padding: 12px 24px calc(118px + env(safe-area-inset-bottom));
+  min-height: calc(100dvh - 520px);
+  border-radius: 30px 30px 0 0; background: var(--coral); color: var(--ink-0);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 35%), 0 -22px 44px -28px rgb(120 30 18 / 55%);
+  animation: drawer-in .55s var(--ease-out) both;
+}
+.muscle-panel-grab { display: block; width: 46px; height: 4px; margin: 0 auto 16px; border-radius: 3px; background: rgb(90 25 15 / 40%); }
+.muscle-panel-body, .muscle-compare { animation: num-in .4s var(--ease-out) both; }
+.muscle-panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.muscle-panel-head h2 { margin: 0; font-size: 30px; font-weight: 700; letter-spacing: -.01em; }
+.muscle-panel-head span { font-size: 13px; font-weight: 600; color: rgb(60 16 9 / 78%); }
+.muscle-panel-num { display: flex; align-items: flex-end; gap: 6px; margin-top: 12px; }
+.muscle-panel-num .big-num { font-size: clamp(72px, 22vw, 92px); }
+.muscle-panel-num .big-num .dim { color: rgb(90 25 15 / 50%); }
+.muscle-panel-num em { font-style: normal; font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+.muscle-panel-num .small-zero { font-size: 48px; }
+.muscle-share { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
+.muscle-share .meter-ticks { flex: 1; height: 18px; }
+.muscle-share .meter-ticks i { opacity: .22; }
+.muscle-share .meter-ticks i[data-on] { opacity: 1; }
+.muscle-share b { font: 700 15px var(--font-num); }
+.muscle-panel-sub { margin: 10px 0 0; font-size: 13px; color: rgb(60 16 9 / 80%); }
+.muscle-panel-toggle { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: 18px; padding: 15px 0; border-top: 1px solid rgb(60 16 9 / 18%); border-bottom: 1px solid rgb(60 16 9 / 18%); color: var(--ink-0); font-size: 15px; font-weight: 600; }
+.vseg.on-coral { margin-top: 14px; background: rgb(60 16 9 / 10%); }
+.vseg.on-coral > button { color: rgb(30 8 4 / 75%); }
+.vseg.on-coral > .on { color: #f1f2ee; }
+.compare-rows { list-style: none; margin: 12px 0 0; padding: 0; }
+.compare-rows li { display: grid; grid-template-columns: 3.4em minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgb(60 16 9 / 14%); }
+.compare-name { font-size: 14px; font-weight: 600; }
+.compare-spark { display: flex; align-items: flex-end; gap: 3px; height: 28px; }
+.compare-spark i { flex: 1; max-width: 16px; border-radius: 1.5px; background: var(--ink-0); opacity: .18; transition: height .45s var(--ease-out); }
+.compare-spark i[data-on] { opacity: .9; }
+.compare-rows b { font: 700 15px var(--font-num); white-space: nowrap; }
+.compare-rows b em { margin-left: 2px; font-style: normal; font-size: 11px; font-weight: 600; }
+
+/* ---------- 动作 ---------- */
+.stats-exercises { padding-top: 14px; }
+.ex-head { display: flex; align-items: center; gap: 14px; }
+.ex-head small { font-size: 12.5px; color: var(--gray-1); }
+.ex-head h2 { margin: 3px 0 0; font-size: 23px; font-weight: 700; letter-spacing: -.01em; }
+.rm-tabs { margin: 16px 0 14px; }
+.ex-card { padding: 16px 18px 14px; border-radius: 26px; animation: num-in .4s var(--ease-out) both; }
+.ex-card .kicker { font-size: 13.5px; }
+.ex-card .help { margin-left: auto; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid rgb(21 22 19 / 55%); font: 700 12px var(--font-num); color: var(--ink-0); }
+.ex-formula { margin-top: 10px; padding: 10px 12px; border-radius: 14px; background: rgb(255 255 255 / 38%); font-size: 12.5px; line-height: 1.65; animation: num-in .3s var(--ease-out); }
+.ex-formula b { display: block; margin-bottom: 2px; }
+.ex-card .tile-num b { font-size: clamp(60px, 18vw, 76px); }
+.ex-card .tile-num em { font-size: 18px; }
+.ex-chart { display: block; width: 100%; height: auto; margin-top: 8px; overflow: visible; }
+.ex-chart .grid { stroke: rgb(21 22 19 / 20%); stroke-width: 1; stroke-dasharray: 2 4; }
+.ex-chart .line { fill: none; stroke: var(--ink-0); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; animation: draw .9s var(--ease-out) both; }
+@keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+.ex-chart .pt { fill: var(--lilac); stroke: var(--ink-0); stroke-width: 2; }
+.ex-chart .last { fill: var(--ink-0); }
+.ex-chart text { font: 500 10.5px var(--font-num); fill: rgb(21 22 19 / 62%); }
+.ex-foot { display: flex; align-items: baseline; justify-content: space-between; margin-top: 8px; padding-top: 10px; border-top: 1px solid rgb(21 22 19 / 14%); }
+.ex-foot .big-num { font-size: 18px; }
+.ex-foot span { font-size: 13px; }
+.ex-empty { margin: 20px 0 8px; font-size: 14px; }
+.ex-list { list-style: none; margin: 18px 0 0; padding: 0; border-top: 1px solid var(--hairline); }
+.ex-list button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 0; border-bottom: 1px solid var(--hairline); color: var(--ink-0); text-align: left; }
+.ex-list strong { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ex-list small { font: 600 13px var(--font-num); color: var(--ink-2); }
+.stats-empty { margin: 48px 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .stats-view, .stats-big, .muscle-panel, .muscle-panel-body, .muscle-compare, .ex-card, .ex-chart .line, .body-dot::after { animation: none !important; transition: none !important; }
+}
