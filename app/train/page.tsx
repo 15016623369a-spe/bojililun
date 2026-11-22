@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import JournalShell from '@/components/JournalShell';
 import TodayPlan from '@/components/TodayPlan';
-import TrainingOverview from '@/components/TrainingOverview';
+import TrainingLookbook from '@/components/TrainingLookbook';
 import { activeTraining, daySessions, getPlan, getSessionSets, sessionPlan, todayStr } from '@/lib/core/workout';
 import { getTrainingBodyModel } from '@/lib/core/body-model';
 import { journalForDate } from '@/lib/core/journal';
@@ -53,8 +53,6 @@ export default async function TrainPage({ searchParams }: { searchParams: Promis
     const image = getExercise(item.exercise_id)?.image;
     return [item.exercise_id, image ? imageUrl(image) : ''];
   }));
-  const names = new Map<string, number>();
-  for (const set of sets) names.set(set.exercise_name, (names.get(set.exercise_name) ?? 0) + 1);
   const last = completed.at(-1);
   const finished = last?.session.plan_json && sessionPlan(last.session)
     .every((item) => last.sets.filter((set) => set.plan_item_id === item.id).length >= item.sets);
@@ -68,13 +66,11 @@ export default async function TrainPage({ searchParams }: { searchParams: Promis
     : quick.length ? '已有训练记录'
     : plan.length ? `${plan.length} 个动作 · ${plan.reduce((sum, item) => sum + item.sets, 0)} 组`
     : '';
-  const receipt = [...names].map(([name, count]) => `${name} ${count} 组`).join(' · ')
-    || quickExercises.map((exercise) => exercise.name).join(' · ');
-
   return (
-    <JournalShell active="plan" title="训练" today={today} className="is-train"
+    <JournalShell active="plan" title="训练" today={today} className="is-train is-lookbook"
       headerAction={<span className="journal-head-label">训练</span>}
-      hero={<TrainingOverview key={date} today={today} date={date} focus={focus} status={status} receipt={receipt}
+      hero={<TrainingLookbook key={date} today={today} date={date} focus={focus} status={status}
+        actions={activeSession ? activePlan : plan} sets={[...sets, ...activeSets]}
         variant={getTrainingBodyModel()}
         planned={[...new Set(targets.flatMap((item) => idsForTarget(item.target)))]}
         recorded={[...new Set([...sets, ...activeSets].flatMap((set) => idsForTarget(set.target)))]}
