@@ -82,12 +82,12 @@ tone = max(0, (252 - 原图 R 通道) / 128)
 | 训练 · 记录一组 | 已实施。[TrainingRunner](../../../components/TrainingRunner.tsx) 整屏柠檬黄，大号重量可点按直接输入，下方黑色 [刻度尺](../../../components/ui/TickRuler.tsx) 按 0.5 kg 吸附。次数用 ± 圆钮。组卡条显示已完成 / 当前 / 未做。点缩略图弹出动作演示。 |
 | 训练 · 组间休息 | 已实施。雾银灰底，柠檬黄弧线逆时针收回，读秒用大号数字，下方点阵按秒点亮。可「+15 秒」或跳过，倒计时结束震两下。 |
 | 训练 · 完成小结 | 已实施。最后一组保存后留在本页：[点阵数字](../../../components/ui/DotDigits.tsx) 总时长、每组落在时间线上的竖条、柠檬黄容量卡、组数卡、各动作容量刻度条。本节估算 1RM 超过以前最好成绩时出淡紫「新纪录」卡。 |
-| 记录 | 以 main 的手账页 `/log` 为准（11 月 22 日确认）。下面三行是此前为 `/` 做的版本，路由已转到 `/log`，组件暂留以便把时间刻度、横向卡片或语音态移植进手账页。 |
+| 记录 | 已实施。数据和计算以 main 的手账为准，界面按新版重做（11 月 22 日确认）。[log/page.tsx](../../../app/log/page.tsx) 在服务端按 `APP_TZ` 算好每条记录的时间和副标题；[LedgerDeck](../../../components/LedgerDeck.tsx) 画时间刻度（训练墨黑、饮食珊瑚、体重雾蓝、当前时刻柠檬黄点）和横向卡片，默认选中第一条待确认的卡，选中卡在下方展开雾白明细：训练按动作列组次与容量，其余沿用 [LedgerCards](../../../components/fc/LedgerCards.tsx) 的快选、备注、份量重算。录入和长按录音仍是 [LogScreen](../../../components/fc/LogScreen.tsx)。样式在 [v-record.css](../../../app/v-record.css) 的「手账记录」一节。下面三行是此前为 `/` 做的版本，已不接入路由。 |
 | 记录 · 一天（未接入） | [RecordDeck](../../../components/RecordDeck.tsx) 仍用于日详情；[RecordToday](../../../components/RecordToday.tsx) 不再接入路由。 |
 | 记录 · 待练（未接入） | [PendingPlan](../../../components/PendingPlan.tsx)。 |
 | 记录 · 语音（未接入） | [VoiceOverlay](../../../components/VoiceOverlay.tsx)；手账页长按录音用的是 [fc/VoiceOverlay](../../../components/fc/VoiceOverlay.tsx)。 |
-| 回顾 | 以 main 的手账页 `/review` 为准，热图用墨黑色板（`heatPalette="ink"`）。此前为 `/history` 做的周月概览（[ReviewJournal](../../../components/ReviewJournal.tsx)：容量柱、频次／容量热图）已转到 `/review`，组件暂留。3D 模型同时支持 `heatPalette` 固定色板和 `heatTint` 任意色。 |
-| 回顾 · 日 | 日视图沿用记录页的时间刻度与横向卡片，下方是当天实练部位的小模型。 |
+| 回顾 | 已实施。数据和计分以 main 的手账为准（`exportJournal`、`calcMuscleHeatmap`、`calcWeightTrend`），界面按新版重做。[review/page.tsx](../../../app/review/page.tsx) 汇总每天的容量、组数、摄入和晨重，[LedgerReview](../../../components/LedgerReview.tsx) 排出大号容量、每日柱（周七根、月整月，未到的日子描边）、选中日摘要、训练读数、蓝色热图与肌群档位卡、晨重点阵和按日横条；导出仍是 [JournalExport](../../../components/fc/JournalExport.tsx)。样式在 [v-review.css](../../../app/v-review.css) 的「手账回顾」一节。频次／容量切换只在旧的 [ReviewJournal](../../../components/ReviewJournal.tsx) 中，未接入路由。3D 模型同时支持 `heatPalette` 固定色板和 `heatTint` 任意色。 |
+| 回顾 · 日 | 日视图显示今天的容量、读数、热图和记录，不画每日柱。 |
 | 回顾 · 日详情 | [history/[date]](../../../app/history/[date]/page.tsx)：大号日期、时间刻度与卡片、训练读数（容量柠檬黄）、每节训练一张卡（动作和组次沿用可编辑的 ExerciseRecord），饮食表格放进雾白卡片。 |
 | 回顾 · 月历 | [history/calendar](../../../app/history/calendar/page.tsx)：「11 月」大字，每天一个 3×3 点阵，点数表示当日容量（有训练没负重 1 点，有负重按本月最高日折算 2–9 点），今天柠檬黄底、选中珊瑚描边、右上珊瑚小点表示有饮食。 |
 | 训练统计 | 已实施。[StatsBoard](../../../components/StatsBoard.tsx)：底部胶囊换成页内导航「总览／肌群／动作」，视图横移切换，当前视图写进地址栏 `view=`。总览：本期容量大字、每日（季年为每月）容量柱、次数／天数／组数，下方「训练容量」柠檬黄卡和「运动时间」雾蓝卡，点卡片切换指标时保留选中日期，柱高、读数、单位和强调色一起换。肌群：项目男女雕塑的二维正反面，练过的肌群有圆点，选中为珊瑚；下方珊瑚面板显示该肌群本期容量、占比刻度和组数，「查看肌群对比」展开按组数／容量／次数／时长的逐日对比。动作：PR／8–12 RM／12–15 RM 切换，淡紫卡里是数值和曲线，PR 的问号原处展开 Epley 公式，下面列出其他动作。 |
