@@ -16,6 +16,7 @@ import { dayExerciseBurn } from '@/lib/exercise-burn';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const metadata = { title: '今日训练 · FitCheck' };
 
 function Meter({ label, value, target, unit, tone, approx }: { label: string; value: number; target: number; unit: string; tone?: 'coral'; approx?: boolean }) {
   const filled = target ? Math.round(Math.min(1, value / target) * 40) : 0;
@@ -60,9 +61,9 @@ export default function TrainPage() {
   const targetProtein = snap.profile?.target_protein ?? 0;
 
   return (
-    <JournalShell active="plan" title="今日计划" today={today} className="is-train"
+    <JournalShell active="plan" title="今日训练" today={today} className="is-train"
       headerAction={<div className="journal-head-actions">
-        <span className="journal-head-label">今日计划</span>
+        <span className="journal-head-label">今日训练</span>
         <Link className="journal-head-circle" href="/body" aria-label="回到点选肌群">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="5" r="2.2" /><path d="M7 9.5h10M12 9.5v5m0 0-3 6m3-6 3 6" /></svg>
         </Link>
@@ -74,7 +75,8 @@ export default function TrainPage() {
       )}
 
       <TodayPlan key={today} initialItems={plan} images={images} activeSession={activeSession
-        ? { id: activeSession.id, startedAt: activeSession.started_at, next: live!.next } : null} />
+        ? { id: activeSession.id, startedAt: activeSession.started_at, next: live!.next,
+          completedSets: details.find((d) => d.session.id === activeSession.id)?.sets.length ?? 0 } : null} />
 
       {(trainedSessions.length > 0 || listedQuickWorkouts.length > 0) && (
         <section className="v-section">

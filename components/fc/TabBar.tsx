@@ -5,8 +5,8 @@ import { usePathname } from 'next/navigation';
 import { BarsIcon, BodyIcon } from './icons';
 import RecordTab from './RecordTab';
 
-// 顺序：身体（左）· 记录（中，长按就地录音）· 回顾（右）
-const LEFT = { href: '/atlas', label: '计划', key: 'body' as const, Icon: BodyIcon };
+// 顺序：训练（左，今日训练单）· 记录（中，长按就地录音）· 回顾（右）。选中胶囊的弹簧动画见 app/motion.css
+const LEFT = { href: '/train', label: '训练', key: 'body' as const, Icon: BodyIcon };
 const RIGHT = { href: '/review', label: '回顾', key: 'review' as const, Icon: BarsIcon };
 
 export type TabKey = 'log' | 'body' | 'review';

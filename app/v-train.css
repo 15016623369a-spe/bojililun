@@ -275,3 +275,108 @@ html:has(.v-runner) body { background: var(--canvas); }
 .v-runner[data-mode="set"] .set-strip { grid-auto-flow: column; grid-template-columns: none; grid-auto-columns: 104px; overflow-x: auto; scrollbar-width: none; margin-right: -24px; padding-right: 24px; scroll-snap-type: x proximity; }
 .v-runner[data-mode="set"] .set-strip::-webkit-scrollbar { display: none; }
 .v-runner[data-mode="set"] .set-strip li { scroll-snap-align: start; }
+
+/* ---------- 合并共创者 #20（训练中：结束训练原位确认、动作选择、新版步进器） ---------- */
+.training-hold {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-width: 0;
+  height: 64px;
+  padding-inline: 20px;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.training-hold[data-holding]:active { transform: none; }
+.training-hold-fill {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(90deg, #484416, #6f5b1a);
+  transform-origin: left;
+  animation: training-hold-fill linear both;
+  pointer-events: none;
+}
+.training-hold[data-ending] .training-hold-fill { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .training-hold-fill { animation-timing-function: steps(5, end); }
+}
+.training-hold-copy { display: grid; gap: 3px; min-width: 0; letter-spacing: 0; line-height: 1.15; }
+.training-hold-copy strong { font-size: 16px; font-weight: 650; }
+.training-hold-copy small { font-size: 12px; font-weight: 500; color: rgb(var(--dk-lift-rgb, 255 255 255) / calc(72% * var(--dk-lift-k, 1))); }
+.training-hold > svg { flex-shrink: 0; }
+.training-hold-countdown { display: flex; align-items: baseline; gap: 4px; font: 650 22px var(--font-num); letter-spacing: 0; }
+.training-hold-countdown small { font: 500 12px var(--font-text, sans-serif); }
+.training-stop {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border: 1px solid rgb(var(--dk-fg-rgb, 21 22 19) / 14%);
+  border-radius: 50%;
+  background: var(--silver-2);
+  color: var(--ink-0);
+  transition: transform .18s var(--ease-out);
+}
+.training-stop:active { transform: scale(.94); }
+.training-stop:disabled { opacity: .55; }
+.training-hold-error {
+  grid-row: 1;
+  grid-column: 1 / -1;
+  margin: 0 8px 8px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: var(--paper);
+}
+.runner-action-chooser { min-width: 0; }
+.runner-action-toggle { display: inline-flex; gap: 8px; align-items: center; min-height: 44px; font-size: 14px; font-weight: 650; }
+.runner-action-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
+.runner-action-chooser ul { max-height: 30svh; overflow: auto; margin: 0 0 8px; padding: 0; list-style: none; }
+.runner-action-chooser li button { width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: left; border-top: 1px solid var(--hairline); }
+.runner-action-chooser li small { flex: none; color: var(--runner-soft); }
+.rest-foot .runner-action-chooser { grid-column: 1 / -1; }
+.finish-inline { grid-column: 1 / -1; padding: 12px 14px; border: 1px solid var(--hairline); border-radius: 16px; background: var(--silver-2); }
+.finish-inline p { margin: 0 0 8px; font-size: 13px; }
+.finish-inline > div { display: flex; gap: 8px; justify-content: flex-end; }
+.finish-inline button { min-height: 44px; }
+.stepper-head { display: flex; justify-content: center; align-items: baseline; gap: 8px; }
+.stepper-head small { font-size: 12px; color: var(--gray-1); }
+.stepper-body .stepper-adjust { flex: none; }
+.stepper:not(.stepper-readout) .stepper-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; }
+.stepper:not(.stepper-readout) .stepper-adjust { width: 100%; height: 44px; border-radius: 10px; }
+.stepper:not(.stepper-readout) .stepper-value { grid-column: 1 / -1; grid-row: 1; min-height: 38px; align-items: center; }
+.stepper-value .stepper-number {
+  min-width: 0; width: auto; height: auto; border: 0; border-radius: 0; padding: 3px 1px;
+  background: transparent; font: 700 20px/1.05 var(--font-num); color: var(--ink-0); text-align: center;
+}
+.stepper-value button.stepper-number { display: block; white-space: nowrap; }
+.stepper-value input.stepper-number { width: 100%; }
+.stepper-value .dim { color: var(--gray-1); }
+.stepper-number:focus-visible { outline: 2px solid var(--ink-0); outline-offset: -2px; border-radius: 5px; }
+.stepper-readout { padding: 0; background: transparent; box-shadow: none; }
+.stepper-readout .stepper-head { justify-content: space-between; }
+.stepper-readout .stepper-body { gap: 10px; }
+.stepper-readout .stepper-adjust { width: 46px; height: 46px; }
+.stepper-readout .stepper-adjust:last-child { color: var(--lemon); background: var(--dk-fill, var(--ink-0)); }
+.stepper-readout .stepper-label { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.stepper-readout .stepper-value { align-items: baseline; overflow: visible; gap: 5px; }
+.stepper-readout .stepper-number { font-size: clamp(34px, 13vw, 64px); letter-spacing: -.06em; }
+.stepper-readout .stepper-value input.stepper-number { flex: 1; }
+.stepper-readout .stepper-value em { font-size: 14px; }
+.weight-editor .stepper-readout, .setup-weight .stepper-readout { margin-bottom: 12px; }
+
+/* ---------- 合并 #20 后在我这版训练页上的摆放 ---------- */
+/* 今日训练：进行中横幅下面一行「结束训练」，点开后原位确认 */
+.live-end { display: grid; justify-items: end; margin: -2px 0 10px; }
+.live-end .finish-inline { width: 100%; }
+/* 训练中：动作选择收在组次卡下面；深色页底里按钮和列表换成浅色字 */
+.v-runner[data-mode="set"] .runner-action-chooser { margin-top: 14px; }
+.v-runner[data-mode="set"] .runner-action-toggle { color: var(--ink-0); }
+.v-runner[data-mode="set"] .runner-action-chooser li button { border-top-color: rgb(var(--dk-fg-rgb, 21 22 19) / 14%); color: var(--ink-0); }
+.v-runner[data-mode="set"] .runner-foot .finish-inline { background: rgb(var(--dk-surface-rgb, 236 237 232) / 92%); }
+.rest-foot { grid-template-columns: 1fr auto; align-items: center; }
+.rest-foot .runner-quiet { grid-column: 1 / -1; }
+.rest-foot .finish-inline { grid-column: 1 / -1; }
+html[data-theme="dark"] .finish-inline { background: #1a1c1f; border-color: #2a2d31; }

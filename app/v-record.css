@@ -264,3 +264,40 @@
 .ledger-moves small i { margin-left: 2px; font-style: normal; font-size: 12px; font-weight: 500; color: var(--gray-1); }
 .fc.ledger-detail .fc-ledger-card[data-kind="workout"] > div:not(.fc-meal-item-edit) { display: none; }
 .fc.ledger-detail .fc-ledger-card[data-kind="workout"] { padding-top: 2px; }
+
+/* ---------- 合并共创者 #20（记录：待保存草稿重试、移除后撤销、照片与估算标记） ---------- */
+.fc.ledger-detail .record-nutrition-toggle { min-height: 44px; padding: 0 8px; text-align: left; text-decoration: underline; text-underline-offset: 3px; }
+.fc.ledger-detail .record-nutrition-toggle small { font-size: 12px; color: var(--ink-2); }
+.record-recovery { display: grid; gap: 8px; margin-bottom: 18px; }
+#record-recovery-slot:has(.record-recovery) + .day-deck:has(.deck-card.empty) { display: none; }
+.record-recovery article { padding: 14px 16px; border: 1px solid var(--hairline); border-radius: 16px; }
+.record-recovery article p { margin: 6px 0 0; overflow-wrap: anywhere; }
+.record-recovery article img { display: block; width: 72px; height: 58px; object-fit: cover; margin-top: 8px; border-radius: 8px; }
+.record-recovery-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.record-recovery-actions button { min-height: 44px; padding-inline: 6px; text-decoration: underline; text-underline-offset: 4px; }
+.record-estimated { display: inline-block; margin-right: 8px; color: var(--gray-1); }
+.record-undo-notice {
+  position: fixed; z-index: 70; left: 16px; right: 16px; bottom: calc(156px + env(safe-area-inset-bottom));
+  max-width: 480px; margin-inline: auto; padding: 4px 10px 4px 14px; border-radius: 16px;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 4px 9px; background: var(--dk-fill, var(--ink-0)); color: var(--silver-2);
+}
+.record-undo-notice p { flex: 1; margin: 0; font-size: 14px; }
+.record-undo-notice button, .record-undo-notice a { color: inherit; min-width: 44px; min-height: 44px; display: grid; place-items: center; }
+.record-undo-notice button:first-of-type, .record-undo-notice a { color: var(--lemon); }
+.record-undo-notice small { flex-basis: 100%; padding-bottom: 6px; }
+.record-card-photo { display: block; width: 84px; height: 64px; margin-block: 8px; object-fit: cover; border-radius: 12px; }
+.record-meal-meta .record-card-photo { width: 52px; height: 44px; margin: 0; }
+.record-meal-meta .record-estimated { margin: 0; font-size: 12px; }
+.fc.ledger-detail .record-nutrition-toggle { margin-left: auto; font-size: 12px; color: var(--gray-1); }
+.record-recovery article { background: var(--dk-card, #f3f3ed); }
+.record-recovery-head { display: flex; align-items: center; gap: 12px; }
+.record-recovery-head > div { flex: 1; min-width: 0; }
+.record-recovery-head span { display: block; margin-bottom: 3px; font-size: 12px; color: var(--gray-1); }
+.record-recovery-head strong { font-size: 19px; }
+.record-recovery-head img { flex-shrink: 0; margin-top: 0; }
+.record-recovery-actions { align-items: center; margin-top: 8px; }
+.record-recovery-actions .record-retry {
+  padding-inline: 16px; border-radius: 999px; background: var(--dk-fill, var(--ink-0)); color: var(--paper); text-decoration: none;
+}
+.record-recovery-actions button:last-child { margin-left: auto; color: var(--gray-1); font-size: 12px; }
+.record-recovery > p { margin: 0 4px; font-size: 13px; color: var(--ink-2); }

@@ -1,25 +1,59 @@
 'use client';
 
-function haptic(ms = 6) { try { navigator.vibrate?.(ms); } catch { /* iOS 网页无振动 */ } }
+import { useState } from 'react';
+import Icon from './Icon';
 
-/** 圆钮步进器：± 按步长调整，中间数字可直接输入。今日计划与加练共用。 */
-export default function Stepper({ label, value, unit, step, min, max, onChange }: {
-  label: string; value: number; unit: string; step: number; min: number; max: number; onChange: (value: number) => void;
+export default function Stepper({ label, value, unit, step, min, max, onChange, readout = false, aside, disabled = false }: {
+  label: string;
+  value: number;
+  unit: string;
+  step: number;
+  min: number;
+  max: number;
+  onChange: (value: number) => void;
+  readout?: boolean;
+  aside?: string;
+  disabled?: boolean;
 }) {
-  const set = (next: number) => { const v = Math.min(max, Math.max(min, +next.toFixed(2))); if (v !== value) { haptic(); onChange(v); } };
-  return <div className="stepper">
-    <span className="stepper-label">{label}</span>
+  const [draft, setDraft] = useState<string | null>(null);
+
+  function adjust(next: number) {
+    const bounded = Math.min(max, Math.max(min, +next.toFixed(6)));
+    if (bounded !== value) onChange(bounded);
+  }
+
+  function commit(input: string) {
+    const numeric = input.trim().replace(',', '.');
+    if (/^\d+(?:\.\d*)?$|^\.\d+$/.test(numeric)) {
+      const value = Number(numeric);
+      if (Number.isFinite(value)) onChange(Math.min(max, Math.max(min, Number.isInteger(step) ? Math.round(value) : value)));
+    }
+    setDraft(null);
+  }
+
+  const [int, decimal] = String(value).split('.');
+  return <div className={readout ? 'stepper stepper-readout' : 'stepper'}>
+    <div className="stepper-head"><span className="stepper-label">{label}</span>{aside && <small>{aside}</small>}</div>
     <div className="stepper-body">
-      <button type="button" aria-label={`减少${label}`} onClick={() => set(value - step)} disabled={value <= min}>
-        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" /></svg>
+      <button className="stepper-adjust" type="button" aria-label={`减少${label}`} onClick={() => adjust(value - step)} disabled={disabled || value <= min}>
+        <Icon name="minus" size={18} />
       </button>
-      <label className="stepper-value">
-        <input type="number" inputMode="decimal" value={value} min={min} max={max} step={step} aria-label={label}
-          onChange={(event) => { const v = Number(event.target.value); if (Number.isFinite(v)) onChange(v); }} />
+      <div className="stepper-value">
+        {draft === null ? <button type="button" className="stepper-number" aria-label={`${label} ${value} ${unit}，点按输入`}
+          disabled={disabled} onClick={() => setDraft(String(value))}>
+          {int}{decimal && <span className="dim">.{decimal}</span>}
+        </button> : <input className="stepper-number" type="text" autoFocus
+          inputMode={Number.isInteger(step) ? 'numeric' : 'decimal'} aria-label={`输入${label}`}
+          value={draft} onChange={(event) => setDraft(event.target.value)} onFocus={(event) => event.currentTarget.select()}
+          onBlur={(event) => commit(event.currentTarget.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') { event.preventDefault(); event.currentTarget.blur(); }
+            if (event.key === 'Escape') { event.preventDefault(); setDraft(null); }
+          }} />}
         <em>{unit}</em>
-      </label>
-      <button type="button" aria-label={`增加${label}`} onClick={() => set(value + step)} disabled={value >= max}>
-        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12M12 6v12" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" /></svg>
+      </div>
+      <button className="stepper-adjust" type="button" aria-label={`增加${label}`} onClick={() => adjust(value + step)} disabled={disabled || value >= max}>
+        <Icon name="plus" size={18} />
       </button>
     </div>
   </div>;

@@ -45,6 +45,10 @@ export async function POST(req: Request) {
       !b.request_id
     )
       throw Error('缺少来源或请求标识');
+    const db = getDb();
+    if (db.prepare('SELECT 1 FROM ledger_requests WHERE user_id=? AND request_id=?').get(user, b.request_id))
+      return Response.json({ ok: true });
+    if (b.photo && (typeof b.photo !== 'string' || b.photo.length > 6_000_000)) throw Error('照片过大，请重新选择');
     if (b.photo && !/^data:image\/(jpeg|png|webp);base64,/.test(b.photo)) throw Error('照片格式无效');
     const parsed =
       b.source === 'scale'
@@ -65,8 +69,15 @@ export async function POST(req: Request) {
             ],
           }
         : await parseInput(b.text ?? '', b.photo, b.source);
-    if (parsed.route === 'qa') return Response.json(parsed);
-    saveBatch(getDb(), user, b.request_id, b.source, parsed.records);
+    if (parsed.route === 'qa') {
+      if (b.photo) throw Error('没有识别到可记录的内容，照片已保留');
+      return Response.json(parsed);
+    }
+    const loggedAt = typeof b.logged_at === 'string' ? Date.parse(b.logged_at) : NaN;
+    const records = b.source !== 'scale' && Number.isFinite(loggedAt)
+      ? parsed.records.map((record) => ({ ...record, logged_at: new Date(loggedAt).toISOString() }))
+      : parsed.records;
+    saveBatch(db, user, b.request_id, b.source, records, b.photo);
     return Response.json({ ok: true });
   } catch (e) {
     return failure(e);
@@ -76,7 +87,10 @@ export async function PATCH(req: Request) {
   try {
     const b = await req.json(),
       db = getDb();
-    if (typeof b.quick_choice === 'string') chooseCardPick(db, user, b.id, b.quick_choice);
+    if (b.deleted === false) {
+      if (!db.prepare('UPDATE entries SET is_deleted=0 WHERE id=? AND user_id=?').run(b.id, user).changes)
+        throw Error('卡片不存在');
+    } else if (typeof b.quick_choice === 'string') chooseCardPick(db, user, b.id, b.quick_choice);
     else if (b.choice !== undefined) fillSets(db, user, b.id, b.index, b.choice);
     else
       transaction(db, () => {

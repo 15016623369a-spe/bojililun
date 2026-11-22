@@ -74,7 +74,7 @@ export default async function ExercisesPage({ searchParams }: { searchParams: SP
   ].filter((c) => c.key === 'all' || c.count > 0);
 
   return (
-    <JournalShell active="plan" title="动作库" subtitle={`${total.toLocaleString('en-US')} 个动作`} back={{ href: '/body', label: '计划' }}>
+    <JournalShell active="plan" title="动作库" subtitle={`${total.toLocaleString('en-US')} 个动作`} back={{ href: '/train', label: '今日训练' }}>
       <div className="lib-body">
         <nav className="rail" aria-label="筛选训练部位">
           <Link className={`rail-item ${body === 'all' ? 'on' : ''}`} href={href({ body: 'all' })}>

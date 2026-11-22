@@ -1,8 +1,9 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { BODY_LABEL } from '@/lib/exercise-label';
+import { offerRecordUndo } from './RecordUndoNotice';
 import type { SetRow } from '@/lib/types';
 
 interface ExerciseGroup {
@@ -41,6 +42,11 @@ export default function ExerciseRecord({ group, initiallyExpanded = false }: { g
   const detailsId = `exercise-set-${group.sets[0]?.id ?? 0}-details`;
   const sessionId = group.sets[0]?.session_id ?? 0;
   const busy = saving !== null || pending !== null;
+
+  useEffect(() => {
+    setSets(group.sets);
+    setDrafts((current) => ({ ...initialDrafts(group.sets), ...current }));
+  }, [group.sets]);
 
   function changeDraft(id: number, field: 'weight' | 'reps', value: string) {
     setDrafts((current) => ({ ...current, [id]: { ...current[id], [field]: value } }));
@@ -120,16 +126,15 @@ export default function ExerciseRecord({ group, initiallyExpanded = false }: { g
 
   async function removeSet(set: SetRow, index: number) {
     if (busy) return;
-    if (sets.length <= 1 && !window.confirm('这是该动作的最后一组，删除后这个动作会从当日记录里消失，确定删除？')) return;
     setPending(`del-${set.id}`);
     setMessage('');
     setError('');
     try {
       const response = await fetch(`/api/session/set?id=${set.id}`, { method: 'DELETE' });
-      const result = await response.json() as { sets?: SetRow[]; error?: string };
-      if (!response.ok || !result.sets) throw new Error(result.error || '删除失败，请重试');
+      const result = await response.json() as { sets?: SetRow[]; undoToken?: string; error?: string };
+      if (!response.ok || !result.sets || !result.undoToken) throw new Error(result.error || '删除失败，请重试');
       applySets(result.sets);
-      setMessage(`已删除第 ${index + 1} 组`);
+      offerRecordUndo({ token: result.undoToken, label: `已移除第 ${index + 1} 组` });
       router.refresh();
     } catch (cause) {
       setError((cause as Error).message);

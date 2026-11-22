@@ -65,7 +65,7 @@ export default function TrainingProfileForm({ mode, today, initial, onClose }: {
           <img src={MODEL_IMAGES[variant]} alt="" />{variant === 'male' ? '男' : '女'}
         </button>)}
       </div>
-      <p className="training-profile-hint">用于选择计划页的默认人体模型。</p>
+      <p className="training-profile-hint">训练、回顾和统计的人体模型随档案切换。</p>
     </fieldset>}
     {(setup || mode === 'goal') && <fieldset className={setup ? 'training-profile-card' : undefined}>
       <legend>主要训练目标 <small>选一项</small></legend>

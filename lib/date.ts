@@ -48,3 +48,13 @@ export function humanDate(dateKey: string): string {
   const week = ['日', '一', '二', '三', '四', '五', '六'][new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
   return `${m}月${d}日 周${week}`;
 }
+
+export function weekDates(dateKey: string): string[] {
+  const monday = new Date(`${dateKey}T00:00:00Z`);
+  monday.setUTCDate(monday.getUTCDate() - (monday.getUTCDay() + 6) % 7);
+  return Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(monday);
+    day.setUTCDate(day.getUTCDate() + index);
+    return day.toISOString().slice(0, 10);
+  });
+}

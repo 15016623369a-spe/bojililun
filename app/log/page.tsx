@@ -76,6 +76,7 @@ export default async function LogPage({ searchParams }: { searchParams: Promise<
           {kcal > 0 && <small className="hero-kcal"><b>{Math.round(kcal).toLocaleString('zh-CN')}</b> kcal 摄入</small>}
         </BigDate>
       </>}>
+      <div id="record-recovery-slot" />
       <LedgerDeck items={items} cards={day.entries} picks={picks} nowMinutes={past ? null : minutesOf(new Date().toISOString())} past={Boolean(past)} />
       {/* 录入、长按录音和底部导航沿用手账的 LogScreen；空状态由上面的卡片承担。回看某一天时不显示录入栏 */}
       {!past && <div className="fc ledger-dock-scope">

@@ -8,6 +8,7 @@ import { EQUIPMENT_LABEL, TARGET_LABEL } from '@/lib/exercise-label';
 import SupplementalMark from './SupplementalMark';
 import Stepper from './ui/Stepper';
 import Icon from './ui/Icon';
+import EndTrainingButton from './EndTrainingButton';
 
 const REST_CHOICES = [60, 90, 120, 180];
 
@@ -20,7 +21,7 @@ export default function TodayPlan({
 }: {
   initialItems: PlanItem[];
   images: Record<string, string>;
-  activeSession: { id: number; startedAt: string; next?: { name: string; setsLeft: number } } | null;
+  activeSession: { id: number; startedAt: string; next?: { name: string; setsLeft: number }; completedSets?: number } | null;
 }) {
   const router = useRouter();
   const [items, setItems] = useState<PlanItem[]>(initialItems);
@@ -129,6 +130,12 @@ export default function TodayPlan({
         <Link href={`/train/${activeSession.id}`} className="live-banner">
           <i aria-hidden="true" />训练进行中 · {startedAt} 开始<span>继续 <Icon name="arrow-right" size={16} stroke={2} /></span>
         </Link>
+      )}
+      {activeSession && (
+        <div className="live-end">
+          <EndTrainingButton sessionId={activeSession.id} completedSets={activeSession.completedSets ?? 0} disabled={busy}
+            onEnded={() => { haptic(12); router.refresh(); }} />
+        </div>
       )}
 
       {allDone && !showDone ? null : items.length === 0 ? (

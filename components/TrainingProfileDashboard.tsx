@@ -10,6 +10,7 @@ import Onboarding, { type OnboardingInitial } from './Onboarding';
 import TrainingProfileForm, { MODEL_IMAGES } from './TrainingProfileForm';
 import Icon from './ui/Icon';
 import TickRuler from './ui/TickRuler';
+import Stepper from './ui/Stepper';
 
 type Nutrition = OnboardingInitial & { target_kcal: number; target_protein: number };
 type Row = 'identity' | 'goal' | 'restriction' | null;
@@ -27,7 +28,6 @@ function WeightEditor({ initial, today, onClose }: { initial: number; today: str
   const [date, setDate] = useState(today);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [int, dec] = value.toFixed(1).split('.');
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -51,8 +51,8 @@ function WeightEditor({ initial, today, onClose }: { initial: number; today: str
   }
 
   return <form className="weight-editor" onSubmit={save}>
-    <div className="weight-editor-num" aria-live="polite"><b className="big-num">{int}<span className="dim">.{dec}</span></b><em>kg</em></div>
-    <TickRuler value={value} min={30} max={180} step={0.1} major={10} label="体重刻度尺" unit="kg" onChange={setValue} />
+    <Stepper readout label="体重" value={value} unit="kg" step={0.1} min={20} max={400} onChange={setValue} disabled={saving} />
+    <TickRuler value={value} min={20} max={400} step={0.1} major={10} label="体重刻度尺" unit="kg" onChange={setValue} />
     <label className="weight-editor-date">记录日期<input type="date" value={date} max={today} required onChange={(event) => setDate(event.target.value)} /></label>
     {error && <p className="form-err" role="alert">{error}</p>}
     <div className="me-actions">
@@ -122,7 +122,7 @@ export default function TrainingProfileDashboard({ profile, restrictions, nutrit
       </span>
       <div className="me-identity-main">
         <h2>{profile.name}</h2>
-        <p>{profile.sex ? `${profile.sex === 'female' ? '女' : '男'} · 默认${profile.sex === 'female' ? '女性' : '男性'}模型` : '性别未填 · 默认男性模型'}</p>
+        <p>{profile.sex === 'female' ? '女 · 女性模型' : profile.sex === 'male' ? '男 · 男性模型' : '性别未填 · 默认男性模型'}</p>
         <div className="me-tags">
           {profile.goal && <span className="tag ink">{TRAINING_GOALS[profile.goal]}</span>}
           {active.length > 0 && <span className="tag">{active.length} 项限制</span>}

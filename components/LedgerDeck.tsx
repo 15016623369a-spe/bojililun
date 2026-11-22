@@ -44,7 +44,9 @@ export default function LedgerDeck({ items, cards, picks, nowMinutes, past = fal
   const deck = useRef<HTMLDivElement>(null);
   const frame = useRef(0);
   const firstPending = items.findIndex((item) => item.pending);
-  const [active, setActive] = useState(firstPending >= 0 ? firstPending : Math.max(0, items.length - 1));
+  const [activeKey, setActiveKey] = useState(() => items[firstPending >= 0 ? firstPending : items.length - 1]?.key);
+  const index = items.findIndex((item) => item.key === activeKey);
+  const active = index >= 0 ? index : Math.max(0, items.length - 1);
   const [now, setNow] = useState(nowMinutes);
 
   const start = Math.max(0, Math.min(8 * 60, Math.floor((Math.min(...items.map((i) => i.minutes), 24 * 60) - 60) / 120) * 120));
@@ -73,7 +75,7 @@ export default function LedgerDeck({ items, cards, picks, nowMinutes, past = fal
     const target = el?.querySelectorAll<HTMLElement>('.deck-card')[index];
     if (!el || !target) return;
     haptic(4);
-    setActive(index);
+    setActiveKey(items[index]?.key);
     el.scrollTo({ left: target.offsetLeft - el.offsetLeft - 24, behavior: 'smooth' });
   }
 
@@ -87,7 +89,7 @@ export default function LedgerDeck({ items, cards, picks, nowMinutes, past = fal
       let best = 0;
       list.forEach((c, i) => { if (Math.abs(c.offsetLeft - el.offsetLeft - left) < Math.abs(list[best].offsetLeft - el.offsetLeft - left)) best = i; });
       if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 4) best = list.length - 1;
-      setActive((current) => (current === best ? current : best));
+      setActiveKey(items[best]?.key);
     });
   }
 
@@ -110,15 +112,15 @@ export default function LedgerDeck({ items, cards, picks, nowMinutes, past = fal
         <span className="deck-kind"><Icon name="mic" size={17} />开始记录</span>
         <b className="big-num">--:--</b>
         <strong>{past ? '这天没有记录' : '今天还没有记录'}</strong>
-        <small>{past ? '可以在月历里换一天看看。' : '长按底部「记录」说一句，或点它打字、拍照。带上组数重量，热量和热区才准。'}</small>
+        <small>{past ? '可以在月历里换一天看看。' : '用下方的键盘、录音或相机记第一条。'}</small>
       </div>}
       {items.map((item, i) => <article key={item.key} className={`deck-card ${item.kind === 'workout' ? 'training' : item.kind === 'meal' ? 'meal' : item.kind === 'body_metrics' ? 'weight' : 'note'}`}
         data-active={i === active || undefined}>
         <button type="button" className="deck-card-body" aria-pressed={i === active} onClick={() => go(i)}>
           <span className="deck-kind"><Icon name={KIND[item.kind].icon} size={17} />{KIND[item.kind].label}
-            {item.pending && <em className="deck-pending">待确认</em>}</span>
-          <b className="big-num">{item.time}</b>
+            {item.pending && <em className="deck-pending">{item.kind === 'meal' ? '可校正' : '待补'}</em>}</span>
           <strong>{item.title}</strong>
+          <b className="big-num">{item.time}</b>
           {item.sub && <small>{item.sub}</small>}
         </button>
       </article>)}
