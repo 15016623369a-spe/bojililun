@@ -2,8 +2,6 @@ import type { Metadata } from 'next';
 import JournalShell from '@/components/JournalShell';
 import LedgerDeck, { type DeckItem } from '@/components/LedgerDeck';
 import LogScreen from '@/components/fc/LogScreen';
-import DayBattery from '@/components/DayBattery';
-import { getDayEnergy } from '@/lib/day-energy';
 import BigDate from '@/components/ui/BigDate';
 import { getDb } from '@/lib/db';
 import { exportJournal } from '@/lib/export';
@@ -78,7 +76,6 @@ export default async function LogPage({ searchParams }: { searchParams: Promise<
           {kcal > 0 && <small className="hero-kcal"><b>{Math.round(kcal).toLocaleString('zh-CN')}</b> kcal 摄入</small>}
         </BigDate>
       </>}>
-      <DayBattery key={today} date={today} initial={getDayEnergy(db, 'local', today)} />
       <LedgerDeck items={items} cards={day.entries} picks={picks} nowMinutes={past ? null : minutesOf(new Date().toISOString())} past={Boolean(past)} />
       {/* 录入、长按录音和底部导航沿用手账的 LogScreen；空状态由上面的卡片承担。回看某一天时不显示录入栏 */}
       {!past && <div className="fc ledger-dock-scope">

@@ -1,0 +1,116 @@
+/* ============================================================
+   夜间模式：以黑色代替冷银灰。在「我的」底部切换，存在 cookie fc-theme。
+   白天模式不受影响：各样式表里写死的浅色已改成 var(--dk-…, 原色)，
+   只有这里给这些变量赋值时才会换色。
+   ============================================================ */
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --silver: #0d0e0f;
+  --silver-2: #0e0f10;
+  --silver-3: #131416;
+  --mist-panel: #1a1c1f;
+  --ink-0: #eeefea;
+  --ink-2: #c2c4be;
+  --gray-1: #8a8d92;
+  --gray-2: #686b70;
+  --dot: #2f3236;
+  --sage: #1c1e21;
+  --hairline: #2a2d31;
+  --canvas: #0a0b0c;
+  --panel: #1a1c1f;
+  --panel-2: #202226;
+  --accent-rgb: 238 239 234;
+  --page-rgb: 14 15 16;
+
+  /* 各样式表里的夜间变量 */
+  --dk-fill: #222428;            /* 原来的墨色按钮、导航条 → 深一级的灰 */
+  --dk-fg-rgb: 238 239 234;      /* 墨色半透明的线和轨道 → 浅色半透明 */
+  --dk-lift-rgb: 255 255 255;
+  --dk-lift-k: .14;              /* 白色玻璃、高光压到原来的 14% */
+  --dk-card: #1a1c1f;            /* 浅灰卡片 → 深灰卡片 */
+  --dk-line: #464a4f;            /* 中灰描边 */
+  --dk-surface-rgb: 26 28 31;    /* 浅色毛玻璃 → 深色毛玻璃 */
+}
+html[data-theme="dark"] body { background: var(--canvas); }
+
+/* 选中态反相：浅色胶囊、深色字（参考图的底部导航） */
+html[data-theme="dark"] :is(
+  .vseg > .on, .heat-scale-cols button[aria-pressed="true"], .fc-dict-filters button.on, .rest-seg button.on,
+  .meal-portion button.on, .training-profile-options button[aria-pressed="true"], .setup-options button[aria-pressed="true"],
+  .overlay .sheet .seg button.on, .overlay .sheet .goal-list button.on, .heat-stat[aria-pressed="true"], .head-icon[aria-expanded="true"]
+) { background: #ecebe6; color: #151613; }
+html[data-theme="dark"] .heat-stat[aria-pressed="true"] :is(span, .big-num, small) { color: #151613; }
+
+/* 底部导航与主按钮：深灰底、浅色字，加一圈很淡的边 */
+html[data-theme="dark"] .fc-tabs { background: #1c1e21; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 6%), 0 12px 28px -14px rgb(0 0 0 / 80%); }
+html[data-theme="dark"] .fc-tabs .fc-tab { color: #a3a6a0; }
+html[data-theme="dark"] .fc-tabs .fc-tab.on { background: linear-gradient(#f1f2ee, #dfe0da); color: #151613; }
+html[data-theme="dark"] :is(.ink-btn, .plan-start, .export-primary, .fc-dict-actions .fc-btn.primary, .fc .fc-speak, .stats-chip, .plan-pill) {
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 7%), 0 14px 30px -18px rgb(0 0 0 / 80%);
+}
+html[data-theme="dark"] .journal-footer, html[data-theme="dark"] .fc-dock { --visual-dock-fade: rgb(10 11 12 / 94%); }
+
+/* 彩色面上的字仍用墨色：柠檬黄、珊瑚、淡紫、雾蓝上的内容 */
+html[data-theme="dark"] :is(
+  .tile.lemon, .tile.lilac, .muscle-panel, .plan-done, .stats-tile.volume, .stats-tile[aria-pressed="true"], .callout-label[data-selected],
+  .cart-count, .ex-card, .pr-tile, .v-runner[data-mode="set"] .runner-foot .ink-btn, .review-bar[data-picked] .review-bar-track
+) {
+  --ink-0: #151613; --ink-2: #3a3c37; --gray-1: #4c4e49; --dk-fg-rgb: 21 22 19; --dk-fill: #151613; color: #151613;
+}
+
+/* 记录卡片：夜间不铺大面积柠檬黄，改成深色卡片；训练卡用浅色描边突出（参考图） */
+html[data-theme="dark"] .deck-card { background: #191b1e; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 6%), 0 18px 34px -26px rgb(0 0 0 / 90%); }
+html[data-theme="dark"] .deck-card.training { background: #1d1f23; box-shadow: inset 0 0 0 1.5px rgb(238 239 234 / 72%), 0 18px 34px -26px rgb(0 0 0 / 90%); }
+html[data-theme="dark"] .deck-card.training .deck-kind::after { content: ''; width: 8px; height: 8px; margin-left: 2px; border-radius: 2px; background: var(--coral); order: -1; }
+html[data-theme="dark"] .deck-card.training .deck-kind { gap: 8px; }
+html[data-theme="dark"] .deck-card small { color: rgb(238 239 234 / 55%); }
+html[data-theme="dark"] .deck-kind em { background: rgb(255 255 255 / 10%); }
+/* 条形码刻度：白线、红色选中 */
+html[data-theme="dark"] .day-ruler-ticks i { background: #c9cbc5; opacity: .45; }
+html[data-theme="dark"] .day-ruler-ticks i.hour { background: #eeefea; opacity: .8; }
+html[data-theme="dark"] .day-mark { --mark: #eeefea; }
+html[data-theme="dark"] .day-mark.meal { --mark: var(--coral); }
+html[data-theme="dark"] .day-mark[data-active]::after { box-shadow: 0 0 0 3px var(--canvas); }
+
+/* 训练中：上半屏更深的黑，下半屏深灰；加号白底、减号深灰、当前组只描边（参考图） */
+html[data-theme="dark"] .v-runner[data-mode="set"] { --runner-bg: #1b1d20; --charcoal: #0b0c0d; --runner-soft: #8a8d92; }
+html[data-theme="dark"] .v-runner[data-mode="set"] .round { background: #2c2f33; color: #eeefea; }
+html[data-theme="dark"] .v-runner[data-mode="set"] .round.ink { background: #f1f2ee; color: #151613; }
+html[data-theme="dark"] .v-runner[data-mode="set"] .big-value.reps .dim { color: #8f9297; }
+html[data-theme="dark"] .v-runner[data-mode="set"] .set-strip li[data-state="now"] { background: transparent; box-shadow: inset 0 0 0 1.5px #eeefea; color: #eeefea; }
+html[data-theme="dark"] .v-runner[data-mode="set"] .set-strip li[data-state="todo"] { box-shadow: inset 0 0 0 1.5px rgb(238 239 234 / 28%); color: rgb(238 239 234 / 70%); }
+html[data-theme="dark"] .v-runner[data-mode="set"] .runner-quiet { color: #c2c4be; }
+html[data-theme="dark"] .runner-ruler .tick-ruler { background: #060707; }
+html[data-theme="dark"] .v-runner:not([data-mode="set"]) { --runner-bg: #0e0f10; }
+
+/* 动作示意图：白底线稿在夜间反相成浅线黑底，和网点插画一个语气 */
+html[data-theme="dark"] :is(.thumb, .fc-dict-gif, .cart-ghost) { background: #16181a; }
+html[data-theme="dark"] :is(.thumb img, .fc-dict-gif img, .cart-ghost img, .cart-ghost-row img) { filter: grayscale(1) invert(1) contrast(1.08) brightness(.92); mix-blend-mode: screen; }
+
+/* 姿势详情：石膏照片在黑底上压暗一点，抽屉是深色毛玻璃 */
+html[data-theme="dark"] .plan-detail-figure img { filter: brightness(.8) contrast(1.06); }
+html[data-theme="dark"] .plan-detail-head { background: var(--silver-3); }
+html[data-theme="dark"] .plan-drawer { background: linear-gradient(180deg, rgb(30 32 35 / 42%) 0, rgb(22 24 27 / 58%) 30%, rgb(16 17 19 / 80%) 100%); box-shadow: inset 0 1px 0 rgb(255 255 255 / 12%), 0 -24px 48px -30px rgb(0 0 0 / 80%); }
+html[data-theme="dark"] .fc-dict-sheet { background: linear-gradient(180deg, rgb(30 32 35 / 55%) 0, rgb(22 24 27 / 70%) 40%, rgb(16 17 19 / 86%) 100%); box-shadow: inset 0 1px 0 rgb(255 255 255 / 12%), 0 -24px 48px -30px rgb(0 0 0 / 80%); }
+html[data-theme="dark"] .swipe-row[data-open] .swipe-front { background: rgb(26 28 31 / 92%); }
+html[data-theme="dark"] .cart-ghost-row { background: rgb(30 32 35 / 96%); }
+
+/* 统计肌群图、回顾雕塑：浅色人体放在黑底上，标注换成深色玻璃 */
+html[data-theme="dark"] .callout-label:not([data-selected]) { background: rgb(26 28 31 / 78%); }
+html[data-theme="dark"] .callout-point::after { box-shadow: 0 0 0 2px rgb(10 11 12 / 85%); }
+html[data-theme="dark"] .review-model-note { background: rgb(26 28 31 / 78%); }
+
+/* 刻度条、计量条在深色上换成浅色刻线 */
+html[data-theme="dark"] .meter-ticks i { background: #eeefea; }
+html[data-theme="dark"] .plan-done-mark { background: #151613; }
+
+/* 切换主题时颜色平滑过渡一下 */
+html.theme-switching, html.theme-switching * { transition: background-color .35s ease, color .35s ease, border-color .35s ease, box-shadow .35s ease !important; }
+
+/* 计划首屏页底渐隐、记录明细里的动作块、动作库筛选文字 */
+html[data-theme="dark"] .journal-shell.is-plan { --page-rgb: 13 14 15; }
+html[data-theme="dark"] .ledger-moves { background: #1a1c1f; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 6%), inset 3px 0 0 var(--lemon); }
+html[data-theme="dark"] .fc-dict-filters button { color: #a3a6a0; }
+html[data-theme="dark"] .fc-dict-filters button.on { color: #151613; }
+html[data-theme="dark"] .fc-dict-select-row[data-selected="true"] .fc-dict-item::after { background: #ecebe6 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23151613' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 12.5 4 4 8-9'/%3E%3C/svg%3E") center / 15px no-repeat; border-color: #ecebe6; }

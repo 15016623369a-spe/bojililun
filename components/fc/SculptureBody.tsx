@@ -21,6 +21,7 @@ const HALFTONE_FRAG = `
   uniform vec2 uRes;
   uniform float uCell;
   uniform float uAA;
+  uniform float uDark;
   varying vec2 vUv;
   vec3 toDisplay(vec3 c) {
     c = max(c * 1.05, 0.0);
@@ -43,8 +44,9 @@ const HALFTONE_FRAG = `
     vec4 m = lit(px / uRes);
     float l = dot(m.rgb, vec3(0.299, 0.587, 0.114));
     float g = clamp((l - 0.5) * 1.18 + 0.5, 0.0, 1.0) * 0.91;
-    vec4 col = vec4(vec3(g), 1.0) * (m.a * 0.66);
-    vec3 ink = vec3(21.0, 22.0, 19.0) / 255.0;
+    // 夜间：人体底色压暗，点改成浅色；悬停的反相块改成浅底
+    vec4 col = vec4(vec3(mix(g, g * 0.2, uDark)), 1.0) * (m.a * 0.66);
+    vec3 ink = mix(vec3(21.0, 22.0, 19.0), vec3(226.0, 228.0, 222.0), uDark) / 255.0;
     col = mix(col, vec4(ink, 1.0) * m.a, marks(m.rgb).x);
     vec2 c = (floor(px / uCell) + 0.5) * uCell;
     vec4 s = lit(c / uRes);
@@ -55,15 +57,20 @@ const HALFTONE_FRAG = `
         float v = clamp(sm.y > 0.5 ? s.g : s.r, 0.0, 1.0);
         float r = (0.3 + v * 1.7) * uCell / 5.0;
         float cov = 1.0 - smoothstep(r - uAA, r + uAA, length(px - c));
-        vec3 dotc = sm.y > 0.5 ? vec3(242.0, 237.0, 33.0) / 255.0 : vec3(236.0, 237.0, 232.0) / 255.0;
+        vec3 dotc = sm.y > 0.5 ? vec3(242.0, 237.0, 33.0) / 255.0 : mix(vec3(236.0, 237.0, 232.0), vec3(21.0, 22.0, 19.0), uDark) / 255.0;
+        if (sm.y > 0.5 && uDark > 0.5) col = mix(col, vec4(vec3(21.0, 22.0, 19.0) / 255.0, 1.0) * s.a, 1.0);
         float a = cov * s.a;
         col = vec4(dotc * a, a) + col * (1.0 - a);
       } else {
         float tone = max(0.0, (252.0 / 255.0 - s.r) / (128.0 / 255.0));
-        float r = (0.46 + min(1.22, tone) * 1.78) * uCell / 5.0;
+        // 夜间反过来：受光越多点越大
+        float lift = clamp((s.r - 0.3) / 0.62, 0.0, 1.2);
+        float t = mix(tone, lift, uDark);
+        float r = (0.46 + min(1.22, t) * 1.78) * uCell / 5.0;
         float cov = 1.0 - smoothstep(r - uAA, r + uAA, length(px - c));
-        float a = (0.4 + min(1.0, tone) * 0.6) * cov * s.a;
-        col = vec4(vec3(20.0, 26.0, 20.0) / 255.0 * a, a) + col * (1.0 - a);
+        float a = (0.4 + min(1.0, t) * 0.6) * cov * s.a;
+        vec3 dotInk = mix(vec3(20.0, 26.0, 20.0), vec3(214.0, 217.0, 210.0), uDark) / 255.0;
+        col = vec4(dotInk * a, a) + col * (1.0 - a);
       }
     }
     gl_FragColor = col;
@@ -190,6 +197,7 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
           uRes: { value: new THREE.Vector2(1, 1) },
           uCell: { value: 3 * dpr },
           uAA: { value: .55 * dpr },
+          uDark: { value: document.documentElement.dataset.theme === 'dark' ? 1 : 0 },
         },
         vertexShader: HALFTONE_VERT,
         fragmentShader: HALFTONE_FRAG,

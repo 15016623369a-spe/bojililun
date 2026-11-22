@@ -5,7 +5,6 @@ import SplitNumber from '@/components/ui/SplitNumber';
 import { todayStr } from '@/lib/core/workout';
 import { getDb } from '@/lib/db';
 import { exportJournal } from '@/lib/export';
-import { dayEnergyRange } from '@/lib/day-energy';
 import { humanDate } from '@/lib/date';
 import { addDays, monthDays, shiftMonth, validDate } from '@/lib/period';
 
@@ -35,7 +34,6 @@ export default async function CalendarPage({ searchParams }: {
     meal: d.entries.filter((e) => e.entry_type === 'meal').length,
   }]));
   const overview = new Map(ledger.days.map((d) => [d.date, { volume: d.daily_summary.totalVolumeKg, sessions: 0 }]));
-  const energy = dayEnergyRange(getDb(), 'local', first.date, last.date);
   const dayHref = (date: string) => (date === today ? '/log' : `/log?date=${date}`);
   const period = params.period === 'day' || params.period === 'week' ? params.period : 'month';
   const monthLink = (date: string) => `/history/calendar?date=${date}&period=${period}`;
@@ -87,9 +85,6 @@ export default async function CalendarPage({ searchParams }: {
                     {Array.from({ length: 9 }, (_, i) => <i key={i} data-on={i < dots || undefined} />)}
                   </span>
                   {meal > 0 && <span className="dot-day-meal" aria-hidden="true" />}
-                  {energy.has(date) && <span className="dot-day-energy" aria-hidden="true">
-                    {[1, 2, 3, 4, 5].map((n) => <i key={n} data-on={n <= energy.get(date)! || undefined} />)}
-                  </span>}
                 </Link>
               </td>;
             })}
@@ -103,7 +98,6 @@ export default async function CalendarPage({ searchParams }: {
       <span><i className="key-sel" />选中</span>
       <span><i className="key-today" />今天</span>
       <span><i className="key-meal" />有饮食 {mealDays} 天</span>
-      <span><span className="key-energy">{[1, 2, 3].map((n) => <i key={n} />)}</span>精力</span>
     </div>
 
     <div className="readouts two">

@@ -20,7 +20,7 @@
 .extra-item { padding-bottom: 14px; }
 .extra-item[data-fresh] { animation: num-in .5s var(--ease-out); }
 .extra-item-head { padding-bottom: 8px; cursor: default; }
-.extra .extra-remove { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: rgb(21 22 19 / 6%); color: var(--gray-1); }
+.extra .extra-remove { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: rgb(var(--dk-fg-rgb, 21 22 19) / 6%); color: var(--gray-1); }
 .extra .extra-remove:hover { color: var(--ink-0); }
 .extra .rest-seg { margin-top: 10px; }
 
@@ -36,12 +36,12 @@ html:has(.snap) body { background: var(--canvas); }
 .snap-thread { flex: 1; display: flex; flex-direction: column; gap: 14px; padding: 16px 4px 18px; overflow-y: auto; }
 .snap-msg { animation: num-in .4s var(--ease-out) both; }
 .snap-msg.user { align-self: flex-end; display: grid; justify-items: end; gap: 6px; max-width: 80%; }
-.snap-bubble { padding: 10px 15px; border-radius: 20px 20px 6px 20px; background: #151613; color: #f1f2ee; font-size: 15px; line-height: 1.5; }
-.snap-photo { position: relative; width: min(62vw, 240px); border-radius: 20px; overflow: hidden; background: #cfd0cb; }
+.snap-bubble { padding: 10px 15px; border-radius: 20px 20px 6px 20px; background: var(--dk-fill, #151613); color: #f1f2ee; font-size: 15px; line-height: 1.5; }
+.snap-photo { position: relative; width: min(62vw, 240px); border-radius: 20px; overflow: hidden; background: var(--dk-line, #cfd0cb); }
 .snap-photo img { display: block; width: 100%; height: auto; filter: grayscale(1) contrast(1.15) brightness(1.04); }
 .snap-photo::after, .meal-photo-dots {
   content: ''; position: absolute; inset: 0; pointer-events: none;
-  background-image: radial-gradient(circle at center, rgb(226 227 223 / 55%) 0 1px, transparent 1.4px); background-size: 5px 5px;
+  background-image: radial-gradient(circle at center, rgb(var(--dk-surface-rgb, 226 227 223) / 55%) 0 1px, transparent 1.4px); background-size: 5px 5px;
   mix-blend-mode: screen;
 }
 .snap-scan { position: absolute; left: 0; right: 0; top: -40%; height: 40%; opacity: 0; pointer-events: none;
@@ -60,13 +60,13 @@ html:has(.snap) body { background: var(--canvas); }
 
 .snap-capture {
   display: grid; justify-items: center; gap: 8px; margin-top: 6px; padding: 34px 20px 30px; border-radius: 28px;
-  border: 1.5px dashed #a3a59f; color: var(--ink-0);
-  background-color: rgb(255 255 255 / 28%);
+  border: 1.5px dashed var(--dk-line, #a3a59f); color: var(--ink-0);
+  background-color: rgb(var(--dk-lift-rgb, 255 255 255) / calc(28% * var(--dk-lift-k, 1)));
   background-image: radial-gradient(circle at center, rgb(150 152 146 / 45%) 0 .8px, transparent 1.1px); background-size: 8px 8px;
   transition: transform .2s var(--ease-out), background-color .25s;
 }
 .snap-capture:active { transform: scale(.98); }
-.snap-capture-icon { display: grid; place-items: center; width: 68px; height: 68px; margin-bottom: 6px; border-radius: 50%; background: #151613; color: var(--lemon); box-shadow: 0 0 0 0 rgb(21 22 19 / 25%); animation: ring 2.4s ease-out infinite; }
+.snap-capture-icon { display: grid; place-items: center; width: 68px; height: 68px; margin-bottom: 6px; border-radius: 50%; background: var(--dk-fill, #151613); color: var(--lemon); box-shadow: 0 0 0 0 rgb(21 22 19 / 25%); animation: ring 2.4s ease-out infinite; }
 @keyframes ring { 0% { box-shadow: 0 0 0 0 rgb(21 22 19 / 25%); } 70%, 100% { box-shadow: 0 0 0 16px rgb(21 22 19 / 0%); } }
 .snap-capture b { font-size: 18px; font-weight: 700; }
 .snap-capture small { font-size: 13px; color: var(--gray-1); }
@@ -74,27 +74,27 @@ html:has(.snap) body { background: var(--canvas); }
 
 .snap-quick { display: flex; gap: 6px; padding: 4px 2px 8px; overflow-x: auto; scrollbar-width: none; }
 .snap-quick::-webkit-scrollbar { display: none; }
-.snap-quick button { flex: none; padding: 8px 14px; border-radius: 999px; background: rgb(255 255 255 / 45%); color: var(--ink-2); font-size: 13.5px; white-space: nowrap; }
+.snap-quick button { flex: none; padding: 8px 14px; border-radius: 999px; background: rgb(var(--dk-lift-rgb, 255 255 255) / calc(45% * var(--dk-lift-k, 1))); color: var(--ink-2); font-size: 13.5px; white-space: nowrap; }
 .snap-composer {
   position: sticky; bottom: 0; display: grid; grid-template-columns: 46px 1fr 46px; gap: 8px; align-items: center;
   padding: 8px 0 calc(14px + env(safe-area-inset-bottom));
-  background: linear-gradient(to top, var(--silver-2) 75%, rgb(226 227 223 / 0));
+  background: linear-gradient(to top, var(--silver-2) 75%, rgb(var(--dk-surface-rgb, 226 227 223) / 0));
 }
-.snap-composer input { min-width: 0; padding: 13px 18px; border: 0; border-radius: 999px; background: rgb(255 255 255 / 65%); font: inherit; font-size: 15px; color: var(--ink-0); }
+.snap-composer input { min-width: 0; padding: 13px 18px; border: 0; border-radius: 999px; background: rgb(var(--dk-lift-rgb, 255 255 255) / calc(65% * var(--dk-lift-k, 1))); font: inherit; font-size: 15px; color: var(--ink-0); }
 .snap-composer input:focus { outline: 2px solid #151613; outline-offset: 0; }
-.snap-icon { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; background: rgb(21 22 19 / 7%); color: var(--ink-0); transition: transform .15s, background .25s; }
+.snap-icon { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; background: rgb(var(--dk-fg-rgb, 21 22 19) / 7%); color: var(--ink-0); transition: transform .15s, background .25s; }
 .snap-icon:active { transform: scale(.9); }
-.snap-icon.ink { background: #151613; color: var(--lemon); }
+.snap-icon.ink { background: var(--dk-fill, #151613); color: var(--lemon); }
 .snap-icon.on { background: var(--coral); color: #fff; animation: ring 1.2s ease-out infinite; }
 
 /* 旧的记忆提议卡片换新色 */
-.snap .card { border: 0; border-radius: 24px; background: rgb(255 255 255 / 45%); box-shadow: inset 0 1px 0 rgb(255 255 255 / 70%); }
+.snap .card { border: 0; border-radius: 24px; background: rgb(var(--dk-lift-rgb, 255 255 255) / calc(45% * var(--dk-lift-k, 1))); box-shadow: inset 0 1px 0 rgb(var(--dk-lift-rgb, 255 255 255) / calc(70% * var(--dk-lift-k, 1))); }
 .snap .btn { border-radius: 999px; }
-.snap .btn.primary { background: #151613; border-color: #151613; color: #f1f2ee; }
+.snap .btn.primary { background: var(--dk-fill, #151613); border-color: #151613; color: #f1f2ee; }
 
 /* ---------- 识别结果卡 ---------- */
 .meal-card { border-radius: 28px; overflow: hidden; box-shadow: 0 24px 44px -30px rgb(21 22 19 / 55%); animation: num-in .5s var(--ease-out) both; }
-.meal-photo { position: relative; height: 210px; background: #cfd0cb; }
+.meal-photo { position: relative; height: 210px; background: var(--dk-line, #cfd0cb); }
 .meal-photo img { width: 100%; height: 100%; object-fit: cover; display: block; filter: grayscale(1) contrast(1.18) brightness(1.03); }
 .meal-photo-tag { position: absolute; left: 16px; bottom: 36px; padding: 5px 10px; border-radius: 10px; background: rgb(241 242 238 / 92%); font-size: 12px; font-weight: 600; color: var(--ink-0); }
 .meal-sheet { position: relative; padding: 12px 20px 20px; background: var(--coral); color: var(--ink-0); transition: background-color .5s; }
@@ -112,7 +112,7 @@ html:has(.snap) body { background: var(--canvas); }
 .meal-portion { display: flex; gap: 6px; margin-top: 14px; }
 .meal-portion button { flex: 1; padding: 9px 0; border-radius: 16px; background: rgb(60 16 9 / 10%); color: var(--ink-0); font-size: 14px; transition: background .25s, color .25s, transform .15s; }
 .meal-portion button:active { transform: scale(.95); }
-.meal-portion button.on { background: #151613; color: #f1f2ee; font-weight: 600; }
+.meal-portion button.on { background: var(--dk-fill, #151613); color: #f1f2ee; font-weight: 600; }
 .meal-items { list-style: none; margin: 16px 0 0; padding: 0; border-top: 1px solid rgb(60 16 9 / 18%); }
 .meal-items li { display: grid; grid-template-columns: minmax(0, 1fr) auto 70px; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid rgb(60 16 9 / 14%); }
 .meal-item-name { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
