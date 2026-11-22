@@ -261,3 +261,54 @@
 .export-secondary[aria-disabled="true"] { opacity: .4; pointer-events: none; }
 .export-status { margin: 14px 0 0; text-align: center; font-size: 12.5px; color: var(--gray-1); }
 @media (prefers-reduced-motion: reduce) { .export-sheet, .export-mask { animation: none; } }
+
+/* ---------- 回顾 · 第二轮：热度刻度、能量收支 ---------- */
+/* 热度刻度：三段由疏到密的点阵，肌群名挂在所属那一档下面，不再写「较多 / 适中」 */
+.heat-scale { margin-top: 10px; }
+.heat-scale-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; height: 12px; }
+.heat-scale-bar span { border-radius: 6px; -webkit-mask: radial-gradient(circle, #000 0 var(--r), transparent calc(var(--r) + .5px)) 0 0 / var(--g) var(--g); mask: radial-gradient(circle, #000 0 var(--r), transparent calc(var(--r) + .5px)) 0 0 / var(--g) var(--g); }
+.heat-scale-bar [data-level="1"] { --r: .9px; --g: 6px; }
+.heat-scale-bar [data-level="2"] { --r: 1.5px; --g: 5px; }
+.heat-scale-bar [data-level="3"] { --r: 2.6px; --g: 4px; -webkit-mask: none; mask: none; }
+.heat-scale-cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 10px; }
+.heat-scale-cols ul { list-style: none; margin: 0; padding: 0; display: grid; align-content: start; gap: 4px; }
+.heat-scale-cols button { display: flex; align-items: center; gap: 6px; width: 100%; padding: 7px 8px; border-radius: 10px; color: var(--ink-0); font-size: 13px; font-weight: 600; text-align: left; transition: background .2s, color .2s; }
+.heat-scale-cols button i { flex: none; width: 7px; height: 7px; border-radius: 50%; }
+.heat-scale-cols [data-level="1"] button { color: var(--ink-2); font-weight: 500; }
+.heat-scale-cols button:hover { background: rgb(21 22 19 / 5%); }
+.heat-scale-cols button[aria-pressed="true"] { background: var(--ink-0); color: #f1f2ee; }
+
+/* 能量收支 */
+.readout.coral b { color: #c8432f; }
+.energy-chart { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; margin-top: 18px; }
+.energy-chart.dense { gap: 3px; }
+.energy-col { display: grid; grid-template-rows: 112px 1px 72px auto; justify-items: stretch; padding: 0; color: var(--gray-1); }
+.energy-in { align-self: end; display: flex; flex-direction: column-reverse; min-height: 0; border-radius: 7px 7px 2px 2px; overflow: hidden; transform-origin: bottom; animation: bar-up .7s var(--ease-out) both; }
+.energy-chart.dense .energy-in { border-radius: 2px 2px 0 0; }
+.energy-in i { display: block; min-height: 0; flex-basis: 0; }
+.energy-in i + i { box-shadow: 0 -1px 0 rgb(226 227 223 / 80%) inset; }
+.energy-in[data-estimate] { background: repeating-linear-gradient(135deg, rgb(21 22 19 / 30%) 0 2px, transparent 2px 5px); }
+.energy-base { height: 1px; background: rgb(21 22 19 / 35%); }
+.energy-burn { display: flex; flex-direction: column; align-items: center; gap: 2.5px; padding-top: 4px; }
+.energy-burn i { width: 5px; height: 5px; border-radius: 50%; background: var(--coral); animation: dot-drop .5s var(--ease-spring) both; }
+.energy-chart.dense .energy-burn i { width: 3.5px; height: 3.5px; gap: 2px; }
+@keyframes dot-drop { from { transform: translateY(-6px); opacity: 0; } }
+.energy-col small { padding-top: 4px; font: 500 11.5px var(--font-num); text-align: center; min-height: 16px; }
+.energy-col:not([data-picked]) .energy-in { opacity: .55; }
+.energy-col[data-picked] small { color: var(--ink-0); font-weight: 700; }
+.energy-col[data-picked] .energy-base { background: var(--ink-0); height: 2px; }
+.energy-pick { margin-top: 14px; padding: 14px 16px 12px; border-radius: 20px; background: rgb(255 255 255 / 42%); box-shadow: inset 0 1px 0 rgb(255 255 255 / 70%); animation: toast-in .35s var(--ease-out); }
+.energy-pick-head { display: flex; align-items: baseline; gap: 8px; }
+.energy-pick-head .big-num { font-size: 22px; }
+.energy-pick-head span { font-size: 13px; color: var(--gray-1); }
+.energy-pick-head em { margin-left: auto; font-style: normal; font: 700 14px var(--font-num); }
+.energy-split { display: flex; gap: 2px; height: 10px; margin: 12px 0 10px; border-radius: 5px; overflow: hidden; background: rgb(21 22 19 / 8%); }
+.energy-split i { flex-basis: 0; min-width: 0; }
+.energy-split i.burn, .energy-legend i.burn { background: var(--coral); }
+.energy-legend { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 0; }
+.energy-legend dt { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--gray-1); }
+.energy-legend dt i { width: 7px; height: 7px; border-radius: 2px; }
+.energy-legend dd { margin: 3px 0 0; font: 700 16px var(--font-num); }
+.energy-legend dd small { margin-left: 2px; font-size: 10.5px; font-weight: 600; color: var(--gray-1); }
+.energy-note { margin: 8px 0 0; font-size: 12px; color: var(--gray-1); }
+@media (prefers-reduced-motion: reduce) { .energy-in, .energy-burn i, .energy-pick { animation: none !important; } }

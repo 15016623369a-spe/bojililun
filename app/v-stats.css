@@ -166,3 +166,48 @@
 .stats-sec[data-in] .stats-sec-head i { animation: sec-dots .9s var(--ease-out) both; }
 @keyframes sec-dots { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
 @media (prefers-reduced-motion: reduce) { .stats-scroll[data-ready] .stats-sec:not([data-in]) { opacity: 1; transform: none; } .stats-sec-head i { animation: none !important; } }
+
+/* ---------- 肌群 · 11 月 22 日第二轮：解剖图式标注替代圆点，动作挂在肌群下 ---------- */
+.stats-bodies { margin: 6px -24px 0; padding: 8px 0 4px; }
+.stats-body-stage { position: relative; aspect-ratio: .625; }
+.stats-body-stage img { position: absolute; top: 0; height: 100%; object-fit: contain; user-select: none; filter: grayscale(1) contrast(1.04) brightness(1.02); }
+.stats-body[data-side="front"] figcaption { padding-left: 28%; }
+.stats-body[data-side="back"] figcaption { padding-right: 28%; }
+.callout-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.callout-lines path { fill: none; stroke: rgb(21 22 19 / 38%); stroke-width: 1; stroke-dasharray: 2 2.5; transition: stroke .3s; animation: callout-draw .7s var(--ease-out) both; }
+.callout-lines path[data-selected] { stroke: var(--coral); stroke-width: 1.6; stroke-dasharray: none; }
+@keyframes callout-draw { from { opacity: 0; } }
+.callout-point { position: absolute; width: 30px; height: 30px; margin: -15px 0 0 -15px; padding: 0; border-radius: 50%; }
+/* 准星：两根短刻线 + 中心点，点的大小表示本期容量 */
+.callout-point::before { content: ''; position: absolute; left: 50%; top: 50%; width: 15px; height: 15px; transform: translate(-50%, -50%);
+  background: linear-gradient(var(--ink-0), var(--ink-0)) center / 1px 100% no-repeat, linear-gradient(var(--ink-0), var(--ink-0)) center / 100% 1px no-repeat; opacity: .35; transition: opacity .3s, transform .4s var(--ease-spring); }
+.callout-point::after { content: ''; position: absolute; left: 50%; top: 50%; width: var(--size); height: var(--size); border-radius: 50%; transform: translate(-50%, -50%);
+  background: var(--ink-0); box-shadow: 0 0 0 2px rgb(255 255 255 / 85%); transition: background .3s, box-shadow .3s; }
+.callout-point[data-selected]::before { opacity: 1; transform: translate(-50%, -50%) scale(1.7) rotate(45deg); background: linear-gradient(var(--coral), var(--coral)) center / 1.5px 100% no-repeat, linear-gradient(var(--coral), var(--coral)) center / 100% 1.5px no-repeat; }
+.callout-point[data-selected]::after { background: var(--coral); box-shadow: 0 0 0 2.5px #fff, 0 0 0 6px rgb(240 99 81 / 22%); animation: dot-pop .45s var(--ease-spring); }
+.callout-label { position: absolute; display: grid; gap: 1px; padding: 4px 7px 5px; border-radius: 9px; transform: translateY(-50%); color: var(--ink-0); white-space: nowrap;
+  background: rgb(226 227 223 / 72%); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); transition: background .3s, color .3s, transform .3s var(--ease-spring); animation: num-in .5s var(--ease-out) both; }
+.callout-label[data-side="front"] { text-align: right; justify-items: end; }
+.callout-label[data-side="back"] { text-align: left; justify-items: start; }
+.callout-label span { font-size: 10.5px; font-weight: 600; color: var(--ink-2); }
+.callout-label b { font: 700 13px/1.1 var(--font-num); letter-spacing: -.01em; }
+.callout-label b em { margin-left: 2px; font-style: normal; font-size: 9.5px; font-weight: 600; color: var(--gray-1); }
+.callout-label[data-selected] { background: var(--coral); color: var(--ink-0); transform: translateY(-50%) scale(1.06); box-shadow: 0 8px 18px -10px rgb(160 40 20 / 70%); }
+.callout-label[data-selected] span, .callout-label[data-selected] b em { color: rgb(40 10 5 / 75%); }
+.callout-empty { grid-column: 1 / -1; margin: 0; text-align: center; font-size: 13px; color: var(--gray-1); }
+
+/* 珊瑚面板不再是贴底抽屉，下面直接接这块肌肉的动作 */
+.muscle-panel { min-height: 0; margin: 10px -12px 0; padding: 12px 22px 6px; border-radius: 30px; }
+.muscle-panel-toggle { border-bottom: 0; }
+.stats-sec[data-sec="muscles"] .stats-exercises { position: relative; padding-top: 0; }
+.muscle-ex-head { position: relative; display: flex; align-items: baseline; gap: 6px; margin: 0 0 14px; padding-top: 30px; font-size: 15px; }
+/* 从珊瑚面板垂下来的一根线，把面板和动作连成一件事 */
+.muscle-ex-head::before { content: ''; position: absolute; left: 4px; top: 0; height: 30px; border-left: 2px dotted var(--coral); }
+.muscle-ex-head i { align-self: center; width: 10px; height: 10px; border-radius: 50%; background: var(--coral); box-shadow: 0 0 0 3px rgb(240 99 81 / 22%); }
+.muscle-ex-head b { font-size: 19px; font-weight: 750; }
+.muscle-ex-head span { color: var(--ink-2); }
+.muscle-ex-head small { margin-left: auto; font: 600 12.5px var(--font-num); color: var(--gray-1); }
+@media (prefers-reduced-motion: reduce) { .callout-lines path, .callout-label, .callout-point::after { animation: none !important; } }
+.stats-bodies { padding: 8px 10px 4px; }
+.stats-body[data-side="front"] figcaption { padding-left: 34%; }
+.stats-body[data-side="back"] figcaption { padding-right: 34%; }

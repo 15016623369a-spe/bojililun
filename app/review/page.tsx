@@ -11,6 +11,9 @@ import { calcMuscleHeatmap, calcWeightTrend } from '@/lib/calculations';
 import { localDay } from '@/lib/ledger';
 import { addDays, periodRange } from '@/lib/period';
 import { getTrainingModelSex } from '@/lib/core/training-profile';
+import { daySessions } from '@/lib/core/workout';
+import { todaySnapshot } from '@/lib/core/meals';
+import { dayExerciseBurn } from '@/lib/exercise-burn';
 import { sculptureGroup, sculptureVariant } from '@/lib/sculpture-groups';
 import type { MuscleId } from '@/lib/muscles';
 
@@ -63,6 +66,7 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
   const byDate = new Map(inRange.map((d) => [d.date, d]));
   const dates: string[] = [];
   for (let d = start; d <= range.end; d = addDays(d, 1)) dates.push(d);
+  const bodyWeight = todaySnapshot().profile?.weight_kg ?? 70;
   const days: ReviewDay[] = dates.map((date) => {
     const d = byDate.get(date);
     const intake = d?.daily_summary.intake;
@@ -82,6 +86,7 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
       estimated: Boolean(intake?.hasEstimates),
       incomplete: Boolean(intake?.incomplete_fields.length),
       weight: d?.body_metrics.at(-1)?.weight_kg ?? null,
+      burn: date > today ? 0 : dayExerciseBurn(daySessions(date).filter((x) => x.sets.length > 0).map((x) => x.session), d?.entries ?? [], bodyWeight).kcal,
     };
   });
   const trainingDays = inRange.filter((d) => d.entries.some((e) => e.entry_type === 'workout')).length;

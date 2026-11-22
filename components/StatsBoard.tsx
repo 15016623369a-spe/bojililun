@@ -17,8 +17,9 @@ export type MuscleRow = { id: MuscleId; volume: number; sets: number; sessions: 
 export type GroupCard = { label: string; points: { key: string; tick: string; sets: number; volume: number; seconds: number; sessions: number }[] };
 type View = 'overview' | 'muscles' | 'exercises';
 
-const VIEW_LABEL: Record<View, string> = { overview: '总览', muscles: '肌群', exercises: '动作' };
-const ORDER: View[] = ['overview', 'muscles', 'exercises'];
+const VIEW_LABEL: Record<View, string> = { overview: '总览', muscles: '肌群与动作', exercises: '动作' };
+// 动作表现挂在肌群下面：点哪块肌肉，下面只列这块肌肉的动作
+const ORDER: View[] = ['overview', 'muscles'];
 const haptic = (ms = 5) => { try { navigator.vibrate?.(ms); } catch { /* iOS 网页无振动 */ } };
 const fmt = (n: number, digits = 1) => n.toLocaleString('en-US', { maximumFractionDigits: digits });
 const minutesOf = (seconds: number) => Math.round(seconds / 60);
@@ -42,15 +43,19 @@ export default function StatsBoard(props: {
   muscles: MuscleRow[];
   groups: GroupCard[];
   exercises: Exercise[];
+  /** 动作 id → 本期归入的主要肌群 */
+  exerciseMuscles: Record<string, MuscleId>;
   variant: SculptureVariant;
   initialView: View;
 }) {
   const root = useRef<HTMLDivElement>(null);
+  const firstMuscle = [...props.muscles].sort((a, b) => b.volume - a.volume || b.sets - a.sets)[0]?.id ?? null;
+  const [muscle, setMuscle] = useState<MuscleId | null>(firstMuscle);
 
   // 三段都在同一页，往下滑依次出现；带 view 参数进来时直接滚到那一段
   useEffect(() => {
     const sections = [...(root.current?.querySelectorAll<HTMLElement>('.stats-sec') ?? [])];
-    if (props.initialView !== 'overview') document.getElementById(`stats-${props.initialView}`)?.scrollIntoView({ block: 'start' });
+    if (props.initialView !== 'overview') document.getElementById(`stats-${props.initialView === 'exercises' ? 'muscles' : props.initialView}`)?.scrollIntoView({ block: 'start' });
     if (!('IntersectionObserver' in window)) return;
     // 只有脚本接管后才把未进入视口的段落藏起来，首段直接显示，避免闪一下
     sections.forEach((el) => { if (el.getBoundingClientRect().top < window.innerHeight) el.dataset.in = ''; });
@@ -66,8 +71,10 @@ export default function StatsBoard(props: {
     {ORDER.map((key, i) => <section key={key} id={`stats-${key}`} className="stats-sec" data-sec={key} aria-labelledby={`stats-${key}-title`}>
       <h2 className="stats-sec-head" id={`stats-${key}-title`}><em>{String(i + 1).padStart(2, '0')}</em>{VIEW_LABEL[key]}<i aria-hidden="true" /></h2>
       {key === 'overview' && <Overview {...props} />}
-      {key === 'muscles' && <Muscles {...props} />}
-      {key === 'exercises' && <Exercises {...props} />}
+      {key === 'muscles' && <>
+        <Muscles {...props} selected={muscle} onSelect={setMuscle} />
+        <Exercises key={muscle ?? 'all'} {...props} muscle={muscle} />
+      </>}
     </section>)}
   </div>;
 }
@@ -147,9 +154,29 @@ const COMPARE = {
   seconds: { label: '时长', unit: '分钟', of: (p: GroupCard['points'][number]) => p.seconds / 60 },
 } as const;
 
-function Muscles({ period, periodLabel, muscles, groups, variant }: Parameters<typeof StatsBoard>[0]) {
-  const ranked = [...muscles].sort((a, b) => b.volume - a.volume || b.sets - a.sets);
-  const [selected, setSelected] = useState<MuscleId | null>(ranked[0]?.id ?? null);
+/** 两张身体图各占半边：正面图靠右、标注收在左侧；背面图靠左、标注收在右侧，肌肉两侧对称，标注点都换到靠外的那一侧 */
+const STAGE = { front: { left: 32, labelEdge: 33 }, back: { left: -2, labelEdge: 67 } } as const;
+const IMG_W = 70;
+function callouts(side: 'front' | 'back', markers: (typeof VIEWS)[number]['markers'], trained: ReadonlyMap<MuscleId, MuscleRow>) {
+  const { left } = STAGE[side];
+  const points = markers.filter(([id]) => trained.has(id)).map(([id, , , x, y]) => {
+    let ix = (x - 22) / 56 * 100;
+    if (side === 'front' ? ix > 50 : ix < 50) ix = 100 - ix;
+    return { id, px: left + ix * IMG_W / 100, py: y, ly: y };
+  }).sort((a, b) => a.py - b.py);
+  // 标注至少隔开 13%，超出底部就整体上移
+  let prev = -Infinity;
+  for (const p of points) { p.ly = Math.max(p.py, prev + 13); prev = p.ly; }
+  const overflow = (points.at(-1)?.ly ?? 0) - 94;
+  if (overflow > 0) for (const p of points) p.ly = Math.max(4, p.ly - overflow);
+  return points;
+}
+
+function Muscles({ period, periodLabel, muscles, groups, variant, selected, onSelect }: Parameters<typeof StatsBoard>[0] & {
+  selected: MuscleId | null;
+  onSelect: (id: MuscleId) => void;
+}) {
+  const setSelected = onSelect;
   const [compare, setCompare] = useState(false);
   const [metric, setMetric] = useState<keyof typeof COMPARE>('sets');
   const byId = new Map(muscles.map((m) => [m.id, m]));
@@ -164,21 +191,42 @@ function Muscles({ period, periodLabel, muscles, groups, variant }: Parameters<t
 
   return <div className="stats-muscles">
     <div className="stats-bodies">
-      {VIEWS.map(({ side, label, markers }) => <figure key={side} className="stats-body">
-        <div className="stats-body-img">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={`${folder}/stats-${side}.png`} alt="" draggable={false} />
-          {/* 标记坐标原本基于 1:1.28 的画框（图片居中占 56% 宽），这里换算到图片自身 */}
-          {markers.map(([id, , , x, y]) => {
-            const trained = byId.has(id);
-            return <button key={id} type="button" className="body-dot" data-trained={trained || undefined} data-selected={id === selected || undefined}
-              style={{ left: `${((x - 22) / 56 * 100).toFixed(1)}%`, top: `${y}%` }} disabled={!trained}
-              aria-label={`${muscleLabel(id)}${trained ? `，${fmt(byId.get(id)!.volume, 0)} kg` : '，未训练'}`}
-              onClick={() => { haptic(6); setSelected(id); }} />;
-          })}
-        </div>
-        <figcaption>{label}</figcaption>
-      </figure>)}
+      {VIEWS.map(({ side, label, markers }) => {
+        const marks = callouts(side, markers, byId);
+        const { left, labelEdge } = STAGE[side];
+        const peak = Math.max(1, ...muscles.map((m) => m.volume));
+        return <figure key={side} className="stats-body" data-side={side}>
+          <div className="stats-body-stage">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={`${folder}/stats-${side}.png`} alt="" draggable={false} style={{ left: `${left}%`, width: `${IMG_W}%` }} />
+            <svg className="callout-lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              {marks.map((m) => {
+                const out = side === 'front' ? labelEdge + 4 : labelEdge - 4;
+                return <path key={m.id} data-selected={m.id === selected || undefined} vectorEffect="non-scaling-stroke"
+                  d={`M${m.px.toFixed(1)} ${m.py} L${out} ${m.ly.toFixed(1)} L${labelEdge} ${m.ly.toFixed(1)}`} />;
+              })}
+            </svg>
+            {marks.map((m) => {
+              const row = byId.get(m.id)!;
+              const size = 5 + Math.sqrt(row.volume / peak) * 7;
+              return <button key={m.id} type="button" className="callout-point" data-selected={m.id === selected || undefined}
+                style={{ left: `${m.px}%`, top: `${m.py}%`, '--size': `${size.toFixed(1)}px` } as CSSProperties}
+                aria-hidden="true" tabIndex={-1} onClick={() => { haptic(6); setSelected(m.id); }} />;
+            })}
+            {marks.map((m) => {
+              const row = byId.get(m.id)!;
+              return <button key={`l-${m.id}`} type="button" className="callout-label" data-side={side} data-selected={m.id === selected || undefined}
+                style={{ top: `${m.ly}%`, ...(side === 'front' ? { right: `${100 - labelEdge}%` } : { left: `${labelEdge}%` }) }}
+                aria-pressed={m.id === selected} onClick={() => { haptic(6); setSelected(m.id); }}>
+                <span>{muscleLabel(m.id)}</span>
+                <b>{row.volume ? fmt(row.volume, 0) : row.sets}<em>{row.volume ? 'kg' : '组'}</em></b>
+              </button>;
+            })}
+          </div>
+          <figcaption>{label}</figcaption>
+        </figure>;
+      })}
+      {muscles.length === 0 && <p className="callout-empty">{periodLabel}还没有记到具体肌群的训练</p>}
     </div>
 
     <section className="muscle-panel" data-compare={compare || undefined}>
@@ -222,19 +270,25 @@ const RM = {
 } as const;
 type Rm = keyof typeof RM;
 
-function Exercises({ exercises, periodLabel }: Parameters<typeof StatsBoard>[0]) {
+function Exercises({ exercises, exerciseMuscles, periodLabel, muscle }: Parameters<typeof StatsBoard>[0] & { muscle: MuscleId | null }) {
   const [rm, setRm] = useState<Rm>('pr');
-  const ranked = [...exercises].sort((a, b) => b.sessions.length - a.sessions.length || (b.pr?.value ?? 0) - (a.pr?.value ?? 0));
+  const card = useRef<HTMLElement>(null);
+  const own = muscle ? exercises.filter((e) => exerciseMuscles[e.id] === muscle) : exercises;
+  const ranked = [...own].sort((a, b) => b.sessions.length - a.sessions.length || (b.pr?.value ?? 0) - (a.pr?.value ?? 0));
   const [activeId, setActiveId] = useState(ranked[0]?.id);
   const [formula, setFormula] = useState(false);
   const formulaId = useId();
   const active = ranked.find((e) => e.id === activeId) ?? ranked[0];
-  if (!active) return <p className="hint center stats-empty">{periodLabel}还没有已记录的动作组。</p>;
+  const head = <div className="muscle-ex-head">
+    <i aria-hidden="true" /><b>{muscle ? muscleLabel(muscle) : '全部'}</b><span>的动作</span><small>{ranked.length} 个</small>
+  </div>;
+  if (!active) return <div className="stats-exercises">{head}<p className="hint stats-empty">{periodLabel}{muscle ? '这块肌群没有可统计的器械动作组。' : '还没有已记录的动作组。'}</p></div>;
   const best = active[rm];
   const points = [...active.sessions].reverse().flatMap((s) => s[rm] ? [{ ...s[rm]!, id: s.id }] : []);
   const last = points.at(-1);
 
   return <div className="stats-exercises">
+    {head}
     <div className="ex-head">
       <span className="thumb">{/* eslint-disable-next-line @next/next/no-img-element */}{active.image && <img src={imageUrl(active.image)} alt="" />}</span>
       <div><small>动作表现</small><h2>{active.name}</h2></div>
@@ -244,7 +298,7 @@ function Exercises({ exercises, periodLabel }: Parameters<typeof StatsBoard>[0])
         onClick={() => { haptic(4); setRm(key); setFormula(false); }}>{RM[key].tab}</button>)}
     </div>
 
-    <section className="tile lilac ex-card" key={`${active.id}-${rm}`}>
+    <section className="tile lilac ex-card" key={`${active.id}-${rm}`} ref={card}>
       <p className="kicker">{RM[rm].title}
         {rm === 'pr' && <button type="button" className="help" aria-expanded={formula} aria-controls={formulaId} aria-label="估算公式" onClick={() => setFormula(!formula)}>?</button>}</p>
       {formula && <div id={formulaId} className="ex-formula">
@@ -262,7 +316,7 @@ function Exercises({ exercises, periodLabel }: Parameters<typeof StatsBoard>[0])
 
     <ul className="ex-list">
       {ranked.filter((e) => e.id !== active.id).map((e) => <li key={e.id}>
-        <button type="button" onClick={() => { haptic(5); setActiveId(e.id); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
+        <button type="button" onClick={() => { haptic(5); setActiveId(e.id); card.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}>
           <span className="thumb small">{/* eslint-disable-next-line @next/next/no-img-element */}{e.image && <img src={imageUrl(e.image)} alt="" loading="lazy" />}</span>
           <strong>{e.name}</strong>
           <small>{e[rm] ? (e[rm]!.value > 0 ? `${fmt(e[rm]!.value)} kg` : '自重') : '—'}</small>

@@ -6,7 +6,9 @@ import { useEffect, useRef } from 'react';
  * 黑色胶囊刻度尺：横向滑动吸附到刻度，中间红针读数。重量、体重、份量共用。
  * 每过一格轻触一下（Android 振动；iOS 网页无振动接口时只有视觉吸附）。
  */
-export default function TickRuler({ value, min, max, step, onChange, major = 10, label, unit = '' }: {
+export default function TickRuler({ value, min, max, step, onChange, major = 10, label, unit = '', gap = 9 }: {
+  /** 每格的像素间距 */
+  gap?: number;
   value: number;
   min: number;
   max: number;
@@ -20,7 +22,8 @@ export default function TickRuler({ value, min, max, step, onChange, major = 10,
   const track = useRef<HTMLDivElement>(null);
   const last = useRef(value);
   const settling = useRef(false);
-  const GAP = 9;
+  const drag = useRef<{ x: number; left: number; id: number } | null>(null);
+  const GAP = gap;
   const count = Math.round((max - min) / step);
 
   // 外部改值（输入框、±按钮）时把刻度尺滚到对应位置
@@ -48,6 +51,27 @@ export default function TickRuler({ value, min, max, step, onChange, major = 10,
     }
   }
 
+  // 鼠标拖动：原生滚动只认触屏和触控板，这里补上按住拖动，松手吸附到最近的刻度
+  function onPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    const el = track.current;
+    if (!el || event.pointerType !== 'mouse' || event.button !== 0) return;
+    drag.current = { x: event.clientX, left: el.scrollLeft, id: event.pointerId };
+    el.setPointerCapture(event.pointerId);
+    el.dataset.dragging = '';
+  }
+  function onPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    const el = track.current;
+    if (!el || drag.current?.id !== event.pointerId) return;
+    el.scrollLeft = drag.current.left - (event.clientX - drag.current.x);
+  }
+  function onPointerUp(event: React.PointerEvent<HTMLDivElement>) {
+    const el = track.current;
+    if (!el || drag.current?.id !== event.pointerId) return;
+    drag.current = null;
+    delete el.dataset.dragging;
+    el.scrollTo({ left: Math.round(el.scrollLeft / GAP) * GAP, behavior: 'smooth' });
+  }
+
   function nudge(direction: number) {
     const next = Math.min(max, Math.max(min, +(value + direction * step).toFixed(2)));
     onChange(next);
@@ -60,7 +84,8 @@ export default function TickRuler({ value, min, max, step, onChange, major = 10,
         if (event.key === 'ArrowRight' || event.key === 'ArrowUp') { event.preventDefault(); nudge(1); }
         if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') { event.preventDefault(); nudge(-1); }
       }}>
-      <div className="tick-ruler-track" ref={track} onScroll={onScroll}>
+      <div className="tick-ruler-track" ref={track} onScroll={onScroll}
+        onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
         <div className="tick-ruler-ticks" style={{ width: count * GAP }}>
           {Array.from({ length: count + 1 }, (_, i) => {
             const isMajor = i % major === 0;

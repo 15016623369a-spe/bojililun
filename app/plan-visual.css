@@ -659,3 +659,41 @@
 @media (hover: hover) and (pointer: fine) { .plan-title .on-mouse { display: inline; } .plan-title .on-touch { display: none; } }
 /* 抽屉上沿压住腹部，透过毛玻璃能看到被柔化的躯干 */
 .plan-drawer { height: max(380px, calc(100dvh - var(--head-h) - var(--fig-h) + 150px)); }
+
+/* ---------- 动作库抽屉 · 11 月 22 日第二轮：干净的毛玻璃、飞入「完成」、左滑操作 ---------- */
+/* 背后先柔化一层，点阵和人物不会以颗粒的样子透到玻璃上 */
+.fc-mask.dict { background: rgb(226 227 223 / 30%); -webkit-backdrop-filter: blur(10px) saturate(1.1); backdrop-filter: blur(10px) saturate(1.1); }
+.fc-dict-sheet {
+  background: linear-gradient(180deg, rgb(250 250 248 / 74%) 0, rgb(240 241 238 / 84%) 40%, rgb(236 237 234 / 92%) 100%);
+  -webkit-backdrop-filter: blur(36px) saturate(1.45) brightness(1.04);
+  backdrop-filter: blur(36px) saturate(1.45) brightness(1.04);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 95%), inset 0 0 0 .5px rgb(255 255 255 / 60%), 0 -24px 50px -26px rgb(21 22 19 / 38%);
+}
+.fc .mine-back { display: inline-block; margin: 0 0 6px -2px; padding: 4px 0; border: 0; background: none; color: var(--ink-2); font-size: 13.5px; font-weight: 600; }
+
+/* 左滑：前景整行跟手，后面露出「详情」「移出」 */
+.swipe-row { position: relative; overflow: hidden; touch-action: pan-y; }
+.swipe-front { position: relative; z-index: 1; background: transparent; transition: transform .38s var(--ease-spring); touch-action: pan-y; }
+.swipe-front[data-dragging] { transition: none; }
+.swipe-row[data-open] .swipe-front { background: rgb(244 245 242 / 96%); }
+.swipe-actions { position: absolute; top: 6px; right: 0; bottom: 6px; z-index: 0; display: flex; gap: 6px; }
+.fc .swipe-act { flex: 1; display: grid; place-items: center; align-content: center; gap: 3px; padding: 0; border: 0; border-radius: 16px; font-size: 12px; font-weight: 600; }
+.fc .swipe-act svg { width: 18px; height: 18px; }
+.fc .swipe-act.info { background: rgb(21 22 19 / 8%); color: var(--ink-0); }
+.fc .swipe-act.remove { background: var(--coral); color: #fff; }
+
+/* 「从全部动作添加」 */
+.fc .dict-add-all { display: grid; grid-template-columns: 40px 1fr; grid-template-rows: auto auto; align-items: center; column-gap: 12px; width: 100%; margin-top: 10px; padding: 12px 4px; border: 0; border-top: 1px dashed #b9bbb5; background: none; color: var(--ink-0); text-align: left; font-size: 15px; font-weight: 650; }
+.fc .dict-add-all span { grid-row: 1 / 3; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 13px; border: 1.5px dashed #a3a59f; font-size: 20px; font-weight: 400; color: var(--ink-2); }
+.fc .dict-add-all small { font-size: 12px; font-weight: 500; color: var(--gray-1); }
+
+/* 购物车式「完成」：右侧数量徽标，每加一个弹一下 */
+.fc .cart-btn { position: relative; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.cart-count { display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 12px; background: var(--lemon); color: var(--ink-0); font: 700 13px var(--font-num); animation: cart-pop .4s var(--ease-spring); }
+@keyframes cart-pop { from { transform: scale(.4); } 60% { transform: scale(1.25); } }
+.cart-ghost { position: fixed; z-index: 200; margin: 0; pointer-events: none; border-radius: 14px; overflow: hidden; background: #f6f6f4; box-shadow: 0 14px 30px -12px rgb(21 22 19 / 55%); }
+.cart-ghost img { width: 100%; height: 100%; object-fit: cover; mix-blend-mode: multiply; filter: grayscale(1); }
+.swipe-actions { opacity: 0; transition: opacity .2s; pointer-events: none; }
+.swipe-row[data-open] .swipe-actions { opacity: 1; pointer-events: auto; }
+.fc .fc-dict-select-row.swipe-row { display: block; padding: 0; }
+.swipe-front .fc-dict-item { width: 100%; }

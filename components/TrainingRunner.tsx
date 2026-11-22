@@ -7,6 +7,7 @@ import type { PlanItem, SessionRow, SetRow } from '@/lib/types';
 import ExerciseMedia from './ExerciseMedia';
 import DotDigits from './ui/DotDigits';
 import TickRuler from './ui/TickRuler';
+import HalftoneImage from './ui/HalftoneImage';
 import Icon from './ui/Icon';
 
 function clock(seconds: number) {
@@ -305,24 +306,25 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
   const repsNum = Number(reps) || 0;
   const setField = (patch: Partial<{ weight: string; reps: string }>) => setFields({ itemId: item.id, weight, reps, ...patch });
   return <div className="runner v-runner" data-mode="set">
-    {header}
-    <main className="runner-main">
-      <div className="runner-ex">
-        <button type="button" className="thumb" onClick={() => setDemo(true)} aria-label={`查看${item.name}动作演示`}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          {demoMedia?.image ? <img src={demoMedia.image} alt="" /> : null}
-        </button>
-        <div>
-          <h1>{item.name}</h1>
-          <p>第 <b>{current.number}</b> / {item.sets} 组 · 动作 {current.index + 1} / {plan.length}<span className="sep">·</span>本组 {clock(setSeconds)}</p>
-        </div>
+    {/* 上半屏炭黑：动作、组次和重量；下半屏冷银灰：次数和组次卡。刻度尺压在两块底色的交界上 */}
+    <section className="runner-dark">
+      {header}
+      {demoMedia?.image && <button type="button" className="runner-figure" onClick={() => setDemo(true)} aria-label={`查看${item.name}动作演示`}>
+        <HalftoneImage src={demoMedia.image} cell={3.4} />
+      </button>}
+      <div className="runner-title">
+        <h1>{item.name}</h1>
+        <p>第 {current.number} / {item.sets} 组</p>
+        <small>动作 {current.index + 1} / {plan.length} · 本组 {clock(setSeconds)}</small>
       </div>
-
       <p className="field-label">重量</p>
       <BigValue value={weight} onChange={(v) => setField({ weight: v })} label="重量" unit="kg" step="0.5" />
-      <TickRuler value={weightNum} min={0} max={300} step={0.5} major={10} label="重量刻度尺" unit="kg"
+    </section>
+    <div className="runner-ruler">
+      <TickRuler value={weightNum} min={0} max={300} step={0.5} major={5} gap={13} label="重量刻度尺" unit="kg"
         onChange={(v) => setField({ weight: String(v) })} />
-
+    </div>
+    <main className="runner-main">
       <div className="reps-row">
         <div>
           <p className="field-label">次数</p>

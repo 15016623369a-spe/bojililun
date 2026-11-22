@@ -9,6 +9,7 @@ import { readCardPick } from '@/lib/ledger';
 import { calcMealTotals, formatDisplayKcal } from '@/lib/calculations';
 import type { Card } from '@/lib/export';
 import { todayStr } from '@/lib/log';
+import { validDate } from '@/lib/period';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -33,8 +34,12 @@ function workoutLine(c: Card) {
 }
 
 /** 记录：数据、计算与录入沿用手账（exportJournal / LedgerCards / LogScreen），版式用新版的大号日期、时间刻度和横向卡片。 */
-export default function LogPage() {
-  const today = todayStr();
+export default async function LogPage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
+  const sp = await searchParams;
+  const now = todayStr();
+  // 月历点进来的某一天：同样的版式，只读那天的手账；没有录入栏
+  const past = validDate(sp.date) && sp.date < now ? sp.date : null;
+  const today = past ?? now;
   const db = getDb();
   const day = exportJournal(db, 'local', today, today).days[0];
   const picks = Object.fromEntries(day.entries.map((c) => [c.id, readCardPick(db, 'local', c.id)]));
@@ -62,19 +67,20 @@ export default function LogPage() {
   const kcal = day.daily_summary.intake.kcal ?? 0;
 
   return (
-    <JournalShell active="record" title="今天" today={today} className="is-record is-ledger" hideNav
+    <JournalShell active="record" title={past ? '当天记录' : '今天'} today={now} className={`is-record is-ledger${past ? ' is-past' : ''}`} hideNav={!past}
+      back={past ? { href: `/history/calendar?date=${past}`, label: '月历' } : undefined}
       headerAction={<div className="journal-head-actions"><span className="journal-head-label">记录</span></div>}
       hero={<>
-        <p className="hero-word" aria-hidden="true">今天</p>
+        {!past && <p className="hero-word" aria-hidden="true">今天</p>}
         <BigDate date={today} note={`${meals} 餐 · ${workouts} 次训练`}>
           {kcal > 0 && <small className="hero-kcal"><b>{Math.round(kcal).toLocaleString('zh-CN')}</b> kcal 摄入</small>}
         </BigDate>
       </>}>
-      <LedgerDeck items={items} cards={day.entries} picks={picks} nowMinutes={minutesOf(new Date().toISOString())} />
-      {/* 录入、长按录音和底部导航沿用手账的 LogScreen；空状态由上面的卡片承担 */}
-      <div className="fc ledger-dock-scope">
+      <LedgerDeck items={items} cards={day.entries} picks={picks} nowMinutes={past ? null : minutesOf(new Date().toISOString())} past={Boolean(past)} />
+      {/* 录入、长按录音和底部导航沿用手账的 LogScreen；空状态由上面的卡片承担。回看某一天时不显示录入栏 */}
+      {!past && <div className="fc ledger-dock-scope">
         <LogScreen ledgerHasRecords />
-      </div>
+      </div>}
     </JournalShell>
   );
 }

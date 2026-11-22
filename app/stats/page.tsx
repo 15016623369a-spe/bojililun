@@ -4,7 +4,7 @@ import StatsBoard, { type Bucket, type MuscleRow } from '@/components/StatsBoard
 import Icon from '@/components/ui/Icon';
 import { muscleDistribution } from '@/lib/muscle-distribution';
 import { PERIOD_LABEL, addDays, periodRange, type Period } from '@/lib/period';
-import { exercisePerformance, primaryMuscleActivity, todayStr, trainingTimeByDate, trendStats, volumeStats } from '@/lib/core/workout';
+import { exercisePerformance, exercisePrimaryMuscles, primaryMuscleActivity, todayStr, trainingTimeByDate, trendStats, volumeStats } from '@/lib/core/workout';
 import type { MuscleId } from '@/lib/muscles';
 import { getTrainingModelSex } from '@/lib/core/training-profile';
 import { sculptureVariant } from '@/lib/sculpture-groups';
@@ -84,7 +84,7 @@ export default async function StatsPage({ searchParams }: { searchParams: SP }) 
         totalSeconds={trainingTime.reduce((total, { seconds }) => total + seconds, 0)}
         timedSessions={trainingTime.reduce((total, { sessions }) => total + sessions, 0)}
         muscles={muscles} groups={muscleDistribution(activity, period, r.start, r.end)}
-        exercises={exercisePerformance(r.start, r.end)} variant={sculptureVariant(getTrainingModelSex())} />
+        exercises={exercisePerformance(r.start, r.end)} exerciseMuscles={exercisePrimaryMuscles(r.start, r.end)} variant={sculptureVariant(getTrainingModelSex())} />
     </JournalShell>
   );
 }

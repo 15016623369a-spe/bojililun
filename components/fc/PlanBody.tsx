@@ -13,7 +13,9 @@ function haptic(ms = 8) {
   try { navigator.vibrate?.(ms); } catch { /* iOS Safari 没有振动接口 */ }
 }
 
-export default function PlanBody({ variant = 'male', todayPlan, activeSession = null, initialMuscle }: {
+export default function PlanBody({ variant = 'male', todayPlan, activeSession = null, initialMuscle, mode = 'plan' }: {
+  /** extra：加练。挑好的动作作为加练项（火花标记）加入今日计划，再回今日计划开练 */
+  mode?: 'plan' | 'extra';
   variant?: SculptureVariant;
   todayPlan: { date: string; exerciseIds: string[]; allDone?: boolean };
   activeSession?: number | null;
@@ -98,13 +100,14 @@ export default function PlanBody({ variant = 'male', todayPlan, activeSession = 
       const response = await fetch('/api/plan', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ date: todayPlan.date, exerciseIds: [...selected] }),
+        body: JSON.stringify({ date: todayPlan.date, exerciseIds: [...selected], supplemental: mode === 'extra' }),
       });
       const result = await response.json() as { items?: { exercise_id: string }[]; error?: string };
       if (!response.ok || !result.items) throw new Error(result.error || '保存失败，请重试');
       setSaved({ source: todayPlan.exerciseIds, ids: result.items.map((item) => item.exercise_id) });
       setSelected(new Set());
       haptic(12);
+      if (mode === 'extra') { router.push('/train'); return true; }
       router.refresh();
       return true;
     } catch (err) {
@@ -127,12 +130,12 @@ export default function PlanBody({ variant = 'male', todayPlan, activeSession = 
   return (
     <div className="plan-root fc">
       <header className="plan-title" data-focus={focus ? (picked ? 'picked' : 'hover') : undefined} aria-live="polite">
-        <div className="plan-title-main" key={focusGroup?.label ?? 'idle'}>{focusGroup?.label ?? '点选肌群'}</div>
+        <div className="plan-title-main" key={focusGroup?.label ?? 'idle'}>{focusGroup?.label ?? (mode === 'extra' ? '加练' : '点选肌群')}</div>
         <p>
           <span className="plan-title-side">{side === 'front' ? '正面' : '背面'}</span>
           {focusRegion
             ? <span key={focusRegion} className="plan-title-hint">{focusRegion}<em>{picked ? '进入' : <><span className="on-touch">松手进入</span><span className="on-mouse">点击进入</span></>}</em></span>
-            : <span className="plan-title-hint"><span className="on-touch">按住一块肌肉看名字，松手进入</span><span className="on-mouse">指向一块肌肉看名字，点击进入</span></span>}
+            : <span className="plan-title-hint"><span className="on-touch">{mode === 'extra' ? '今天的计划练完了，点一块肌肉再挑几个动作' : '按住一块肌肉看名字，松手进入'}</span><span className="on-mouse">{mode === 'extra' ? '今天的计划练完了，点一块肌肉再挑几个动作' : '指向一块肌肉看名字，点击进入'}</span></span>}
         </p>
       </header>
       <div ref={stage} className="plan-stage" data-detail={detail ?? undefined} data-focus={focus ? '' : undefined} style={{ transformOrigin: origin }}>
@@ -158,7 +161,8 @@ export default function PlanBody({ variant = 'male', todayPlan, activeSession = 
           pose={pose}
           variant={variant}
           planCount={planned.size}
-          planDone={Boolean(todayPlan.allDone) && planned.size === todayPlan.exerciseIds.length}
+          planDone={mode === 'plan' && Boolean(todayPlan.allDone) && planned.size === todayPlan.exerciseIds.length}
+          extra={mode === 'extra'}
           activeSession={activeSession}
           onOpenLibrary={(which) => setSheet(which)}
           onClose={dismiss}
