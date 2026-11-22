@@ -1,4 +1,5 @@
 import { getDb } from '../db';
+import { archiveRemoval, renumberTrainingSets, syncRemovedPlanItems } from './record-removals';
 import { DEFAULT_TZ, todayKey, weekDates } from '../date';
 import { idsForTarget } from '../energy';
 import { mentionedMuscles } from '../journal';
@@ -344,25 +345,22 @@ export function appendSessionSet(
 }
 
 /** 删除一组，并把同一动作剩下的组号重新编号；返回该动作剩余的组。 */
-export function deleteSessionSet(id: number): { sets: SetRow[]; exerciseId: string; sessionId: number } {
+export function deleteSessionSet(id: number): { sets: SetRow[]; exerciseId: string; sessionId: number; undoToken: string } {
   const db = getDb();
-  const current = db.prepare('SELECT * FROM session_set WHERE id = ?').get(id) as SetRow | undefined;
-  if (!current) throw new Error('训练组不存在');
   db.exec('BEGIN IMMEDIATE');
   try {
+    const row = db.prepare('SELECT * FROM session_set WHERE id = ?').get(id);
+    if (!row) throw new Error('训练组不存在');
+    const sessionId = Number(row.session_id);
+    const exerciseId = String(row.exercise_id);
+    if (!getSession(sessionId)?.ended_at) throw new Error('请在训练结束后移除训练组');
+    const undoToken = archiveRemoval(db, [{ table: 'session_set', rows: [row] }]);
     db.prepare('DELETE FROM session_set WHERE id = ?').run(id);
-    const rest = plainAll(
-      db
-        .prepare('SELECT * FROM session_set WHERE session_id = ? AND exercise_id = ? ORDER BY id ASC')
-        .all(current.session_id, current.exercise_id) as unknown as SetRow[],
-    );
-    rest.forEach((set, index) => {
-      if (set.set_index === index + 1) return;
-      db.prepare('UPDATE session_set SET set_index = ? WHERE id = ?').run(index + 1, set.id);
-      set.set_index = index + 1;
-    });
+    renumberTrainingSets(db, sessionId, exerciseId);
+    syncRemovedPlanItems(db, [row]);
+    const sets = getSessionSets(sessionId).filter((set) => set.exercise_id === exerciseId);
     db.exec('COMMIT');
-    return { sets: rest, exerciseId: current.exercise_id, sessionId: current.session_id };
+    return { sets, exerciseId, sessionId, undoToken };
   } catch (error) {
     db.exec('ROLLBACK');
     throw error;

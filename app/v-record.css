@@ -231,14 +231,14 @@
   font: 600 15px/1.4 var(--font-num); color: var(--ink-0);
 }
 .fc.ledger-detail .fc-ledger-card > div:not(.fc-meal-item-edit)::before { content: ''; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--ink-0); }
-.fc.ledger-detail .fc-ledger-card > button { display: block; width: 100%; padding: 14px 0 6px; text-align: left; }
-.fc.ledger-detail .fc-ledger-card > button small { font: 700 26px/1 var(--font-num); color: var(--ink-0); letter-spacing: -.02em; }
+.fc.ledger-detail .record-nutrition-toggle { min-height: 44px; padding: 0 8px; text-align: left; text-decoration: underline; text-underline-offset: 3px; }
+.fc.ledger-detail .record-nutrition-toggle small { font-size: 12px; color: var(--ink-2); }
 .fc.ledger-detail .fc-ledger-card > small { padding: 3px 0; }
 .fc.ledger-detail .fc-ledger-note { margin: 12px 0 4px; font-size: 14px; }
-.fc.ledger-detail .fc-quick-pick { margin: 12px -6px 4px; padding: 12px 12px 6px; border: 0; border-radius: 18px; background: rgb(240 99 81 / 11%); }
-.fc.ledger-detail .fc-quick-pick legend { float: left; width: 100%; margin-bottom: 10px; padding: 0; font-size: 14px; font-weight: 650; color: #a63a2b; }
+.fc.ledger-detail .fc-quick-pick { margin: 12px -6px 4px; padding: 12px 12px 6px; border: 0; border-radius: 18px; background: color-mix(in srgb, var(--lemon) 14%, var(--silver-2)); }
+.fc.ledger-detail .fc-quick-pick legend { float: left; width: 100%; margin-bottom: 10px; padding: 0; font-size: 14px; font-weight: 650; color: var(--ink-0); }
 .fc.ledger-detail .fc-quick-pick .fc-examples { clear: both; display: flex; flex-wrap: wrap; gap: 8px; }
-.fc.ledger-detail .fc-quick-pick .fc-examples button { min-height: 40px; padding: 0 16px; border: 0; border-radius: 999px; background: rgb(255 255 255 / 80%); box-shadow: inset 0 0 0 1px rgb(21 22 19 / 10%); font-size: 14px; font-weight: 600; transition: transform .2s var(--ease-spring), background .2s; }
+.fc.ledger-detail .fc-quick-pick .fc-examples button { min-height: 44px; padding: 0 16px; border: 0; border-radius: 999px; background: rgb(255 255 255 / 80%); box-shadow: inset 0 0 0 1px rgb(21 22 19 / 10%); font-size: 14px; font-weight: 600; transition: transform .2s var(--ease-spring), background .2s; }
 .fc.ledger-detail .fc-quick-pick .fc-examples button:active { transform: scale(.95); background: var(--ink-0); color: var(--paper); }
 .fc.ledger-detail .fc-ledger-edit summary { display: flex; align-items: center; justify-content: space-between; list-style: none; color: var(--ink-2); font-size: 13.5px; }
 .fc.ledger-detail .fc-ledger-edit summary::-webkit-details-marker { display: none; }
@@ -264,3 +264,89 @@
 .ledger-moves small i { margin-left: 2px; font-style: normal; font-size: 12px; font-weight: 500; color: var(--gray-1); }
 .fc.ledger-detail .fc-ledger-card[data-kind="workout"] > div:not(.fc-meal-item-edit) { display: none; }
 .fc.ledger-detail .fc-ledger-card[data-kind="workout"] { padding-top: 2px; }
+
+.record-recovery { display: grid; gap: 8px; margin-bottom: 18px; }
+#record-recovery-slot:has(.record-recovery) + .day-deck:has(.deck-card.empty) { display: none; }
+.record-recovery article { padding: 14px 16px; border: 1px solid var(--hairline); border-radius: 16px; }
+.record-recovery article p { margin: 6px 0 0; overflow-wrap: anywhere; }
+.record-recovery article img { display: block; width: 72px; height: 58px; object-fit: cover; margin-top: 8px; border-radius: 8px; }
+.record-recovery-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.record-recovery-actions button { min-height: 44px; padding-inline: 6px; text-decoration: underline; text-underline-offset: 4px; }
+
+.record-estimated { display: inline-block; margin-right: 8px; color: var(--gray-1); }
+.record-undo-notice {
+  position: fixed; z-index: 70; left: 16px; right: 16px; bottom: calc(156px + env(safe-area-inset-bottom));
+  max-width: 480px; margin-inline: auto; padding: 4px 10px 4px 14px; border-radius: 16px;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 4px 9px; background: var(--ink-0); color: var(--silver-2);
+}
+.record-undo-notice p { flex: 1; margin: 0; font-size: 14px; }
+.record-undo-notice button, .record-undo-notice a { color: inherit; min-width: 44px; min-height: 44px; display: grid; place-items: center; }
+.record-undo-notice button:first-of-type, .record-undo-notice a { color: var(--lemon); }
+.record-undo-notice small { flex-basis: 100%; padding-bottom: 6px; }
+.record-card-photo { display: block; width: 84px; height: 64px; margin-block: 8px; object-fit: cover; border-radius: 12px; }
+
+/* /log：时间是索引，标题和当前操作是视觉焦点。 */
+.is-ledger .hero-word { margin-top: 8px; font-size: 21px; }
+.is-ledger .big-date-hero { margin: 5px 0 22px; }
+.is-ledger .big-date { font-size: clamp(52px, 19vw, 84px); }
+.is-ledger .day-ruler { height: 30px; }
+.is-ledger .day-ruler-ticks i { opacity: .25; }
+.is-ledger .day-ruler-ticks i.hour { opacity: .6; }
+.is-ledger .day-ruler-axis { margin-top: 9px; }
+.is-ledger .day-mark.meal, .is-ledger .day-mark.weight { --mark: var(--gray-1); }
+.is-ledger .day-mark[data-active] { --mark: var(--ink-0); }
+.is-ledger .day-now { box-shadow: 0 0 0 1px var(--ink-0); }
+.ledger-deck:has(.deck-card.empty) :is(.day-ruler, .day-ruler-axis) { display: none; }
+.ledger-deck .deck { margin-top: 12px; padding-bottom: 8px; }
+.ledger-deck .deck-card {
+  flex-basis: min(84%, 330px); border: 1px solid transparent; border-radius: 20px;
+  background: rgb(255 255 255 / 31%); box-shadow: none; transform: none;
+}
+.ledger-deck .deck-card:only-of-type { flex-basis: 100%; }
+.ledger-deck .deck-card[data-active] {
+  border-color: rgb(21 22 19 / 17%); background: #f4f4ef;
+  box-shadow: 0 12px 24px -22px rgb(21 22 19 / 45%);
+}
+.ledger-deck .deck-card-body {
+  grid-template-columns: minmax(0, 1fr) auto; align-content: center; align-items: start;
+  gap: 5px 12px; min-height: 102px; padding: 12px 16px;
+}
+.ledger-deck .deck-kind { grid-column: 1 / -1; color: var(--ink-2); font-size: 12px; gap: 6px; }
+.ledger-deck .deck-card strong { font-size: 21px; line-height: 1.25; overflow-wrap: anywhere; }
+.ledger-deck .deck-time { align-self: baseline; font: 650 16px var(--font-num); color: var(--gray-1); }
+.ledger-deck .deck-card small { grid-column: 1 / -1; margin-top: 0; font-size: 12px; }
+.ledger-deck .deck-card.empty {
+  flex-basis: 100%; justify-content: center; gap: 8px; min-height: 142px; padding: 20px;
+  background: rgb(255 255 255 / 19%); border-color: var(--hairline);
+}
+.ledger-deck .deck-card.empty > svg { align-self: center; }
+.ledger-deck .deck-card.empty strong { font-size: 17px; }
+.ledger-deck .deck-pending {
+  background: color-mix(in srgb, var(--lemon) 30%, #f4f4ef) !important; color: var(--ink-0);
+}
+.ledger-deck .deck-pending::before { background: var(--ink-0); animation: none; }
+.ledger-deck .deck-dots i[data-pending]:not([data-active]) { background: #aaa774; }
+.ledger-deck .ledger-detail { margin-top: 14px; }
+.ledger-detail-hd h2 { margin: 0; font-size: 14px; font-weight: 680; letter-spacing: 0; }
+.fc.ledger-detail .fc-ledger-card[data-kind="meal"] { padding: 12px 14px 5px; }
+.record-meal-meta { display: flex; align-items: center; gap: 8px; }
+.record-meal-meta .record-card-photo { width: 52px; height: 44px; margin: 0; }
+.record-meal-meta .record-estimated { margin: 0; font-size: 12px; }
+.fc.ledger-detail .record-nutrition-toggle { margin-left: auto; font-size: 12px; color: var(--gray-1); }
+.fc.ledger-detail .fc-quick-pick { margin: 10px 0 6px; padding: 10px; }
+.fc.ledger-detail .fc-quick-pick legend { margin-bottom: 3px; }
+.fc.ledger-detail .fc-quick-pick .fc-examples { gap: 6px; margin-top: 6px; }
+.fc.ledger-detail .fc-quick-pick .fc-examples button { padding-inline: 12px; font-size: 13px; }
+.record-nutrition-source { display: block; }
+.record-recovery article { background: #f3f3ed; }
+.record-recovery-head { display: flex; align-items: center; gap: 12px; }
+.record-recovery-head > div { flex: 1; min-width: 0; }
+.record-recovery-head span { display: block; margin-bottom: 3px; font-size: 12px; color: var(--gray-1); }
+.record-recovery-head strong { font-size: 19px; }
+.record-recovery-head img { flex-shrink: 0; margin-top: 0; }
+.record-recovery-actions { align-items: center; margin-top: 8px; }
+.record-recovery-actions .record-retry {
+  padding-inline: 16px; border-radius: 999px; background: var(--ink-0); color: var(--paper); text-decoration: none;
+}
+.record-recovery-actions button:last-child { margin-left: auto; color: var(--gray-1); font-size: 12px; }
+.record-recovery > p { margin: 0 4px; font-size: 13px; color: var(--ink-2); }

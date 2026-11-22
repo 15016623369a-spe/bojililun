@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { daySessions, finishSession, getPlanProgress, getSession, getSessionSets, startSession } from '@/lib/core/workout';
+import { daySessions, finishSession, getSession, getSessionSets, startSession } from '@/lib/core/workout';
 import { getDb } from '@/lib/db';
+import { archiveRemoval, syncRemovedPlanItems } from '@/lib/core/record-removals';
 import { getExercise } from '@/lib/exercise';
 import type { SupplementalExercise } from '@/lib/types';
 
@@ -74,16 +75,21 @@ export async function DELETE(req: Request) {
   const db = getDb();
   db.exec('BEGIN IMMEDIATE');
   try {
-    const affectedPlanItems = new Set(getSessionSets(id).map((set) => set.plan_item_id));
+    const row = db.prepare('SELECT * FROM session WHERE id = ? AND ended_at IS NOT NULL').get(id);
+    if (!row) throw new Error('训练记录不存在');
+    const sets = db.prepare('SELECT * FROM session_set WHERE session_id = ? ORDER BY id').all(id);
+    const journal = db.prepare('SELECT * FROM journal_entry WHERE merged_session_id = ?').all(id);
+    const undoToken = archiveRemoval(db, [
+      { table: 'session', rows: [row] },
+      { table: 'session_set', rows: sets },
+      { table: 'journal_entry', rows: journal },
+    ]);
     db.prepare('DELETE FROM journal_entry WHERE merged_session_id = ?').run(id);
     db.prepare('DELETE FROM session_set WHERE session_id = ?').run(id);
     db.prepare('DELETE FROM session WHERE id = ?').run(id);
-    const setDone = db.prepare('UPDATE plan_item SET done = ? WHERE id = ?');
-    for (const item of getPlanProgress(session.date)) {
-      if (affectedPlanItems.has(item.id)) setDone.run(item.done, item.id);
-    }
+    syncRemovedPlanItems(db, sets);
     db.exec('COMMIT');
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, undoToken });
   } catch {
     db.exec('ROLLBACK');
     return NextResponse.json({ error: '删除训练失败，请重试' }, { status: 500 });

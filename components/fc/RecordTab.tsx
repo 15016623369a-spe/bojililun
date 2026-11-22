@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { getRecognizerCtor, type Recognizer } from '@/lib/browser-recognition';
 import AskSheet from './AskSheet';
+import { createRecordDraft, sendRecordDraft } from '@/lib/record-drafts';
 import { MicIcon } from './icons';
 import VoiceOverlay, { type VoicePhase } from './VoiceOverlay';
 
@@ -47,21 +48,16 @@ export default function RecordTab({
       return;
     }
     try {
-      const response = await fetch('/api/ledger', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ request_id: crypto.randomUUID(), source: 'voice', text }),
-      });
-      const result = await response.json();
-      if (!response.ok) throw Error(result.error);
-      if (result.route === 'qa') setQuestion(result.question);
+      const result = await sendRecordDraft(createRecordDraft('voice', text));
+      if (result.route === 'qa' && result.question) setQuestion(result.question);
       else {
         router.push('/log');
         router.refresh();
         showToast('已记入手账');
       }
     } catch (e) {
-      showToast((e as Error).message);
+      router.push('/log');
+      showToast('语音已留在待保存记录，可重试');
     }
   };
   const phaseRef = useRef<Phase>('idle');
@@ -218,9 +214,10 @@ export default function RecordTab({
       failed.current = true;
       cleanup();
       setPhase('idle');
-      showToast('麦克风没拿到权限，录音没开始');
+      showToast('没有麦克风权限，可到记录页打字');
+      router.push('/log');
     }
-  }, [cleanup, finalize, setPhase, showToast]);
+  }, [cleanup, finalize, router, setPhase, showToast]);
 
   const finish = useCallback(
     (cancel: boolean) => {

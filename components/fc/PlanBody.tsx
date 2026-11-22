@@ -58,6 +58,7 @@ export default function PlanBody({ variant, todayPlan }: {
   const detailTrigger = useRef<HTMLElement | null>(null);
   const lock = useRef(false);
   const lastLayer = useRef<PlanLayer | null>(null);
+  const libraryTrigger = useRef<HTMLElement | null>(null);
   const planned = new Set(todayPlan.exerciseIds);
 
   useEffect(() => {
@@ -68,9 +69,13 @@ export default function PlanBody({ variant, todayPlan }: {
   useEffect(() => {
     const layer = sheet ? 'library' : picked ? 'muscle' : null;
     if (layer === lastLayer.current) return;
+    const previous = lastLayer.current;
     lastLayer.current = layer;
     if (layer === null) detailTrigger.current?.focus({ preventScroll: true });
-    if (layer === 'muscle') root.current?.querySelector<HTMLButtonElement>('.plan-detail-close')?.focus();
+    if (layer === 'muscle') {
+      const target = previous === 'library' ? libraryTrigger.current : null;
+      (target ?? root.current?.querySelector<HTMLButtonElement>('.plan-detail-close'))?.focus({ preventScroll: true });
+    }
     if (layer === 'library') root.current?.querySelector<HTMLDivElement>('.fc-dict-sheet')?.focus();
   }, [picked, sheet]);
 
@@ -83,6 +88,7 @@ export default function PlanBody({ variant, todayPlan }: {
   }
 
   function openLibrary(which: Library) {
+    libraryTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     pushLayer('library', which);
   }
 

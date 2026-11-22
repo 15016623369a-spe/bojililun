@@ -58,15 +58,20 @@ export default function TodayPlan({
   }, [initialItems, searchParams]);
 
   useEffect(() => {
+    if (!showList) return;
+    const row = planRows.current?.querySelector('[data-added]') ?? planRows.current?.firstElementChild;
+    if (!row) return;
+    const dockTop = startDock.current?.getBoundingClientRect().top ?? window.innerHeight;
+    if (row.getBoundingClientRect().bottom > dockTop) revealPlanRow(row);
+  }, [showList]);
+
+  useEffect(() => {
     if (recentlyAdded.size === 0) return;
     const first = planRows.current?.querySelector('[data-added]');
     const visibleBottom = startDock.current?.getBoundingClientRect().top ?? window.innerHeight;
     const bounds = first?.getBoundingClientRect();
     if (bounds && (bounds.top < 0 || bounds.bottom > visibleBottom)) {
-      first?.scrollIntoView({
-        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
-        block: 'center',
-      });
+      if (first) revealPlanRow(first);
     }
     const timer = window.setTimeout(() => setRecentlyAdded(new Set()), 3000);
     return () => window.clearTimeout(timer);
@@ -141,19 +146,30 @@ export default function TodayPlan({
 
       {items.length > 0 && (
         <button type="button" className="training-list-toggle" aria-expanded={showList} aria-controls="training-plan-list"
-          onClick={() => setShowList(!showList)}>
-          {showList ? '收起动作' : `查看 ${items.length} 个动作`}
-          <Icon name="chevron-down" size={18} />
+          onClick={() => {
+            setShowList(!showList);
+            if (showList) setOpen(null);
+          }}>
+          <span>{showList ? '收起动作' : '查看动作清单'}</span>
+          <span className="training-list-meta">{items.length} 个 <Icon name="chevron-down" size={18} /></span>
         </button>
       )}
       {items.length > 0 && (
         <ol className="plan-rows" ref={planRows} id="training-plan-list" hidden={!showList}>
           {items.map((it) => {
             const expanded = open === it.id;
+            const editorId = `plan-item-editor-${it.id}`;
             return (
               <li key={it.id} className="plan-item" data-open={expanded || undefined} data-done={it.done === 1 || undefined}
                 data-added={recentlyAdded.has(it.id) || undefined}>
-                <button type="button" className="plan-item-head" aria-expanded={expanded} onClick={() => { haptic(4); setOpen(expanded ? null : it.id); }}>
+                <button type="button" className="plan-item-head" aria-expanded={expanded} aria-controls={editorId}
+                  onClick={(event) => {
+                    haptic(4);
+                    setOpen(expanded ? null : it.id);
+                    const dockTop = startDock.current?.getBoundingClientRect().top ?? window.innerHeight;
+                    if (!expanded && event.currentTarget.getBoundingClientRect().bottom + 170 > dockTop)
+                      revealPlanRow(event.currentTarget);
+                  }}>
                   <span className="thumb">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     {images[it.exercise_id] ? <img src={images[it.exercise_id]} alt="" loading="lazy" /> : null}
@@ -165,25 +181,35 @@ export default function TodayPlan({
                   <span className="set-dots" aria-label={`${it.sets} 组`}>
                     {Array.from({ length: Math.min(it.sets, 8) }, (_, i) => <i key={i} data-on={it.done === 1 || undefined} />)}
                   </span>
+                  <Icon name="chevron-down" size={16} className="plan-row-chevron" />
                 </button>
-                <div className="plan-item-editor" inert={!expanded} aria-hidden={!expanded}>
+                <div id={editorId} className="plan-item-editor" inert={!expanded} aria-hidden={!expanded}>
                   <div className="plan-item-editor-inner">
                     <div className="steppers">
                       <Stepper label="组数" value={it.sets} unit="组" step={1} min={1} max={20} onChange={(v) => patch(it.id, { sets: v })} />
-                      <Stepper label="次数" value={it.reps} unit="次" step={1} min={1} max={50} onChange={(v) => patch(it.id, { reps: v })} />
-                      <Stepper label="重量" value={it.weight} unit="kg" step={2.5} min={0} max={500} onChange={(v) => patch(it.id, { weight: v })} />
+                      <Stepper label="次数" value={it.reps} unit="次" step={1} min={1} max={100} onChange={(v) => patch(it.id, { reps: v })} />
+                      <Stepper label="重量" value={it.weight} unit="kg" step={2.5} min={0} max={1000} onChange={(v) => patch(it.id, { weight: v })} />
                     </div>
-                    <div className="rest-seg" role="radiogroup" aria-label="组间休息">
-                      <span>组间休息</span>
-                      {REST_CHOICES.map((r) => (
-                        <button key={r} type="button" role="radio" aria-checked={it.rest_sec === r} className={it.rest_sec === r ? 'on' : ''}
-                          onClick={() => { haptic(4); patch(it.id, { restSec: r }); }}>{r}<em>s</em></button>
-                      ))}
-                    </div>
-                    <div className="plan-item-foot">
-                      <span>{EQUIPMENT_LABEL[it.equipment] ?? it.equipment}</span>
-                      <button type="button" className="text-danger" onClick={() => remove(it.id)}>从计划移除</button>
-                    </div>
+                    {expanded && <details className="plan-more" onToggle={(event) => {
+                      const panel = event.currentTarget;
+                      const dockTop = startDock.current?.getBoundingClientRect().top ?? window.innerHeight;
+                      if (panel.open && panel.getBoundingClientRect().bottom > dockTop) revealPlanRow(panel);
+                    }}>
+                      <summary>
+                        <span>更多设置</span>
+                        <small>休息 {it.rest_sec} 秒 <Icon name="chevron-down" size={16} /></small>
+                      </summary>
+                      <div className="rest-seg" role="group" aria-label="组间休息">
+                        {REST_CHOICES.map((r) => (
+                          <button key={r} type="button" aria-pressed={it.rest_sec === r} className={it.rest_sec === r ? 'on' : ''}
+                            onClick={() => { haptic(4); patch(it.id, { restSec: r }); }}>{r}<em> 秒</em></button>
+                        ))}
+                      </div>
+                      <div className="plan-item-foot">
+                        <span>{EQUIPMENT_LABEL[it.equipment] ?? it.equipment}</span>
+                        <button type="button" className="text-danger" onClick={() => remove(it.id)}>从计划移除</button>
+                      </div>
+                    </details>}
                   </div>
                 </div>
               </li>
@@ -199,7 +225,7 @@ export default function TodayPlan({
         </Link>
       )}
       {completed && (
-        <div className="completed-actions">
+        <div className="start-dock completed-actions" ref={startDock}>
           <Link href={completedSessionId ? `/train/${completedSessionId}` : `/history/${date}`} className="ink-btn">
             {completedSessionId ? '查看本次训练' : '查看今日记录'} <Icon name="arrow-right" size={20} />
           </Link>
@@ -226,6 +252,13 @@ export default function TodayPlan({
       )}
     </section>
   );
+}
+
+function revealPlanRow(row: Element) {
+  row.scrollIntoView({
+    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+    block: 'center',
+  });
 }
 
 function mapPatch(body: Record<string, number>): Partial<PlanItem> {

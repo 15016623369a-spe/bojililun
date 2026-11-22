@@ -11,6 +11,7 @@ import ExerciseMedia from './ExerciseMedia';
 import EndTrainingButton from './EndTrainingButton';
 import DotDigits from './ui/DotDigits';
 import TickRuler from './ui/TickRuler';
+import Stepper from './ui/Stepper';
 import Icon from './ui/Icon';
 
 function clock(seconds: number) {
@@ -29,22 +30,6 @@ function pendingActions(plan: PlanItem[], sets: SetRow[]) {
 }
 
 const e1rm = (weight: number, reps: number) => (reps <= 0 || reps > 15 || weight <= 0 ? 0 : reps === 1 ? weight : weight * (1 + reps / 30));
-
-/** 大号读数：整数墨黑、小数部分降一档灰。点一下可以直接输入。 */
-function BigValue({ value, onChange, label, unit, step }: { value: string; onChange: (value: string) => void; label: string; unit: string; step: string }) {
-  const [editing, setEditing] = useState(false);
-  const [int, dec] = value.split('.');
-  return <div className="big-value">
-    {editing
-      ? <input className="big-num" autoFocus type="number" inputMode="decimal" step={step} min="0" aria-label={label} value={value}
-          onChange={(event) => onChange(event.target.value)} onBlur={() => setEditing(false)}
-          onKeyDown={(event) => { if (event.key === 'Enter') setEditing(false); }} />
-      : <button type="button" className="big-num" aria-label={`${label} ${value}${unit}，点按输入`} onClick={() => setEditing(true)}>
-          {int || '0'}{dec ? <span className="dim">.{dec}</span> : null}
-        </button>}
-    <em>{unit}</em>
-  </div>;
-}
 
 export default function TrainingRunner({ session, plan, initialSets, demonstrations, priorBest = {}, variant, receiptHref }: {
   session: SessionRow;
@@ -66,7 +51,7 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
   const key = `fitcheck-training:${session.id}:${current?.item.id}:${current?.number}`;
   const [work, setWork] = useState<{ key: string; started: number } | null>(null);
   const [now, setNow] = useState<number | null>(null);
-  const [fields, setFields] = useState<{ itemId: number; weight: string; reps: string } | null>(null);
+  const [fields, setFields] = useState<{ key: string; weight: string; reps: string } | null>(null);
   const [extraRest, setExtraRest] = useState<{ setId: number; seconds: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [ended, setEnded] = useState(Boolean(session.ended_at));
@@ -85,6 +70,8 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
     try {
       const started = Number(sessionStorage.getItem(key));
       if (started > 0) setWork({ key, started });
+      const draft = sessionStorage.getItem(`${key}:fields`);
+      if (draft) setFields({ key, ...JSON.parse(draft) });
     } catch {
       // Training still works when browser storage is unavailable.
     }
@@ -117,8 +104,8 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
   const restLeft = now === null ? restTotal : Math.max(0, Math.ceil((restUntil - now) / 1000));
   const setSeconds = now === null ? 0 : Math.max(0, Math.floor((now - startedAt) / 1000));
   const sessionSeconds = now === null ? 0 : Math.max(0, Math.floor((now - Date.parse(session.started_at)) / 1000));
-  const weight = item && fields?.itemId === item.id ? fields.weight : String(item?.weight ?? 0);
-  const reps = item && fields?.itemId === item.id ? fields.reps : String(item?.reps ?? 0);
+  const weight = item && fields?.key === key ? fields.weight : String(item?.weight ?? 0);
+  const reps = item && fields?.key === key ? fields.reps : String(item?.reps ?? 0);
 
   // 休息结束时震两下
   useEffect(() => {
@@ -139,6 +126,10 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
 
   async function saveSet() {
     if (lock.current || !current || resting) return;
+    if (weight === '' || !Number.isFinite(Number(weight)) || Number(weight) < 0 || Number(weight) > 1000 || !Number.isInteger(Number(reps)) || Number(reps) < 1 || Number(reps) > 1000) {
+      setError('请输入有效的重量和次数');
+      return;
+    }
     lock.current = true;
     setBusy(true);
     setError('');
@@ -162,7 +153,7 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
       if (!response.ok) throw new Error(result.error || '保存失败，请重试');
       if (result.sets) setSets(result.sets);
       haptic(14);
-      try { sessionStorage.removeItem(key); } catch { /* 缓存清理不影响已保存的数据 */ }
+      try { sessionStorage.removeItem(key); sessionStorage.removeItem(`${key}:fields`); } catch { /* 缓存清理不影响已保存的数据 */ }
       setNow(Date.now());
       if (result.ended) {
         setEnded(true);
@@ -179,7 +170,7 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
   }
 
   const endTraining = <EndTrainingButton sessionId={session.id} completedSets={sets.length} disabled={busy} onEnded={() => {
-    try { sessionStorage.removeItem(key); } catch { /* 缓存清理不影响已保存的数据 */ }
+    try { sessionStorage.removeItem(key); sessionStorage.removeItem(`${key}:fields`); } catch { /* 缓存清理不影响已保存的数据 */ }
     router.replace(receiptHref);
     router.refresh();
   }} />;
@@ -347,7 +338,11 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
   // ---------- 记录一组 ----------
   const weightNum = Number(weight) || 0;
   const repsNum = Number(reps) || 0;
-  const setField = (patch: Partial<{ weight: string; reps: string }>) => setFields({ itemId: item.id, weight, reps, ...patch });
+  function setField(patch: Partial<{ weight: string; reps: string }>) {
+    const next = { key, weight, reps, ...patch };
+    setFields(next);
+    try { sessionStorage.setItem(`${key}:fields`, JSON.stringify(next)); } catch { /* 当前页面仍可调整 */ }
+  }
   return <div className="runner v-runner" data-mode="set">
     {header}
     <main className="runner-main">
@@ -362,26 +357,13 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
         </div>
       </div>
 
-      <p className="field-label">重量</p>
-      <BigValue value={weight} onChange={(v) => setField({ weight: v })} label="重量" unit="kg" step="0.5" />
-      <TickRuler value={weightNum} min={0} max={300} step={0.5} major={10} label="重量刻度尺" unit="kg"
-        onChange={(v) => setField({ weight: String(v) })} />
-
-      <div className="reps-row">
-        <div>
-          <p className="field-label">次数</p>
-          <div className="big-value reps">
-            <span className="big-num">{repsNum}<span className="dim"> /{item.reps}</span></span>
-          </div>
-        </div>
-        <div className="reps-buttons">
-          <button type="button" className="round" aria-label="减少一次" onClick={() => { haptic(5); setField({ reps: String(Math.max(0, repsNum - 1)) }); }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" /></svg>
-          </button>
-          <button type="button" className="round ink" aria-label="增加一次" onClick={() => { haptic(5); setField({ reps: String(repsNum + 1) }); }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12M12 6v12" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" /></svg>
-          </button>
-        </div>
+      <div className="runner-quantities">
+        <Stepper readout label="重量" value={weightNum} unit="kg" step={0.5} min={0} max={1000} disabled={busy}
+          onChange={(value) => setField({ weight: String(value) })} />
+        <TickRuler value={weightNum} min={0} max={1000} step={0.5} major={10} label="重量刻度尺" unit="kg"
+          onChange={(value) => setField({ weight: String(value) })} />
+        <Stepper readout label="次数" value={repsNum} unit="次" step={1} min={1} max={1000} aside={`计划 ${item.reps} 次`}
+          disabled={busy} onChange={(value) => setField({ reps: String(value) })} />
       </div>
 
       <div className="runner-set-dots" role="img" aria-label={`这个动作已完成 ${itemSets.length} / ${item.sets} 组`}>

@@ -72,10 +72,11 @@ export default function TrainingLookbook({ days, today, date, focus, status, pla
 
   return <section className="training-lookbook" aria-label="训练画册">
     <header className="lookbook-heading">
-      <div>
-        <p>{date === today ? '今天' : humanDate(date).split(' ')[1]} <span>{date.slice(5).replace('-', '.')}</span></p>
-        <h2>{focus}</h2>
-      </div>
+      <p className="lookbook-date">
+        <span>{date === today ? '今天' : humanDate(date).split(' ')[1]}</span>
+        <time dateTime={date}>{date.slice(5).replace('-', '.')}</time>
+      </p>
+      <h2>{focus}</h2>
       {status && <p className="lookbook-status">{status}</p>}
     </header>
 
@@ -84,32 +85,38 @@ export default function TrainingLookbook({ days, today, date, focus, status, pla
       <SculptureBody variant={variant} side={side} look="halftone" planned={planned} recorded={recorded}
         onPick={openRegion} />
       <button type="button" className="lookbook-turn" onClick={() => setSide(side === 'front' ? 'back' : 'front')}>
+        <Icon name="rotate" size={16} />
         {side === 'front' ? '看背面' : '看正面'}
       </button>
-      <p className="lookbook-hint">点肌群查看动作</p>
     </div>
 
-    {mapped.size > 0 && <div className="lookbook-regions" aria-label="当天涉及的肌群" role="group">
-      {REGIONS.filter((area) => mapped.has(area)).map((area) => {
-        const hasRecorded = recorded.some((muscle) => planPoseFor(muscle) === area);
-        const hasPlanned = planned.some((muscle) => planPoseFor(muscle) === area && !recorded.includes(muscle));
-        return <button key={area} type="button" onClick={() => openRegion(mapped.get(area)!)} aria-haspopup="dialog"
-          aria-label={`${PLAN_POSES[area].label}${hasPlanned ? '，有安排' : ''}${hasRecorded ? '，有实练' : ''}`}>
-          {hasPlanned && <i data-state="planned" aria-hidden="true" />}
-          {hasRecorded && <i data-state="recorded" aria-hidden="true" />}
-          {PLAN_POSES[area].label}
-        </button>;
-      })}
-    </div>}
+    <div className="lookbook-region-rail">
+      <p className="lookbook-hint">点肌群查看动作</p>
+      {mapped.size > 0 && <div className="lookbook-regions" aria-label="当天涉及的肌群" role="group">
+        {REGIONS.filter((area) => mapped.has(area)).map((area) => {
+          const hasRecorded = recorded.some((muscle) => planPoseFor(muscle) === area);
+          const hasPlanned = planned.some((muscle) => planPoseFor(muscle) === area && !recorded.includes(muscle));
+          return <button key={area} type="button" onClick={() => openRegion(mapped.get(area)!)} aria-haspopup="dialog"
+            aria-label={`${PLAN_POSES[area].label}${hasPlanned ? '，有安排' : ''}${hasRecorded ? '，有实练' : ''}`}>
+            {hasPlanned && <i data-state="planned" aria-hidden="true" />}
+            {hasRecorded && <i data-state="recorded" aria-hidden="true" />}
+            {PLAN_POSES[area].label}
+          </button>;
+        })}
+      </div>}
+    </div>
 
-    <nav className="training-week" aria-label="本周训练">
-      {days.map((day, index) => <Link key={day.date}
-        href={day.date === today ? '/train' : `/train?date=${day.date}`}
-        aria-current={day.date === date ? 'date' : undefined}
-        aria-label={`${day.date === today ? '今天，' : ''}${humanDate(day.date)}，${day.focus || '无安排'}${day.recorded ? '，有实练记录' : ''}`}
-        data-state={day.recorded ? 'recorded' : day.focus ? 'planned' : undefined}>
-        <span>{WEEKDAYS[index]}</span><b>{Number(day.date.slice(-2))}</b><i aria-hidden="true" />
-      </Link>)}
+    <nav className="lookbook-week" aria-label="本周训练">
+      <div className="lookbook-week-head">本周</div>
+      <div className="training-week">
+        {days.map((day, index) => <Link key={day.date}
+          href={day.date === today ? '/train' : `/train?date=${day.date}`}
+          aria-current={day.date === date ? 'date' : undefined}
+          aria-label={`${day.date === today ? '今天，' : ''}${humanDate(day.date)}，${day.focus || '无安排'}${day.recorded ? '，有实练记录' : ''}`}
+          data-state={day.recorded ? 'recorded' : day.focus ? 'planned' : undefined}>
+          <span>{WEEKDAYS[index]}</span><b>{Number(day.date.slice(-2))}</b><i aria-hidden="true" />
+        </Link>)}
+      </div>
     </nav>
 
     <dialog className="lookbook-drawer" ref={drawer} aria-labelledby="lookbook-drawer-title"
