@@ -6,8 +6,9 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { TrainingMutationPreview } from '@/lib/core/journal';
 import type { JournalEntry } from '@/lib/journal';
 import AskSheet from './fc/AskSheet';
-import JournalIcon from './JournalIcon';
-import RecordCards from './RecordCards';
+import RecordDeck from './RecordDeck';
+import VoiceOverlay from './VoiceOverlay';
+import Icon from './ui/Icon';
 
 interface Recognition {
   lang: string;
@@ -27,6 +28,12 @@ export default function RecordToday({ date, entries, workoutSaved }: { date: str
   const lock = useRef(false);
   const [recording, setRecording] = useState(false);
   const [heard, setHeard] = useState('');
+  const [startedAt, setStartedAt] = useState(0);
+  const [armed, setArmed] = useState(false);
+  const level = useRef<number | null>(null);
+  const meter = useRef<(() => void) | null>(null);
+  const press = useRef<{ y: number; armed: boolean } | null>(null);
+  const cancelled = useRef(false);
   const [editing, setEditing] = useState(false);
   const [ask, setAsk] = useState<{ question: string }>();
   const [mutation, setMutation] = useState<{ preview: TrainingMutationPreview; text: string }>();
@@ -56,7 +63,41 @@ export default function RecordToday({ date, entries, workoutSaved }: { date: str
       rec.current.onend = null;
       rec.current.abort();
     }
+    meter.current?.();
   }, []);
+
+  /** 桌面浏览器读麦克风音量驱动波形；手机上不再占用麦克风，以免和系统语音识别抢话筒 */
+  async function startMeter() {
+    level.current = null;
+    if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || !navigator.mediaDevices?.getUserMedia) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!rec.current) { stream.getTracks().forEach((track) => track.stop()); return; }
+      const context = new AudioContext();
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 512;
+      context.createMediaStreamSource(stream).connect(analyser);
+      const buffer = new Uint8Array(analyser.fftSize);
+      let raf = 0;
+      const read = () => {
+        analyser.getByteTimeDomainData(buffer);
+        let sum = 0;
+        for (const value of buffer) { const x = (value - 128) / 128; sum += x * x; }
+        level.current = Math.sqrt(sum / buffer.length);
+        raf = requestAnimationFrame(read);
+      };
+      read();
+      meter.current = () => {
+        cancelAnimationFrame(raf);
+        stream.getTracks().forEach((track) => track.stop());
+        void context.close();
+        level.current = null;
+        meter.current = null;
+      };
+    } catch {
+      level.current = null;
+    }
+  }
 
   useEffect(() => {
     if (!freshId) return;
@@ -207,6 +248,7 @@ export default function RecordToday({ date, entries, workoutSaved }: { date: str
     }
     const capture = new Speech();
     rec.current = capture;
+    cancelled.current = false;
     capture.lang = 'zh-CN';
     capture.continuous = true;
     capture.interimResults = true;
@@ -235,8 +277,11 @@ export default function RecordToday({ date, entries, workoutSaved }: { date: str
     };
     capture.onend = () => {
       rec.current = null;
+      meter.current?.();
       setRecording(false);
+      setArmed(false);
       setHeard('');
+      if (cancelled.current) { cancelled.current = false; return; }
       const spoken = (finalText + partialText).trim();
       if (spoken && !failed) void save(spoken);
       else if (!failed) setError('没有听到内容，再按住试一次。');
@@ -244,7 +289,10 @@ export default function RecordToday({ date, entries, workoutSaved }: { date: str
     try {
       capture.start();
       setRecording(true);
+      setStartedAt(Date.now());
       setHeard('');
+      try { navigator.vibrate?.(10); } catch { /* iOS 网页无振动 */ }
+      void startMeter();
     } catch {
       rec.current = null;
       setError('语音暂时无法启动，再按住试一次。');
@@ -268,14 +316,13 @@ export default function RecordToday({ date, entries, workoutSaved }: { date: str
   const selectedOption = conflictOptions.find((option) => option.id === conflict?.selectedId);
 
   return <>
-    {status && <p className="journal-status" role="status"><JournalIcon name="check" />{status}
-      {pastEntry && <Link href={`/history?period=day&date=${pastEntry.date}`}>查看 {pastEntry.date}</Link>}
-    </p>}
-    {pastEntry && <RecordCards entries={[pastEntry]} freshId={freshId} onDeleted={deleted}
-      onSaved={(entry) => setPastEntry(entry.date === date ? undefined : entry)} />}
-    {entries.length ? <RecordCards entries={[...entries].reverse()} freshId={freshId} onDeleted={deleted} />
-      : <div className="journal-empty"><JournalIcon name="record" /><p>今天还没有记录</p><span>说说吃了什么、练了什么，或昨晚睡得怎么样。</span></div>}
+    {pastEntry && <p className="soft-banner" role="status">这条记到了 {pastEntry.date.slice(5).replace('-', '.')}
+      <Link href={`/history?period=day&date=${pastEntry.date}`}>查看<Icon name="arrow-right" size={15} /></Link></p>}
+    <RecordDeck entries={entries} isToday freshId={freshId} onDeleted={deleted} />
+    {recording && <VoiceOverlay heard={heard} startedAt={startedAt} level={level} armed={armed}
+      onRelease={() => rec.current?.stop()} />}
     <div className="journal-input-dock">
+      {status && <p className="journal-status" role="status"><Icon name="check" size={15} stroke={2.4} />{status}</p>}
       {ask && <AskSheet key={ask.question} docked question={ask.question} onClose={() => setAsk(undefined)}
         onFollowUp={(question) => setAsk({ question })}
         onLogged={(id) => {
@@ -333,29 +380,37 @@ export default function RecordToday({ date, entries, workoutSaved }: { date: str
         </>}
       </div>}
       {error && <p className="journal-error" role="alert">{error}</p>}
-      {recording && <div className="voice-live" role="status">
-        <span className="voice-live-dot" aria-hidden="true" />
-        <div>
-          <b>正在听…松手发送</b>
-          <p>{heard || '直接说话，比如「午饭牛肉面加一个卤蛋」'}</p>
-        </div>
-      </div>}
       {editing && !conflict && <form className="journal-entry-form" onSubmit={submit}>
         <label htmlFor="journal-text">记录或提问</label>
         <textarea id="journal-text" autoFocus value={text} onChange={(event) => setText(event.target.value)} placeholder="午饭牛肉面加一个卤蛋" maxLength={1000} />
         <div><button type="button" className="journal-quiet" onClick={() => { setEditing(false); setText(''); setError(''); }}>关闭</button>
-          <button className="journal-primary" disabled={saving || !text.trim()}>发送</button></div>
+          <button className="journal-primary" disabled={saving || !text.trim()}>发送<Icon name="arrow-up" size={16} stroke={2.2} /></button></div>
       </form>}
       <div className="journal-composer">
-        <button className="journal-icon-button" aria-label="键盘输入" onClick={() => { setAsk(undefined); setEditing(true); setError(''); }}><JournalIcon name="keyboard" /></button>
-        <button className={`journal-primary voice-action ${recording ? 'recording' : ''}`} disabled={saving}
+        <button className="composer-side" aria-label="键盘输入" onClick={() => { setAsk(undefined); setEditing(true); setError(''); }}><Icon name="keyboard" size={22} /></button>
+        <button className={`voice-action ${recording ? 'recording' : ''} ${saving ? 'saving' : ''}`} disabled={saving}
           onPointerDown={(event) => {
             if (event.button !== 0) return;
             event.currentTarget.setPointerCapture(event.pointerId);
+            press.current = { y: event.clientY, armed: false };
             startVoice();
           }}
-          onPointerUp={() => rec.current?.stop()}
-          onPointerCancel={() => rec.current?.abort()}
+          onPointerMove={(event) => {
+            if (!press.current || !rec.current) return;
+            const next = press.current.y - event.clientY > 70;
+            if (next !== press.current.armed) {
+              press.current.armed = next;
+              setArmed(next);
+              try { navigator.vibrate?.(6); } catch { /* 无振动接口 */ }
+            }
+          }}
+          onPointerUp={() => {
+            const cancel = press.current?.armed;
+            press.current = null;
+            if (cancel) { cancelled.current = true; rec.current?.abort(); setStatus('已取消，这段没有记录'); }
+            else rec.current?.stop();
+          }}
+          onPointerCancel={() => { press.current = null; if (rec.current) { cancelled.current = true; rec.current.abort(); } }}
           onClick={(event) => {
             if (event.detail === 0) {
               if (rec.current) rec.current.stop();
@@ -363,9 +418,9 @@ export default function RecordToday({ date, entries, workoutSaved }: { date: str
             }
           }}
           onContextMenu={(event) => event.preventDefault()}>
-          <JournalIcon name="microphone" />{saving ? '正在记录…' : recording ? '松手发送' : '按住说话'}
+          <Icon name="mic" size={20} />{saving ? '正在记录…' : recording ? '松手发送' : '按住说话'}
         </button>
-        <Link className="journal-icon-button" href="/chat" aria-label="拍照记录"><JournalIcon name="photo" /></Link>
+        <Link className="composer-side" href="/chat" aria-label="拍照记录"><Icon name="camera" size={22} /></Link>
       </div>
     </div>
   </>;

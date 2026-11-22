@@ -43,7 +43,7 @@ function CardBody({ entry }: { entry: JournalEntry }) {
   </>;
 }
 
-function RecordEditor({ entry, onClose, onSaved, onDelete }: {
+export function RecordEditor({ entry, onClose, onSaved, onDelete }: {
   entry: JournalEntry;
   onClose: () => void;
   onSaved?: (entry: JournalEntry) => void;
@@ -183,7 +183,7 @@ function RecordEditor({ entry, onClose, onSaved, onDelete }: {
       ? session.groups.map((group) => <ExerciseRecord key={group.exercise_id} group={group} initiallyExpanded />)
       : !error && <p className="hint">正在加载训练明细…</p>)}
     {sessionId && <button className="journal-quiet" type="button" disabled={busy} onClick={dictateToThisCard}>
-      {listening ? '正在听…' : '🎤 对这条训练说修改'}
+      {listening ? '正在听…' : '对这条训练说修改'}
     </button>}
     {mutation && <div className="training-conflict" role="alertdialog" aria-modal="false">
       <b>确认修改这条训练</b>
@@ -207,6 +207,18 @@ function RecordEditor({ entry, onClose, onSaved, onDelete }: {
   </dialog>;
 }
 
+/** 按记录来源删除：语音记录、训练、饮食各走自己的接口。 */
+export async function deleteEntry(entry: JournalEntry) {
+  const endpoint = entry.quickId ? `/api/journal?id=${entry.quickId}`
+    : entry.id.startsWith('session-') ? `/api/session?id=${entry.id.slice(8)}`
+      : `/api/meals?id=${entry.id.slice(5)}`;
+  const response = await fetch(endpoint, { method: 'DELETE' });
+  if (!response.ok) {
+    const data = await response.json() as { error?: string };
+    throw new Error(data.error || '删除失败，请重试');
+  }
+}
+
 export default function RecordCards({ entries, freshId, onSaved, onDeleted }: {
   entries: JournalEntry[];
   freshId?: string;
@@ -219,14 +231,7 @@ export default function RecordCards({ entries, freshId, onSaved, onDeleted }: {
   const open = entries.find((entry) => entry.id === openId);
 
   async function remove(entry: JournalEntry) {
-    const endpoint = entry.quickId ? `/api/journal?id=${entry.quickId}`
-      : entry.id.startsWith('session-') ? `/api/session?id=${entry.id.slice(8)}`
-        : `/api/meals?id=${entry.id.slice(5)}`;
-    const response = await fetch(endpoint, { method: 'DELETE' });
-    if (!response.ok) {
-      const data = await response.json() as { error?: string };
-      throw new Error(data.error || '删除失败，请重试');
-    }
+    await deleteEntry(entry);
     onDeleted?.(entry);
     router.refresh();
   }

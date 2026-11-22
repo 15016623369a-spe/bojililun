@@ -77,7 +77,7 @@ async function verifyHash(bytes: ArrayBuffer, expected: string) {
   if (actual !== expected) throw new Error('人体资源版本不匹配');
 }
 
-export default function SculptureBody({ recorded = [], selected = null, side = 'front', onPick, spin = false, variant = 'male', heatLevels, heatPalette = 'sage', look = 'sculpture', anchor = null }: {
+export default function SculptureBody({ recorded = [], selected = null, side = 'front', onPick, spin = false, variant = 'male', heatLevels, heatTint, heatPalette, look = 'sculpture', anchor = null }: {
   recorded?: MuscleId[];
   selected?: MuscleId | null;
   side?: 'front' | 'back';
@@ -85,6 +85,9 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
   spin?: boolean;
   variant?: SculptureVariant;
   heatLevels?: ReadonlyMap<MuscleId, number>;
+  /** 着色的目标色：回顾频次用雾蓝、容量用珊瑚；不传时为选中色 */
+  heatTint?: string;
+  /** 手账回顾用的固定色板：ink 墨黑、lemon 柠檬黄、sage 旧绿；heatTint 优先 */
   heatPalette?: 'sage' | 'lemon' | 'ink';
   /** halftone：计划首屏的点阵人体；sculpture：回顾等页面的石膏 + 热力着色 */
   look?: 'sculpture' | 'halftone';
@@ -93,12 +96,12 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
 }) {
   const mount = useRef<HTMLDivElement>(null);
   const anchorEl = useRef<HTMLDivElement>(null);
-  const latest = useRef({ recorded, selected, side, onPick, spin, heatLevels, anchor });
-  latest.current = { recorded, selected, side, onPick, spin, heatLevels, anchor };
+  const latest = useRef({ recorded, selected, side, onPick, spin, heatLevels, heatTint, anchor });
+  latest.current = { recorded, selected, side, onPick, spin, heatLevels, heatTint, anchor };
   const api = useRef<{ refresh: () => void; setSide: (side: 'front' | 'back') => void; anchor: () => void } | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [hovered, setHovered] = useState<MuscleId | null>(null);
-  useEffect(() => { api.current?.refresh(); }, [recorded, selected, heatLevels]);
+  useEffect(() => { api.current?.refresh(); }, [recorded, selected, heatLevels, heatTint]);
   useEffect(() => { api.current?.setSide(side); }, [side]);
   useEffect(() => { api.current?.anchor(); }, [anchor?.muscle]);
 
@@ -135,8 +138,8 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
       const rim = new THREE.DirectionalLight(0xffffff, 1.1);
       rim.position.set(3.5, 1.5, -3); scene.add(rim);
     } else {
-      scene.add(new THREE.HemisphereLight(0xfffaf4, 0xc9beb2, 1.1));
-      const key = new THREE.DirectionalLight(0xfff7ed, 2.4);
+      scene.add(new THREE.HemisphereLight(0xffffff, 0xb9bab4, 1.05));
+      const key = new THREE.DirectionalLight(0xffffff, 2.4);
       key.position.set(-3, 4, 5); scene.add(key);
       const fill = new THREE.DirectionalLight(0xffffff, 1.0);
       fill.position.set(3, 2, -4); scene.add(fill);
@@ -182,7 +185,15 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
     let hover: MuscleId | null = null;
     let subject: THREE.Group | null = null;
     let dirty = true;
+    const PALETTE = { sage: { heat: '#2f6a45', hover: '#8fae94' }, lemon: { heat: '#f2ed21', hover: '#91bce8' }, ink: { heat: '#151613', hover: '#8d8f89' } };
+    const palette = heatPalette ? PALETTE[heatPalette] : null;
+    const DEFAULT_TINT = halftone ? '#8c8d88' : palette?.heat ?? '#D9503C';
+    const HOVER = halftone ? '#b3b4af' : palette?.hover ?? '#b6b7b1';
+    // 墨黑 / 柠檬黄色板下悬停在已着色的肌群上时，画一圈浅色边，中间仍能看出热度
+    const rimOnHover = !halftone && Boolean(heatPalette) && heatPalette !== 'sage';
+    const tint = { value: new THREE.Color(DEFAULT_TINT) };
     const refresh = () => {
+      tint.value.set(latest.current.heatTint ?? DEFAULT_TINT);
       const active = new Set(latest.current.recorded.map(canonicalMuscle));
       const selectedId = canonicalMuscle(latest.current.selected);
       heatData.fill(0);
@@ -203,15 +214,13 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
       renderer.domElement.style.cursor = next ? 'pointer' : 'grab';
     };
     refresh();
-    const material = new THREE.MeshStandardMaterial({ color: halftone ? 0xe4e4e1 : 0xf3ede4, roughness: .88, metalness: 0, side: THREE.DoubleSide });
-    material.customProgramCacheKey = () => halftone ? 'sculpture-halftone-v1' : 'sculpture-ortho-feather-v2-' + heatPalette;
-    const heatColor = { sage: '#2f6a45', lemon: '#f2ed21', ink: '#151613' }[heatPalette];
-    const hoverColor = { sage: '#8fae94', lemon: '#91bce8', ink: '#8d8f89' }[heatPalette];
+    const material = new THREE.MeshStandardMaterial({ color: halftone ? 0xe4e4e1 : 0xe9e8e3, roughness: .88, metalness: 0, side: THREE.DoubleSide });
+    material.customProgramCacheKey = () => halftone ? 'sculpture-halftone-v1' : `sculpture-ortho-feather-v2-${rimOnHover ? 'rim' : 'plain'}`;
     material.onBeforeCompile = (shader) => {
       shader.uniforms.uMuscleHeat = { value: heat };
       // 点阵模式下选中/悬停只把该区压暗，圆点随之变大变深，不另上色
-      shader.uniforms.uMuscleGreen = { value: new THREE.Color(halftone ? '#8c8d88' : heatColor) };
-      shader.uniforms.uMuscleHover = { value: new THREE.Color(halftone ? '#b3b4af' : hoverColor) };
+      shader.uniforms.uMuscleGreen = tint;
+      shader.uniforms.uMuscleHover = { value: new THREE.Color(HOVER) };
       shader.vertexShader = shader.vertexShader.replace('#include <common>', `#include <common>
         attribute vec3 muscleIds;
         attribute vec2 muscleBary;
@@ -251,8 +260,7 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
           vec3 tint = state.r > 0.0 ? uMuscleGreen : uMuscleHover;
           float intensity = state.r > 0.0 ? state.r : state.g;
           diffuseColor.rgb = mix(diffuseColor.rgb, tint, intensity * feather);
-          // A hover rim keeps the recorded heat visible in the middle of the muscle.
-          if (${!halftone && heatPalette !== 'sage' ? 'true' : 'false'} && state.r > 0.0 && state.g > 0.0) {
+          if (${rimOnHover ? 'true' : 'false'} && state.r > 0.0 && state.g > 0.0) {
             float rim = 4.0 * feather * (1.0 - feather);
             diffuseColor.rgb = mix(diffuseColor.rgb, uMuscleHover, 0.55 * rim);
           }

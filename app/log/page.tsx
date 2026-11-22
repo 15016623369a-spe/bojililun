@@ -1,11 +1,14 @@
-import LedgerCards from '@/components/fc/LedgerCards';
+import type { Metadata } from 'next';
+import JournalShell from '@/components/JournalShell';
+import LedgerDeck, { type DeckItem } from '@/components/LedgerDeck';
+import LogScreen from '@/components/fc/LogScreen';
+import BigDate from '@/components/ui/BigDate';
 import { getDb } from '@/lib/db';
 import { exportJournal } from '@/lib/export';
 import { readCardPick } from '@/lib/ledger';
-import type { Metadata } from 'next';
-import LogScreen from '@/components/fc/LogScreen';
-import { LeafIcon } from '@/components/fc/icons';
-import { dayText, todayStr } from '@/lib/log';
+import { calcMealTotals, formatDisplayKcal } from '@/lib/calculations';
+import type { Card } from '@/lib/export';
+import { todayStr } from '@/lib/log';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -14,39 +17,64 @@ export const metadata: Metadata = {
   title: '今天 · FitCheck',
 };
 
+const TZ = process.env.APP_TZ || 'Asia/Shanghai';
+const clock = new Intl.DateTimeFormat('zh-CN', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+const minutesOf = (iso: string) => {
+  const [h, m] = clock.format(new Date(iso)).split(':').map(Number);
+  return h * 60 + m;
+};
+
+/** 训练卡副标题：动作数 · 组数 · 容量（只算有重量和次数的组） */
+function workoutLine(c: Card) {
+  const sets = c.exercises.flatMap((m) => m.sets);
+  const volume = sets.reduce((sum, s) => sum + (s.weight_kg ?? 0) * (s.reps ?? 0), 0);
+  return [c.exercises.map((m) => m.exercise_name).join('、'), sets.length ? `${sets.length} 组` : '组数待补', volume ? `${Math.round(volume).toLocaleString('zh-CN')} kg` : '']
+    .filter(Boolean).join(' · ');
+}
+
+/** 记录：数据、计算与录入沿用手账（exportJournal / LedgerCards / LogScreen），版式用新版的大号日期、时间刻度和横向卡片。 */
 export default function LogPage() {
   const today = todayStr();
-  const { label } = dayText(today);
-  const db = getDb(),
-    day = exportJournal(db, 'local', today, today).days[0];
+  const db = getDb();
+  const day = exportJournal(db, 'local', today, today).days[0];
   const picks = Object.fromEntries(day.entries.map((c) => [c.id, readCardPick(db, 'local', c.id)]));
 
-  return (
-    <div className="fc">
-      <div className="fc-shell fc-ledger-shell">
-        <header>
-          <div className="fc-brand">
-            <LeafIcon />
-            FitCheck
-          </div>
-          <h1 className="fc-h1">今天</h1>
-          <div className="fc-hero-date" aria-hidden="true">
-            {today.slice(5, 7)}
-            <span>.{today.slice(8)}</span>
-          </div>
-          <p className="fc-sub">{label}</p>
-        </header>
+  const items: DeckItem[] = [
+    ...day.entries.map((c): DeckItem => {
+      const sub = c.entry_type === 'meal'
+        ? [formatDisplayKcal(calcMealTotals(c.items).kcal), c.items.length > 1 ? `${c.items.length} 样` : c.items[0]?.portion_text ?? ''].filter(Boolean).join(' · ')
+        : c.entry_type === 'workout'
+          ? workoutLine(c)
+          : c.note ?? '';
+      return {
+        key: `card-${c.id}`, cardId: c.id, kind: c.entry_type, time: clock.format(new Date(c.logged_at)), minutes: minutesOf(c.logged_at),
+        title: c.summary_title, sub, pending: Boolean(picks[c.id]),
+      };
+    }),
+    ...day.body_metrics.map((m, i): DeckItem => ({
+      key: `metric-${i}-${m.logged_at}`, kind: 'body_metrics', time: clock.format(new Date(m.logged_at)), minutes: minutesOf(m.logged_at),
+      title: `${m.weight_kg} kg`, sub: m.note || '体重记录', pending: false,
+    })),
+  ].sort((a, b) => a.minutes - b.minutes);
 
-        <main className="fc-ledger-main">
-          <LedgerCards cards={day.entries} picks={picks} />
-          {day.body_metrics.map((m) => (
-            <p key={m.logged_at} className="fc-metric-note">
-              <strong>{m.weight_kg} kg</strong> · {m.note || '体重记录'}
-            </p>
-          ))}
-          <LogScreen ledgerHasRecords={!!(day.entries.length || day.body_metrics.length)} />
-        </main>
+  const meals = day.entries.filter((c) => c.entry_type === 'meal').length;
+  const workouts = day.entries.filter((c) => c.entry_type === 'workout').length;
+  const kcal = day.daily_summary.intake.kcal ?? 0;
+
+  return (
+    <JournalShell active="record" title="今天" today={today} className="is-record is-ledger" hideNav
+      headerAction={<div className="journal-head-actions"><span className="journal-head-label">记录</span></div>}
+      hero={<>
+        <p className="hero-word" aria-hidden="true">今天</p>
+        <BigDate date={today} note={`${meals} 餐 · ${workouts} 次训练`}>
+          {kcal > 0 && <small className="hero-kcal"><b>{Math.round(kcal).toLocaleString('zh-CN')}</b> kcal 摄入</small>}
+        </BigDate>
+      </>}>
+      <LedgerDeck items={items} cards={day.entries} picks={picks} nowMinutes={minutesOf(new Date().toISOString())} />
+      {/* 录入、长按录音和底部导航沿用手账的 LogScreen；空状态由上面的卡片承担 */}
+      <div className="fc ledger-dock-scope">
+        <LogScreen ledgerHasRecords />
       </div>
-    </div>
+    </JournalShell>
   );
 }

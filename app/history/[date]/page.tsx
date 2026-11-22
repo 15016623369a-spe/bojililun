@@ -1,14 +1,17 @@
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import EntryTable from '@/components/EntryTable';
 import ExerciseRecord from '@/components/ExerciseRecord';
-import JournalIcon from '@/components/JournalIcon';
 import JournalShell from '@/components/JournalShell';
-import RecordCards from '@/components/RecordCards';
+import RecordDeck from '@/components/RecordDeck';
+import BigDate from '@/components/ui/BigDate';
+import Icon from '@/components/ui/Icon';
+import SplitNumber from '@/components/ui/SplitNumber';
 import { DEFAULT_TZ, humanDate } from '@/lib/date';
 import { validDate } from '@/lib/period';
 import { recordedJournalForDate } from '@/lib/core/journal';
 import { hasRecordedData, mealNutritionLabel, type JournalMealItem } from '@/lib/journal';
-import { daySessions, sessionTotals } from '@/lib/core/workout';
+import { daySessions, sessionTotals, todayStr } from '@/lib/core/workout';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -26,12 +29,11 @@ export default async function DayPage({ params, searchParams }: {
 }) {
   const { date } = await params;
   if (!validDate(date)) notFound();
-  const { from, period, anchor } = await searchParams;
+  const { from, period } = await searchParams;
   const calendarPeriod = period === 'day' || period === 'week' ? period : 'month';
   const back = from === 'calendar'
     ? { href: `/history/calendar?date=${date}&period=${calendarPeriod}`, label: '月历' }
-    : { href: from === 'review' && (period === 'week' || period === 'month')
-      ? `/history?period=${period}&date=${validDate(anchor) ? anchor : date}` : `/history?period=day&date=${date}`, label: '回顾' };
+    : { href: period === 'month' ? '/review?period=month' : period === 'day' ? '/review?period=day' : '/review', label: '回顾' };
 
   // 组被全部删掉的历史训练不再作为一条空记录展示
   const sessions = daySessions(date).filter(({ sets }) => sets.length > 0);
@@ -64,50 +66,43 @@ export default async function DayPage({ params, searchParams }: {
   const mealLabels = new Set(mealItems.map((item) => item.meal));
   const mealType = mealLabels.size === 1 ? [...mealLabels][0] : undefined;
 
-  return (
-    <JournalShell active="review" title={humanDate(date)} subtitle={date.slice(0, 4) + ' 年'}
-      back={back}>
-      {(sessions.length > 0 || quickWorkouts.length > 0) && <dl className="day-metrics" aria-label="训练摘要">
-        <div><dt>训练容量</dt><dd>{totals.volume.toLocaleString('zh-CN')} <small>kg</small></dd></div>
-        <div><dt>训练时长</dt><dd>{duration} <small>分钟</small></dd></div>
-        <div><dt>完成组数</dt><dd>{totals.sets} <small>组</small></dd></div>
-        <div><dt>训练动作</dt><dd>{movements} <small>个</small></dd></div>
-      </dl>}
+  const mealCount = meals.filter((entry) => !entry.payload?.planned).length;
+  const hasTraining = sessions.length > 0 || quickWorkouts.length > 0;
 
-      <section className="day-panel">
-        <h2 className="day-heading training"><JournalIcon name="training" />训练记录
-          {workoutCount > 0 && <span>{workoutCount} 次</span>}
-        </h2>
-        {sessions.length === 0 && quickWorkouts.length === 0 && <p className="hint">这天没有训练记录。</p>}
+  return (
+    <JournalShell active="review" title={humanDate(date)} back={back} className="is-review is-day"
+      hero={<BigDate date={date} note={`${workoutCount} 次训练 · ${mealCount} 餐`} />}>
+      <RecordDeck entries={entries} isToday={date === todayStr()} emptyHint="这天没有记录" />
+
+      {hasTraining && <section className="v-section">
+        <h2 className="v-section-title">训练</h2>
+        <div className="readouts">
+          <div className="readout lemon"><SplitNumber value={totals.volume} /><span>kg</span><em>训练容量</em></div>
+          <div className="readout"><b className="big-num">{duration}</b><span>分钟</span><em>训练时长</em></div>
+          <div className="readout"><b className="big-num">{totals.sets}</b><span>组</span><em>{movements} 个动作</em></div>
+        </div>
         {sessions.map(({ session, groups, sets }) => (
-          <article className="day-session" id={`session-${session.id}`} key={session.id}>
+          <article className="session-card" id={`session-${session.id}`} key={session.id}>
             <header>
-              <strong>{clock.format(new Date(session.started_at))}{session.ended_at ? ` – ${clock.format(new Date(session.ended_at))}` : ' · 进行中'}</strong>
-              <span>{sets.length} 组</span>
+              <b className="big-num">{clock.format(new Date(session.started_at))}</b>
+              <span>{session.ended_at ? `— ${clock.format(new Date(session.ended_at))}` : '进行中'}</span>
+              <em>{sets.length} 组</em>
             </header>
             {groups.map((group) => <ExerciseRecord group={group} key={group.exercise_id} />)}
           </article>
         ))}
-        {listedQuickWorkouts.length > 0 && <>
-          {sessions.length > 0 && <p className="hint">语音记录 · 数据行已并入今日训练表格</p>}
-          <RecordCards entries={listedQuickWorkouts} />
-        </>}
-      </section>
-
-      <section className="day-panel">
-        <h2 className="day-heading meal"><JournalIcon name="meal" />饮食记录
-          {mealSummary && <span>{mealSummary}</span>}
-        </h2>
-        {meals.length === 0 && <p className="hint">这天没有饮食记录。</p>}
-        {mealItems.length > 0 && <EntryTable payload={{ kind: 'meal', mealType, items: mealItems }} />}
-      </section>
-
-      {quickSleep.length > 0 && <section className="day-panel">
-        <h2 className="day-heading sleep"><JournalIcon name="sleep" />睡眠记录
-          <span>{quickSleep.length} 条</span>
-        </h2>
-        <RecordCards entries={quickSleep} />
+        {sessions.length > 0 && listedQuickWorkouts.length > 0 && <p className="hint">语音记录的数据行已并入训练表格，原句在上方卡片里。</p>}
       </section>}
+
+      {meals.length > 0 && <section className="v-section">
+        <h2 className="v-section-title with-aside">饮食{mealSummary && <span>{mealSummary}</span>}</h2>
+        {mealItems.length > 0 && <div className="table-card"><EntryTable payload={{ kind: 'meal', mealType, items: mealItems }} /></div>}
+      </section>}
+
+      {!hasTraining && meals.length === 0 && quickSleep.length === 0 && entries.length === 0 && <p className="hint center">这天没有训练和饮食记录。</p>}
+      <Link className="v-link-row" href={`/history/calendar?date=${date}&period=${calendarPeriod}`}>
+        <span><Icon name="calendar" size={18} />打开月历</span><Icon name="chevron-right" size={18} />
+      </Link>
     </JournalShell>
   );
 }
