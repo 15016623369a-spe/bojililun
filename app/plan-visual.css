@@ -309,6 +309,10 @@
   -webkit-user-drag: none;
   animation: figure-in .7s var(--ease-out) both;
 }
+.plan-detail-figure[data-variant="female"] img { object-fit: contain; }
+.plan-detail-figure[data-variant="female"]:is([data-pose="legs"], [data-pose="glutes"]) img {
+  height: 73%;
+}
 .plan-detail[data-closing] .plan-detail-figure img { animation: figure-out .3s ease both; }
 
 /* 雾银毛玻璃抽屉：上沿透出点阵与人物，高光压在最上沿 */

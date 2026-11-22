@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } fr
 import { useRouter } from 'next/navigation';
 import JournalIcon from '@/components/JournalIcon';
 import type { MuscleId } from '@/lib/muscles';
+import type { SculptureVariant } from '@/lib/sculpture-groups';
 import type { PlanPose } from '@/lib/plan-poses';
 
 async function countOf(url: string, signal: AbortSignal) {
@@ -13,13 +14,14 @@ async function countOf(url: string, signal: AbortSignal) {
 }
 
 /** 点选肌群后的姿势详情：灰白石膏姿势 + 雾银抽屉（动作库 / 我的动作库 / 开始训练）。 */
-export default function PlanDetail({ muscle, muscleLabel, region, pose, planCount, planDone = false, activeSession, closing, libraryOpen, onOpenLibrary, onClose }: {
+export default function PlanDetail({ muscle, muscleLabel, region, pose, variant, planCount, planDone = false, activeSession, closing, libraryOpen, onOpenLibrary, onClose }: {
   muscle: MuscleId;
   /** 今日计划已全部练完：主按钮改成加练 */
   planDone?: boolean;
   muscleLabel: string;
   region: string;
   pose: PlanPose;
+  variant: SculptureVariant;
   planCount: number;
   activeSession: number | null;
   closing: boolean;
@@ -122,9 +124,9 @@ export default function PlanDetail({ muscle, muscleLabel, region, pose, planCoun
 
       {/* 抽屉上方任意位置点一下就收起，回到点阵人体 */}
       <button type="button" className="plan-detail-backdrop" onClick={onClose} aria-label="收起，回到点选肌群" tabIndex={-1} />
-      <figure className="plan-detail-figure">
+      <figure className="plan-detail-figure" data-variant={variant} data-pose={pose}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`/plan-poses/${pose}.jpg`} alt={`${region}展示姿势`} draggable={false} />
+        <img src={`/plan-poses/${variant === 'female' ? 'female/' : ''}${pose}.jpg`} alt={`${region}展示姿势`} draggable={false} />
       </figure>
 
       <section className="plan-drawer" onPointerDown={onDragStart} onPointerMove={onDragMove}

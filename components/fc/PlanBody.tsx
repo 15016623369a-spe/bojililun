@@ -156,6 +156,7 @@ export default function PlanBody({ variant = 'male', todayPlan, activeSession = 
           muscleLabel={group?.label ?? ''}
           region={PLAN_POSES[pose].label}
           pose={pose}
+          variant={variant}
           planCount={planned.size}
           planDone={Boolean(todayPlan.allDone) && planned.size === todayPlan.exerciseIds.length}
           activeSession={activeSession}

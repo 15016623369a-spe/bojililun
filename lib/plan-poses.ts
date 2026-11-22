@@ -1,6 +1,6 @@
 import type { MuscleId } from './muscles';
 
-/** 计划页点选肌群后展示的石膏姿势图（public/plan-poses/*.jpg）。男女模型共用这一套。 */
+/** 计划页点选肌群后展示的石膏姿势图（public/plan-poses/*.jpg）。女性模型使用 female 子目录中的姿势图。 */
 export type PlanPose = 'chest' | 'back' | 'delts' | 'arms' | 'abs' | 'legs' | 'glutes';
 
 export const PLAN_POSES: Record<PlanPose, { label: string; pose: string }> = {
