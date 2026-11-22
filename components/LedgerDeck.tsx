@@ -33,7 +33,9 @@ const haptic = (ms = 5) => { try { navigator.vibrate?.(ms); } catch { /* iOS 网
  * 记录页的一天（手账数据）：时间刻度上每条记录一根标记，下方横向卡片按时间排开；
  * 选中的手账卡在下面展开 main 原有的卡片编辑（快选、备注、份量重算）。
  */
-export default function LedgerDeck({ items, cards, picks, nowMinutes }: {
+export default function LedgerDeck({ items, cards, picks, nowMinutes, past = false }: {
+  /** 回看过去某天：空状态不提示录入 */
+  past?: boolean;
   items: DeckItem[];
   cards: Card[];
   picks: Record<number, CardPick | null>;
@@ -89,7 +91,7 @@ export default function LedgerDeck({ items, cards, picks, nowMinutes }: {
     });
   }
 
-  return <section className="day-deck ledger-deck" aria-label="今天的记录">
+  return <section className="day-deck ledger-deck" aria-label={past ? '这天的记录' : '今天的记录'}>
     <div className="day-ruler">
       <div className="day-ruler-ticks" aria-hidden="true">
         {Array.from({ length: span / 10 + 1 }, (_, i) => <i key={i} className={i % 6 === 0 ? 'hour' : undefined} />)}
@@ -107,8 +109,8 @@ export default function LedgerDeck({ items, cards, picks, nowMinutes }: {
       {items.length === 0 && <div className="deck-card empty">
         <span className="deck-kind"><Icon name="mic" size={17} />开始记录</span>
         <b className="big-num">--:--</b>
-        <strong>今天还没有记录</strong>
-        <small>长按底部「记录」说一句，或点它打字、拍照。带上组数重量，热量和热区才准。</small>
+        <strong>{past ? '这天没有记录' : '今天还没有记录'}</strong>
+        <small>{past ? '可以在月历里换一天看看。' : '长按底部「记录」说一句，或点它打字、拍照。带上组数重量，热量和热区才准。'}</small>
       </div>}
       {items.map((item, i) => <article key={item.key} className={`deck-card ${item.kind === 'workout' ? 'training' : item.kind === 'meal' ? 'meal' : item.kind === 'body_metrics' ? 'weight' : 'note'}`}
         data-active={i === active || undefined}>

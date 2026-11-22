@@ -2,8 +2,9 @@ import Link from 'next/link';
 import JournalShell from '@/components/JournalShell';
 import Icon from '@/components/ui/Icon';
 import SplitNumber from '@/components/ui/SplitNumber';
-import { journalMarkers } from '@/lib/core/journal';
-import { monthOverview, todayStr } from '@/lib/core/workout';
+import { todayStr } from '@/lib/core/workout';
+import { getDb } from '@/lib/db';
+import { exportJournal } from '@/lib/export';
 import { humanDate } from '@/lib/date';
 import { addDays, monthDays, shiftMonth, validDate } from '@/lib/period';
 
@@ -26,8 +27,14 @@ export default async function CalendarPage({ searchParams }: {
   const last = days[days.length - 1];
   const gridStart = addDays(first.date, -first.weekday);
   const weekCount = Math.ceil((first.weekday + days.length) / 7);
-  const markers = journalMarkers(first.date, last.date);
-  const overview = monthOverview(month);
+  // 月历和日详情都读手账：每天的训练条数、饮食条数和容量
+  const ledger = exportJournal(getDb(), 'local', first.date, last.date < today ? last.date : today);
+  const markers = new Map(ledger.days.map((d) => [d.date, {
+    training: d.entries.filter((e) => e.entry_type === 'workout').length,
+    meal: d.entries.filter((e) => e.entry_type === 'meal').length,
+  }]));
+  const overview = new Map(ledger.days.map((d) => [d.date, { volume: d.daily_summary.totalVolumeKg, sessions: 0 }]));
+  const dayHref = (date: string) => (date === today ? '/log' : `/log?date=${date}`);
   const period = params.period === 'day' || params.period === 'week' ? params.period : 'month';
   const monthLink = (date: string) => `/history/calendar?date=${date}&period=${period}`;
   const previousMonth = shiftMonth(month, -1) + '-01';
@@ -70,7 +77,7 @@ export default async function CalendarPage({ searchParams }: {
               const volume = overview.get(date)?.volume ?? 0;
               const label = [humanDate(date), training || dots ? (volume ? `训练 ${volume} kg` : '有训练') : '', meal ? `${meal} 条饮食` : ''].filter(Boolean).join('，');
               return <td key={weekday}>
-                <Link className="dot-day" href={`/history/${date}?from=calendar&period=${period}`}
+                <Link className="dot-day" href={dayHref(date)}
                   data-selected={date === anchor || undefined} data-today={date === today || undefined} data-future={date > today || undefined}
                   aria-current={date === today ? 'date' : undefined} aria-label={label || `${humanDate(date)}，无记录`}>
                   <span className="dot-day-num">{Number(date.slice(8))}</span>
@@ -98,7 +105,7 @@ export default async function CalendarPage({ searchParams }: {
       <div className="readout lemon"><SplitNumber value={monthVolume} /><span>kg</span><em>本月容量</em></div>
     </div>
 
-    <Link className="v-link-row" href={`/history/${anchor}?from=calendar&period=${period}`}>
+    <Link className="v-link-row" href={dayHref(anchor)}>
       <span><b className="big-num small">{anchor.slice(5, 7)}.{anchor.slice(8)}</b>详情</span><Icon name="chevron-right" size={18} />
     </Link>
     {month !== today.slice(0, 7) && <Link className="v-link-row" href={monthLink(today)}><span>回到本月</span><Icon name="chevron-right" size={18} /></Link>}

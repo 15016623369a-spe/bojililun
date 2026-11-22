@@ -121,6 +121,12 @@ export default function ExerciseSheet({
     {},
   );
   const [toast, setToast] = useState("");
+  // 「我的动作库」里点「从全部动作添加」后切到这块肌肉的全部动作，点一下就收进我的动作库
+  const [browseAll, setBrowseAll] = useState(false);
+  const cart = useRef<HTMLButtonElement>(null);
+  // 刚选中、正在飞进「完成」的那几行：先留在列表里做收起动画，结束后从列表移走
+  const [leaving, setLeaving] = useState<ReadonlySet<string>>(new Set());
+  const pickedNames = useRef<Record<string, string>>({});
   const list = useRef<HTMLDivElement>(null);
   const listScroll = useRef(0);
   const listRequest = useRef<AbortController | null>(null);
@@ -131,7 +137,8 @@ export default function ExerciseSheet({
     steps: "1",
     order: "plan",
   });
-  if (preference) query.set("preference", preference);
+  const listPreference = preference && !browseAll ? preference : undefined;
+  if (listPreference) query.set("preference", listPreference);
   for (const equipment of FILTERS.find((item) => item.key === filter)?.equip ??
     []) {
     query.append("equipment", equipment);
@@ -151,7 +158,74 @@ export default function ExerciseSheet({
     listScroll.current = 0;
     setFilter("all");
     setActive(null);
+    setBrowseAll(false);
   }, [muscle, grouped]);
+
+  /** 选中时整行卡片缩小、沿弧线被丢进底部「完成」按钮，按钮弹一下，像把商品丢进购物车 */
+  function flyToCart(row: HTMLElement | null) {
+    const to = cart.current;
+    if (!row || !to || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const a = row.getBoundingClientRect();
+    const b = to.getBoundingClientRect();
+    const ghost = row.cloneNode(true) as HTMLElement;
+    ghost.classList.add("cart-ghost-row");
+    ghost.removeAttribute("data-leaving");
+    Object.assign(ghost.style, { left: `${a.left}px`, top: `${a.top}px`, width: `${a.width}px`, height: `${a.height}px` });
+    document.body.appendChild(ghost);
+    const dx = b.left + b.width / 2 - (a.left + a.width / 2);
+    const dy = b.top + b.height / 2 - (a.top + a.height / 2);
+    const flight = ghost.animate([
+      { transform: "translate(0, 0) scale(1)", opacity: 1, borderRadius: "16px" },
+      { transform: "translate(0, -6px) scale(.94)", opacity: 1, borderRadius: "20px", offset: 0.18 },
+      { transform: `translate(${dx * 0.5}px, ${dy * 0.5 - 70}px) scale(.42) rotate(-4deg)`, opacity: 1, borderRadius: "28px", offset: 0.58 },
+      { transform: `translate(${dx}px, ${dy}px) scale(.06) rotate(3deg)`, opacity: 0.2, borderRadius: "40px" },
+    ], { duration: 680, easing: "cubic-bezier(.45, 0, .3, 1)" });
+    flight.onfinish = () => {
+      ghost.remove();
+      to.animate([{ transform: "scale(1)" }, { transform: "scale(1.05)" }, { transform: "scale(.98)" }, { transform: "scale(1)" }], { duration: 360, easing: "ease-out" });
+    };
+  }
+
+  async function setLiked(item: DictItem, liked: boolean) {
+    const res = await fetch("/api/exercise-preferences", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ exerciseId: item.id, preference: liked ? "liked" : null }),
+    });
+    if (!res.ok) throw new Error();
+    setData((current) => current && {
+      ...current,
+      total: liked || browseAll ? current.total : Math.max(0, current.total - 1),
+      items: liked || browseAll
+        ? current.items.map((x) => (x.id === item.id ? { ...x, preference: liked ? "liked" : null } : x))
+        : current.items.filter((x) => x.id !== item.id),
+    });
+  }
+
+  function pick(item: DictItem, row: HTMLElement | null) {
+    if (!selection || selection.saving || selection.planned.has(item.id)) return;
+    const adding = !selection.selected.has(item.id);
+    selection.toggle(item.id);
+    pickedNames.current[item.id] = item.zh_name || item.name;
+    if (adding) {
+      flyToCart(row?.closest<HTMLElement>(".swipe-row") ?? row);
+      setLeaving((current) => new Set(current).add(item.id));
+      window.setTimeout(() => setLeaving((current) => { const next = new Set(current); next.delete(item.id); return next; }), 460);
+    }
+    if (adding && browseAll && item.preference !== "liked") {
+      setLiked(item, true).then(() => setToast(`已收进我的动作库：${item.zh_name || item.name}`)).catch(() => setToast("收藏失败，动作仍已选中"));
+    }
+  }
+
+  async function removeLiked(item: DictItem) {
+    try {
+      await setLiked(item, false);
+      if (selection?.selected.has(item.id)) selection.toggle(item.id);
+      setToast(`已移出我的动作库：${item.zh_name || item.name}`);
+    } catch {
+      setToast("移出失败，请重试");
+    }
+  }
 
   useEffect(() => {
     if (!muscle) return;
@@ -269,7 +343,7 @@ export default function ExerciseSheet({
     : def
       ? `${def.region}·${def.label}`
       : undefined;
-  const title = preference && base ? `${base} · 我的动作库` : base;
+  const title = preference && base ? `${base} · ${browseAll ? "全部动作" : "我的动作库"}` : base;
 
   return (
     <>
@@ -418,6 +492,7 @@ export default function ExerciseSheet({
             <>
               <div className="fc-dict-head">
                 <div>
+                  {browseAll && <button type="button" className="fc-dict-back mine-back" onClick={() => setBrowseAll(false)}>‹ 我的动作库</button>}
                   <div className="fc-dict-title">
                     {title ?? "这块肌肉"}
                     <span className="fc-dict-count">
@@ -425,7 +500,9 @@ export default function ExerciseSheet({
                     </span>
                   </div>
                   <div className="fc-dict-note">
-                    {selection ? "点动作加入或取消选择" : "点动作看动图与要点"}
+                    {!selection ? "点动作看动图与要点"
+                      : browseAll ? "点一下收进我的动作库并选中，左滑看详情"
+                        : preference ? "点动作选中，左滑看详情或移出" : "点动作选中，左滑看详情"}
                   </div>
                 </div>
                 <button
@@ -497,40 +574,49 @@ export default function ExerciseSheet({
                         </button>
                       );
 
+                    const mine = Boolean(preference) && !browseAll;
+                    // 选中的动作已经「丢进」完成按钮，列表里不再显示；已在计划的照常显示为不可选
+                    if (!planned && selection.selected.has(it.id) && !leaving.has(it.id)) return null;
                     return (
-                      <div
-                        className="fc-dict-select-row"
-                        data-selected={selected}
+                      <SwipeRow
                         key={it.id}
+                        leaving={leaving.has(it.id)}
+                        selected={Boolean(selected)}
+                        actions={<>
+                          <button type="button" className="swipe-act info" onClick={() => showDetails(it)}>
+                            <JournalIcon name="book" /><span>详情</span>
+                          </button>
+                          {mine && <button type="button" className="swipe-act remove" onClick={() => void removeLiked(it)}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true"><path d="M5 7h14M10 11v6m4-6v6M8 7l1-3h6l1 3m-9 0 1 13h8l1-13" /></svg>
+                            <span>移出</span>
+                          </button>}
+                        </>}
+                        width={mine ? 148 : 78}
                       >
                         <button
                           type="button"
                           className="fc-dict-item"
                           aria-pressed={selected}
                           disabled={selection.saving || planned}
-                          onClick={() => selection.toggle(it.id)}
+                          onClick={(event) => pick(it, event.currentTarget)}
                         >
                           {preview}
                           {planned && (
                             <span className="fc-dict-planned">已在计划</span>
                           )}
                         </button>
-                        <button
-                          type="button"
-                          className="fc-dict-explain"
-                          aria-label={`讲解：${name}`}
-                          title="动作讲解"
-                          onClick={() => showDetails(it)}
-                        >
-                          <JournalIcon name="book" />
-                        </button>
-                      </div>
+                      </SwipeRow>
                     );
                   })}
+                {!busyList && preference && !browseAll && selection && (
+                  <button type="button" className="dict-add-all" onClick={() => { listScroll.current = 0; setBrowseAll(true); }}>
+                    <span aria-hidden="true">+</span>从全部动作添加<small>点一下就收进我的动作库</small>
+                  </button>
+                )}
                 {!busyList && !listError && items.length === 0 && (
                   <p className="fc-note">
-                    {preference ? (
-                      <>
+                    {preference && !browseAll ? (
+                      selection ? "这一块还没有收藏的动作，从下面的全部动作里挑。" : <>
                         这一块还没有常练动作。可以在
                         <a href="/me/exercises">「我的 · 动作偏好」</a>里标记。
                       </>
@@ -566,24 +652,34 @@ export default function ExerciseSheet({
               </div>
               {selection && (
                 <div className="fc-dict-actions">
+                  {selection.selected.size > 0 && (
+                    <div className="cart-tray" aria-label="已选动作">
+                      {[...selection.selected].map((id) => {
+                        const name = pickedNames.current[id] ?? items.find((x) => x.id === id)?.zh_name ?? "已选动作";
+                        return <button key={id} type="button" className="cart-chip" onClick={() => selection.toggle(id)} aria-label={`取消选择${name}`}>
+                          {name}<span aria-hidden="true">×</span>
+                        </button>;
+                      })}
+                    </div>
+                  )}
                   {selection.error && (
                     <p className="fc-note" role="alert">
                       {selection.error}
                     </p>
                   )}
                   <button
+                    ref={cart}
                     type="button"
-                    className="fc-btn primary"
+                    className="fc-btn primary cart-btn"
                     disabled={selection.saving || selection.selected.size === 0}
                     onClick={async () => {
                       if (await selection.complete()) onClose();
                     }}
                   >
-                    {selection.saving
-                      ? "保存中…"
-                      : selection.selected.size
-                        ? `完成（${selection.selected.size}）`
-                        : "完成"}
+                    {selection.saving ? "保存中…" : "完成"}
+                    {!selection.saving && selection.selected.size > 0 && (
+                      <span className="cart-count" key={selection.selected.size}>{selection.selected.size}</span>
+                    )}
                   </button>
                 </div>
               )}
@@ -599,4 +695,58 @@ export default function ExerciseSheet({
       {toast && <div className="fc-toast">{toast}</div>}
     </>
   );
+}
+
+/** 左滑露出操作：横向拖动超过一半就停在打开位置；打开时点前景先收回，不触发选中 */
+function SwipeRow({ children, actions, width, selected, leaving = false }: {
+  leaving?: boolean;
+  children: React.ReactNode;
+  actions: React.ReactNode;
+  width: number;
+  selected: boolean;
+}) {
+  const [x, setX] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const start = useRef<{ x: number; y: number; base: number; id: number; axis?: "x" | "y" } | null>(null);
+  const swallow = useRef(false);
+
+  function down(event: React.PointerEvent<HTMLDivElement>) {
+    start.current = { x: event.clientX, y: event.clientY, base: x, id: event.pointerId };
+  }
+  function move(event: React.PointerEvent<HTMLDivElement>) {
+    const s = start.current;
+    if (!s || s.id !== event.pointerId) return;
+    const dx = event.clientX - s.x, dy = event.clientY - s.y;
+    if (!s.axis) {
+      if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) { s.axis = "x"; event.currentTarget.setPointerCapture(event.pointerId); setDragging(true); }
+      else if (Math.abs(dy) > 8) s.axis = "y";
+    }
+    if (s.axis === "x") setX(Math.max(-width - 28, Math.min(0, s.base + dx)));
+  }
+  function up(event: React.PointerEvent<HTMLDivElement>) {
+    const s = start.current;
+    if (!s || s.id !== event.pointerId) return;
+    start.current = null;
+    if (s.axis === "x") {
+      swallow.current = true;
+      setDragging(false);
+      setX((value) => (value < -width / 2 ? -width : 0));
+    }
+  }
+  function clickCapture(event: React.MouseEvent) {
+    if (swallow.current || x !== 0) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!swallow.current) setX(0);
+    }
+    swallow.current = false;
+  }
+
+  return <div className="fc-dict-select-row swipe-row" data-selected={selected} data-open={x !== 0 || undefined} data-leaving={leaving || undefined}>
+    <div className="swipe-actions" style={{ width }} onClick={() => setX(0)}>{actions}</div>
+    <div className="swipe-front" data-dragging={dragging || undefined} style={{ transform: `translateX(${x}px)` }}
+      onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onClickCapture={clickCapture}>
+      {children}
+    </div>
+  </div>;
 }

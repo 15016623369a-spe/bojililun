@@ -128,15 +128,16 @@ function clamp(value: unknown, min: number, max: number, fallback: number): numb
   return Number.isFinite(number) ? Math.min(max, Math.max(min, number)) : fallback;
 }
 
-export function addPlanExercises(date: string, exercises: ExerciseRow[]): PlanItem[] {
+export function addPlanExercises(date: string, exercises: ExerciseRow[], supplemental = false): PlanItem[] {
   const db = getDb();
   db.exec('BEGIN IMMEDIATE');
   try {
     if (date !== todayStr()) throw new Error('日期已变化，请刷新今日计划后再选择');
-    const existing = new Set(getPlan(date).map((item) => item.exercise_id));
+    // 加练可以再练一次今天已经练完的动作，只跳过还没练的重复项
+    const existing = new Set(getPlan(date).filter((item) => !supplemental || !item.done).map((item) => item.exercise_id));
     for (const exercise of exercises) {
       if (existing.has(exercise.id)) continue;
-      addPlanItem(exercise, { date });
+      addPlanItem(exercise, { date, supplemental });
       existing.add(exercise.id);
     }
     const items = getPlan(date);
@@ -183,6 +184,31 @@ export function activeTraining(): SessionRow | null {
   return row ? plain(row) : null;
 }
 
+/**
+ * 真正还在进行的训练：开着的那一节里还有没练完的计划动作。
+ * 队列里的动作都练完了、只是没点「结束训练」的那一节不算，返回 null。
+ */
+export function liveTraining(): { session: SessionRow; next: { name: string; setsLeft: number } } | null {
+  const active = activeTraining();
+  if (!active) return null;
+  const db = getDb();
+  for (const item of sessionPlan(active)) {
+    const row = db.prepare('SELECT done, sets FROM plan_item WHERE id = ?').get(item.id) as { done: number; sets: number } | undefined;
+    if (!row || row.done) continue;
+    const logged = (db.prepare('SELECT COUNT(*) AS n FROM session_set WHERE session_id = ? AND plan_item_id = ?').get(active.id, item.id) as { n: number }).n;
+    return { session: active, next: { name: item.name, setsLeft: Math.max(1, row.sets - logged) } };
+  }
+  return null;
+}
+
+/** 把「队列都练完、但没点结束」的那一节收尾：结束时间取最后一组的时间 */
+function closeFinishedTraining() {
+  const active = activeTraining();
+  if (!active || liveTraining()) return;
+  getDb().prepare(`UPDATE session SET ended_at = COALESCE((SELECT MAX(created_at) FROM session_set WHERE session_id = ?), started_at)
+    WHERE id = ? AND ended_at IS NULL`).run(active.id, active.id);
+}
+
 export function sessionPlan(session: SessionRow): PlanItem[] {
   return session.plan_json ? JSON.parse(session.plan_json) as PlanItem[] : getPlan(session.date);
 }
@@ -199,6 +225,7 @@ export function startSession({
   const db = getDb();
   db.exec('BEGIN IMMEDIATE');
   try {
+    if (guided || supplemental) closeFinishedTraining();
     const active = guided || supplemental ? activeTraining() : null;
     if (active) {
       if (supplemental) throw new Error('已有训练进行中，请先完成该节训练');
@@ -524,6 +551,28 @@ export function primaryMuscleActivity(start: string, end: string) {
     activity.push({ id, date: row.date, sessionId: row.sessionId, volume: row.volume, sets: row.sets, seconds: row.seconds });
   }
   return activity;
+}
+
+/** 本期每个动作（按动作 id）归入的主要肌群，判定与 primaryMuscleActivity 相同；统计页用它把动作表现挂到肌群下。 */
+export function exercisePrimaryMuscles(start: string, end: string): Record<string, MuscleId> {
+  const rows = getDb().prepare(`
+    SELECT DISTINCT s.exercise_id AS id, COALESCE(NULLIF(e.name, ''), s.exercise_name) AS name,
+      COALESCE(NULLIF(e.target, ''), s.target) AS target,
+      COALESCE(NULLIF(e.body_part, ''), s.body_part) AS body_part, s.exercise_name AS zh
+    FROM session_set s JOIN session se ON se.id = s.session_id
+    LEFT JOIN exercise e ON e.id = s.exercise_id
+    WHERE se.date BETWEEN ? AND ?
+  `).all(start, end) as { id: string; name: string; target: string; body_part: string; zh: string }[];
+  const out: Record<string, MuscleId> = {};
+  for (const row of rows) {
+    const matches = MUSCLES.filter((muscle) => muscleMatchesExercise(muscle, row));
+    const candidates = idsForTarget(row.target);
+    const id = matches.find((muscle) => muscle.include)?.id ?? matches[0]?.id
+      ?? (candidates.includes('delt_side') ? 'delt_side' : candidates[0])
+      ?? mentionedMuscles(row.zh)[0];
+    if (id && !out[row.id]) out[row.id] = id;
+  }
+  return out;
 }
 
 /** Same session/date scope as muscleStats, including zero-weight recorded sets. */

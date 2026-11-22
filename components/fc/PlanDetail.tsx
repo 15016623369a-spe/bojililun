@@ -14,14 +14,19 @@ async function countOf(url: string, signal: AbortSignal) {
 }
 
 /** 点选肌群后的姿势详情：灰白石膏姿势 + 雾银抽屉（动作库 / 我的动作库 / 开始训练）。 */
-export default function PlanDetail({ muscle, muscleLabel, region, pose, variant, planCount, activeSession, closing, libraryOpen, onOpenLibrary, onClose }: {
+export default function PlanDetail({ muscle, muscleLabel, region, pose, variant, planCount, planDone = false, extra = false, activeSession, activeMeta, closing, libraryOpen, onOpenLibrary, onClose }: {
   muscle: MuscleId;
+  /** 今日计划已全部练完：主按钮改成加练 */
+  planDone?: boolean;
+  /** 加练：主按钮直接打开动作库挑动作 */
+  extra?: boolean;
   muscleLabel: string;
   region: string;
   pose: PlanPose;
   variant: SculptureVariant;
   planCount: number;
   activeSession: number | null;
+  activeMeta?: string;
   closing: boolean;
   /** 动作库抽屉开着时，Esc 交给抽屉处理 */
   libraryOpen: boolean;
@@ -81,7 +86,9 @@ export default function PlanDetail({ muscle, muscleLabel, region, pose, variant,
   async function start() {
     if (starting) return;
     if (activeSession) { router.push(`/train/${activeSession}`); return; }
-    if (planCount === 0) { onOpenLibrary('all'); return; }
+    if (planDone) { router.push('/train/extra'); return; }
+    if (extra) { onOpenLibrary('liked'); return; }
+    if (planCount === 0) { onOpenLibrary('liked'); return; }
     setStarting(true);
     setError('');
     try {
@@ -101,7 +108,8 @@ export default function PlanDetail({ muscle, muscleLabel, region, pose, variant,
   }
 
   const count = (n?: number) => (n === undefined ? '' : `${n} 个`);
-  const startMeta = activeSession ? '继续上一节' : planCount ? `今日 ${planCount} 个动作` : '先挑动作';
+  const startMeta = activeSession ? activeMeta ?? '回到正在进行的训练' : extra ? '加入今日计划' : planDone ? '今日计划已完成' : planCount ? `今日 ${planCount} 个动作` : '先挑动作';
+  const startLabel = activeSession ? '继续训练' : extra ? '挑加练动作' : planDone ? '再加一组' : '开始训练';
 
   return (
     <div className="plan-detail" data-closing={closing || undefined} data-dragging={drag.live || undefined}
@@ -118,6 +126,8 @@ export default function PlanDetail({ muscle, muscleLabel, region, pose, variant,
         </div>
       </header>
 
+      {/* 抽屉上方任意位置点一下就收起，回到点阵人体 */}
+      <button type="button" className="plan-detail-backdrop" onClick={onClose} aria-label="收起，回到点选肌群" tabIndex={-1} />
       <figure className="plan-detail-figure" data-variant={variant} data-pose={pose}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={`/plan-poses/${variant === 'female' ? 'female/' : ''}${pose}.jpg`} alt={`${region}展示姿势`} draggable={false} />
@@ -129,11 +139,6 @@ export default function PlanDetail({ muscle, muscleLabel, region, pose, variant,
         <p className="plan-kicker"><i aria-hidden="true" />已选部位 · {region}</p>
         <h2 className="plan-drawer-title">{muscleLabel}</h2>
         <div className="plan-drawer-rows">
-          <button type="button" onClick={() => onOpenLibrary('all')}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" /></svg>
-            <span>动作库</span><small>{count(counts.all)}</small>
-            <svg className="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
-          </button>
           <button type="button" onClick={() => onOpenLibrary('liked')}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true"><path d="M7 4h10v16l-5-4-5 4Z" /></svg>
             <span>我的动作库</span><small>{count(counts.liked)}</small>
@@ -142,7 +147,7 @@ export default function PlanDetail({ muscle, muscleLabel, region, pose, variant,
         </div>
         {error && <p className="plan-error" role="alert">{error}</p>}
         <button type="button" className="plan-start" onClick={() => void start()} disabled={starting}>
-          <span>{starting ? '正在开始…' : '开始训练'}</span>
+          <span>{starting ? '正在开始…' : startLabel}</span>
           <span className="plan-start-meta">{startMeta}
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6" /></svg>
           </span>

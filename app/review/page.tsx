@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import JournalShell from '@/components/JournalShell';
 import LedgerReview, { type HeatGroup, type ReviewDay } from '@/components/LedgerReview';
-import JournalExport from '@/components/fc/JournalExport';
+import ReviewExport from '@/components/ReviewExport';
 import Icon from '@/components/ui/Icon';
 import { type ReviewPeriod } from '@/lib/log';
 import { getDb } from '@/lib/db';
@@ -11,6 +11,9 @@ import { calcMuscleHeatmap, calcWeightTrend } from '@/lib/calculations';
 import { localDay } from '@/lib/ledger';
 import { addDays, periodRange } from '@/lib/period';
 import { getTrainingModelSex } from '@/lib/core/training-profile';
+import { daySessions } from '@/lib/core/workout';
+import { todaySnapshot } from '@/lib/core/meals';
+import { dayExerciseBurn } from '@/lib/exercise-burn';
 import { sculptureGroup, sculptureVariant } from '@/lib/sculpture-groups';
 import type { MuscleId } from '@/lib/muscles';
 
@@ -63,6 +66,7 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
   const byDate = new Map(inRange.map((d) => [d.date, d]));
   const dates: string[] = [];
   for (let d = start; d <= range.end; d = addDays(d, 1)) dates.push(d);
+  const bodyWeight = todaySnapshot().profile?.weight_kg ?? 70;
   const days: ReviewDay[] = dates.map((date) => {
     const d = byDate.get(date);
     const intake = d?.daily_summary.intake;
@@ -82,6 +86,7 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
       estimated: Boolean(intake?.hasEstimates),
       incomplete: Boolean(intake?.incomplete_fields.length),
       weight: d?.body_metrics.at(-1)?.weight_kg ?? null,
+      burn: date > today ? 0 : dayExerciseBurn(daySessions(date).filter((x) => x.sets.length > 0).map((x) => x.session), d?.entries ?? [], bodyWeight).kcal,
     };
   });
   const trainingDays = inRange.filter((d) => d.entries.some((e) => e.entry_type === 'workout')).length;
@@ -96,11 +101,17 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
 
   return (
     <JournalShell active="review" title="回顾" today={today} className="is-review is-ledger-review"
-      headerAction={<Link href="/me" className="head-avatar" aria-label="我的个人资料"><Icon name="user" size={19} /></Link>}
+      headerAction={<div className="head-actions">
+        <ReviewExport today={today} start={start} />
+        <Link href="/me" className="head-avatar" aria-label="我的个人资料"><Icon name="user" size={19} /></Link>
+      </div>}
       hero={<>
         <p className="hero-word" aria-hidden="true">回顾</p>
         <div className="review-range">
-          <span className="range-label">{period === 'day' ? short(today) : `${short(start)} — ${short(range.end)}`}</span>
+          <Link className="range-label range-link" href={`/history/calendar?date=${today}&period=${period}`} aria-label="打开训练月历">
+            {period === 'day' ? short(today) : `${short(start)} — ${short(range.end)}`}
+            <span className="range-cal" aria-hidden="true">{Array.from({ length: 9 }, (_, i) => <i key={i} />)}</span>
+          </Link>
           <nav className="vseg small" aria-label="统计区间">
             {SEGMENTS.map((s) => <Link key={s.key} href={s.key === 'week' ? '/review' : `/review?period=${s.key}`} scroll={false}
               className={period === s.key ? 'on' : undefined} aria-current={period === s.key ? 'page' : undefined}>{s.label}</Link>)}
@@ -108,19 +119,9 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
         </div>
       </>}>
       <LedgerReview key={period} period={period} today={today} days={days} groups={groups} side={side} variant={variant}
-        trainingDays={trainingDays} totalSets={totalSets} weight={weight} />
+        trainingDays={trainingDays} totalSets={totalSets} weight={weight}
+        statsHref={`/stats?period=${period === 'month' ? 'month' : 'week'}`} />
 
-      <nav className="review-links" aria-label="更多">
-        <Link href={`/stats?period=${period === 'month' ? 'month' : 'week'}`}><Icon name="chart" size={18} />训练统计<Icon name="chevron-right" size={18} /></Link>
-        <Link href={`/history/calendar?date=${today}&period=${period}`}><Icon name="calendar" size={18} />训练月历<Icon name="chevron-right" size={18} /></Link>
-        <Link href="/train"><Icon name="list" size={18} />训练计划<Icon name="chevron-right" size={18} /></Link>
-        <Link href="/exercises"><Icon name="book" size={18} />动作库<Icon name="chevron-right" size={18} /></Link>
-      </nav>
-
-      {/* 导出沿用手账的 JournalExport */}
-      <div className="fc ledger-export">
-        <JournalExport today={today} />
-      </div>
     </JournalShell>
   );
 }

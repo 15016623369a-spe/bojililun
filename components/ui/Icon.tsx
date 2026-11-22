@@ -33,6 +33,9 @@ const PATHS = {
   note: 'M5 4h14v16H5zM9 9h6M9 13h6M9 17h3',
   ban: 'M12 20.5a8.5 8.5 0 1 0 0-17 8.5 8.5 0 0 0 0 17ZM6 6l12 12',
   search: 'M10.5 17.5a7 7 0 1 0 0-14 7 7 0 0 0 0 14Zm5-2 5 5',
+  export: 'M12 15V3.5m-4.5 4.5L12 3.5 16.5 8M5 12.5V20h14v-7.5',
+  copy: 'M9 9h11v11H9zM5 15H4V4h11v1',
+  download: 'M12 4v11.5m-4.5-4.5 4.5 4.5 4.5-4.5M5 20h14',
 } as const;
 
 const FILLED = {

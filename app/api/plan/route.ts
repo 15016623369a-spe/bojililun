@@ -19,6 +19,7 @@ export async function POST(req: Request) {
       reps?: number;
       weight?: number;
       restSec?: number;
+      supplemental?: boolean;
     };
     if (body.exerciseIds !== undefined) {
       if (!body.date || !Array.isArray(body.exerciseIds) || body.exerciseIds.length === 0) {
@@ -30,7 +31,7 @@ export async function POST(req: Request) {
         if (!exercise) throw new Error('动作不存在');
         return exercise;
       });
-      return NextResponse.json({ items: addPlanExercises(body.date, exercises) });
+      return NextResponse.json({ items: addPlanExercises(body.date, exercises, body.supplemental === true) });
     }
     if (!body.exerciseId) return NextResponse.json({ error: '缺少 exerciseId' }, { status: 400 });
     const ex = getExercise(body.exerciseId);

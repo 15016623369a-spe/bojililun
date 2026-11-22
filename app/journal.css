@@ -39,14 +39,14 @@
 .journal-date:has(small) { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 5px 12px; }
 .journal-date small { color: #7d7c75; font-size: 12px; }
 
-.pending-plan { padding: 10px 12px; margin: 0 0 18px; border: 1px dashed #dcd8cf; border-radius: 16px; }
+.pending-plan { padding: 10px 12px; margin: 0 0 18px; border: 1px dashed var(--dk-line, #dcd8cf); border-radius: 16px; }
 .pending-plan-head { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--quiet); }
 .pending-plan-head b { color: var(--forest); }
 .pending-plan-head button { margin-left: auto; padding: 5px; color: inherit; }
 .pending-plan-head a { color: var(--forest); }
 .pending-plan ul { list-style: none; padding: 0; margin: 4px 0 0; }
 .pending-plan li { display: flex; gap: 8px; align-items: center; min-height: 40px; }
-.pending-plan li + li { border-top: 1px solid #eae6df; }
+.pending-plan li + li { border-top: 1px solid var(--dk-card, #eae6df); }
 .plan-check { flex: 0 0 auto; width: 36px; height: 36px; display: grid; place-items: center; position: relative; color: var(--forest); }
 .plan-check::before { content: ''; width: 21px; height: 21px; border: 1px solid #91a698; border-radius: 50%; grid-area: 1 / 1; }
 .plan-check[aria-pressed=true]::before { background: var(--forest); border-color: var(--forest); }
@@ -58,7 +58,7 @@
 .pending-plan-item > span { color: var(--quiet); font-size: 18px; }
 
 .record-cards { position: relative; list-style: none; padding: 0 0 0 24px; margin: 16px 0 22px; }
-.record-cards::before { content: ''; position: absolute; inset: 19px auto 24px 5px; width: 1px; background: #e3ded5; }
+.record-cards::before { content: ''; position: absolute; inset: 19px auto 24px 5px; width: 1px; background: var(--dk-card, #e3ded5); }
 .record-card-row { --record-accent: var(--quiet); position: relative; margin: 0 0 10px; }
 .record-card-row.meal { --record-accent: #a65018; }
 .record-card-row.training { --record-accent: #155641; }
@@ -69,7 +69,7 @@
 }
 .record-card {
   display: grid; gap: 3px; width: 100%; text-align: left; cursor: pointer;
-  padding: 11px 13px; background: #fff; border: 1px solid #eae6df; border-radius: 13px;
+  padding: 11px 13px; background: #fff; border: 1px solid var(--dk-card, #eae6df); border-radius: 13px;
   color: var(--ink); overflow-wrap: anywhere;
 }
 .record-card:hover { border-color: #d6d0c5; }
@@ -79,7 +79,7 @@
 .record-card-sub { font-size: 12px; line-height: 1.45; color: var(--quiet); }
 .record-fresh-actions { display: flex; gap: 8px; justify-content: flex-end; align-items: center; margin: 0 5px; color: var(--quiet); }
 .record-fresh-actions button { padding: 6px 4px; font-size: 12px; }
-.record-fresh-actions button + button::before { content: '|'; margin-right: 11px; color: #c9c4bb; }
+.record-fresh-actions button + button::before { content: '|'; margin-right: 11px; color: var(--dk-line, #c9c4bb); }
 .journal-dialog.record-editor {
   position: fixed; inset: auto 0 0; margin: 0 auto; width: min(560px, 100%); max-width: 100%;
   min-height: min(32dvh, 260px); max-height: 64dvh; overflow-y: auto;
@@ -88,7 +88,7 @@
 .record-editor .entry-table-wrap { margin: 14px 0; }
 .record-edit-text { margin: 13px 0 0; display: grid; gap: 9px; justify-items: end; }
 .record-edit-text label { display: grid; gap: 5px; width: 100%; color: var(--quiet); font-size: 13px; }
-.record-edit-text textarea { min-height: 84px; width: 100%; resize: vertical; padding: 9px; border: 1px solid #eae6df; border-radius: 9px; color: var(--ink); font: inherit; }
+.record-edit-text textarea { min-height: 84px; width: 100%; resize: vertical; padding: 9px; border: 1px solid var(--dk-card, #eae6df); border-radius: 9px; color: var(--ink); font: inherit; }
 .record-delete { display: flex; justify-content: flex-end; gap: 12px; margin-top: 12px; }
 .record-delete button { min-height: 36px; color: #8b3026; font-size: 13px; }
 .record-delete button:nth-last-child(2) { color: var(--quiet); }
@@ -305,11 +305,11 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
 .journal-dialog > .journal-primary { width: 100%; }
 .queue-confirm-actions { display: flex; justify-content: flex-end; align-items: center; gap: 16px; margin-top: 18px; }
 .queue-confirm-actions .journal-primary { min-width: 92px; }
-.journal-shell .body-canvas { height: clamp(335px, 54dvh, 520px); background: radial-gradient(ellipse at center, #faf9f4, #ebeae0); }
+.journal-shell .body-canvas { height: clamp(335px, 54dvh, 520px); background: radial-gradient(ellipse at center, var(--dk-card, #faf9f4), var(--dk-card, #ebeae0)); }
 .journal-shell .body-hint, .journal-shell .body-rotate { background: #faf8f3e8; font-size: 11px; }
 .journal-shell .body-loading { background: #f2f0e780; }
 .journal-shell .ms-sheet { color: var(--ink); }
-.journal-shell .ms-row img { background: #ecece4; }
+.journal-shell .ms-row img { background: var(--dk-card, #ecece4); }
 .muscle-fallback summary { color: var(--forest); cursor: pointer; font-size: 13px; padding: 6px; }
 .muscle-options { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; margin: 8px 0; font-size: 13px; }
 .muscle-options span { min-width: 30px; color: var(--quiet); }
@@ -318,7 +318,7 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
 .plan-config .journal-primary { width: 100%; }
 .run-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
 .run-fields label { display: grid; gap: 5px; color: var(--quiet); font-size: 13px; }
-.run-fields input { color: var(--ink); border-color: var(--hairline); background: #fffefa; font-size: 16px; }
+.run-fields input { color: var(--ink); border-color: var(--hairline); background: var(--dk-card, #fffefa); font-size: 16px; }
 .runner-top { color: var(--quiet); font-size: 13px; }
 .run-content { text-align: center; padding-top: 28px; }
 .run-content h1 { font-size: clamp(27px, 7vw, 37px); }
@@ -338,14 +338,14 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
 .review-day { border-top: 1px solid var(--hairline); padding-top: 5px; }
 .review-day h2 { font-size: 16px; margin: 12px 0; }
 .review-day .journal-timeline { margin-top: 10px; }
-.review-category { border: 1px solid var(--hairline); border-radius: 14px; padding: 2px 14px 0; margin: 0 0 12px; background: rgb(255 255 255 / 32%); }
+.review-category { border: 1px solid var(--hairline); border-radius: 14px; padding: 2px 14px 0; margin: 0 0 12px; background: rgb(var(--dk-lift-rgb, 255 255 255) / calc(32% * var(--dk-lift-k, 1))); }
 .review-category > h3 { display: flex; align-items: center; justify-content: space-between; margin: 10px 0 2px; font-size: 14px; color: var(--forest); }
 .review-category.meal > h3 { color: var(--meal); }
 .review-category.sleep > h3 { color: #675a86; }
 .review-category.note > h3 { color: var(--quiet); }
 .review-category > h3 span { font-size: 12px; font-weight: 500; color: var(--quiet); }
 @media (min-width: 620px) {
-  .journal-shell { border-inline: 1px solid #dddbd1; }
+  .journal-shell { border-inline: 1px solid var(--dk-line, #dddbd1); }
   .journal-head, .journal-content { padding-inline: 28px; }
 }
 
@@ -587,7 +587,7 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
   font-weight: 550;
 }
 .calendar-grid td { padding: 4px 1px; text-align: center; vertical-align: top; }
-.calendar-grid tbody tr + tr td { border-top: 1px solid #edece4; }
+.calendar-grid tbody tr + tr td { border-top: 1px solid var(--dk-card, #edece4); }
 .calendar-day, .calendar-outside {
   display: flex;
   flex-direction: column;
@@ -614,7 +614,7 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
   height: 15px;
   border-radius: 5px;
 }
-.calendar-marker.training { color: var(--forest); background: #e1ece1; }
+.calendar-marker.training { color: var(--forest); background: var(--dk-card, #e1ece1); }
 .calendar-marker.meal { color: var(--meal); background: #f5e8d9; }
 .calendar-marker svg { width: 12px; height: 12px; }
 .calendar-legend {
@@ -733,7 +733,7 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
   grid-template-columns: 1fr auto;
   gap: 4px;
   padding: 8px 10px;
-  background: #fffefa;
+  background: var(--dk-card, #fffefa);
   border: 1px solid var(--hairline);
   border-radius: 11px;
 }
@@ -763,7 +763,7 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
 }
 .runner-actions > .journal-quiet { min-height: 37px; font-size: 12px; text-underline-offset: 3px; }
 @media (min-width: 620px) {
-  .runner-actions { padding-inline: 28px; border-inline: 1px solid #dddbd1; }
+  .runner-actions { padding-inline: 28px; border-inline: 1px solid var(--dk-line, #dddbd1); }
 }
 
 .athlete-stage { position: absolute; inset: 0; }
@@ -978,7 +978,7 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
 .review-overview-metrics dd { font-size: clamp(17px, 4.5vw, 24px); }
 .review-overview-metrics dd small { font-size: .65em; }
 .review-heat-legend { display: flex; justify-content: center; align-items: center; gap: 6px; margin: 10px 0 20px; color: var(--quiet); font-size: 11px; }
-.review-heat-legend i { width: 19px; height: 9px; border-radius: 2px; background: #deddd4; }
+.review-heat-legend i { width: 19px; height: 9px; border-radius: 2px; background: var(--dk-card, #deddd4); }
 .review-heat-legend i:nth-of-type(2) { background: #b3c3a7; }
 .review-heat-legend i:nth-of-type(3) { background: #729778; }
 .review-heat-legend i:nth-of-type(4) { background: #2f6a45; }
@@ -990,7 +990,7 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
 .exercise-performance-card-label small { color: var(--quiet); font-size: 12px; }
 .exercise-performance-chevron { margin: 0 4px 0 auto; width: 8px; height: 8px; flex: none; border: solid var(--forest); border-width: 0 2px 2px 0; transform: rotate(45deg); }
 .exercise-performance-card[data-expanded="true"] .exercise-performance-intro,
-.exercise-progress-panel, .exercise-progress-same { padding: 14px; border: 1px solid var(--line); background: #fbfaf6; }
+.exercise-progress-panel, .exercise-progress-same { padding: 14px; border: 1px solid var(--line); background: var(--dk-card, #fbfaf6); }
 .exercise-performance-card[data-expanded="true"] .exercise-performance-intro { border-bottom: 0; border-radius: 18px 18px 0 0; }
 .exercise-performance-card[data-expanded="true"] .exercise-performance-name { font-size: 19px; letter-spacing: -.025em; }
 .exercise-performance-card[data-expanded="true"] .exercise-performance-thumb { width: 52px; height: 52px; border-radius: 12px; }
@@ -1007,10 +1007,10 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
 .exercise-progress-chart { position: relative; height: 113px; }
 .exercise-progress-chart svg { display: block; width: 100%; height: 100%; }
 .exercise-progress-gridlines { fill: none; stroke: var(--line); vector-effect: non-scaling-stroke; }
-.exercise-progress-area { fill: #e1eddf; }
+.exercise-progress-area { fill: var(--dk-card, #e1eddf); }
 .exercise-progress-line { fill: none; stroke: var(--forest); stroke-width: 2.5; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .exercise-progress-point { position: absolute; width: 24px; height: 24px; padding: 0; transform: translate(-50%, -50%); border: 0; background: transparent; cursor: pointer; }
-.exercise-progress-point::after { content: ""; display: block; width: 9px; height: 9px; margin: auto; border: 2px solid var(--forest); border-radius: 50%; background: #fbfaf6; }
+.exercise-progress-point::after { content: ""; display: block; width: 9px; height: 9px; margin: auto; border: 2px solid var(--forest); border-radius: 50%; background: var(--dk-card, #fbfaf6); }
 .exercise-progress-point[aria-pressed="true"]::after { background: var(--forest); width: 11px; height: 11px; }
 .exercise-progress-axis { position: relative; height: 18px; font-size: 10px; color: var(--quiet); }
 .exercise-progress-axis span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
@@ -1020,7 +1020,7 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
 .exercise-progress-same h4 { display: flex; justify-content: space-between; gap: 6px; margin: 0 0 6px; font-size: 14px; font-weight: 700; }
 .exercise-progress-weight { display: grid; grid-template-columns: 66px 1fr minmax(47px, auto); align-items: center; gap: 8px; margin-top: 9px; font-size: 11px; color: var(--quiet); }
 .exercise-progress-weight strong { text-align: end; color: var(--forest); }
-.exercise-progress-track, .exercise-progress-track i { display: block; height: 7px; border-radius: 6px; background: #e5e9df; }
+.exercise-progress-track, .exercise-progress-track i { display: block; height: 7px; border-radius: 6px; background: var(--dk-card, #e5e9df); }
 .exercise-progress-track i { background: #82a48b; }
 .exercise-progress-weight:last-child .exercise-progress-track i { background: var(--forest); }
 
@@ -1044,17 +1044,17 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
 .training-profile-onboarding h1 { margin: 20px 0 5px; font-size: clamp(28px, 8vw, 38px); letter-spacing: -.04em; }
 .training-profile-onboarding > p { margin: 0 0 16px; font-size: 13px; }
 .training-profile-dashboard, .training-profile-setup { display: grid; gap: 10px; }
-.training-profile-card { min-width: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 16px; background: #fbfaf6; }
+.training-profile-card { min-width: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 16px; background: var(--dk-card, #fbfaf6); }
 .training-profile-card h2, .training-profile-card legend { margin: 0; font-size: 15px; font-weight: 750; }
 .training-profile-card legend { padding: 0 4px; margin-inline: -4px; }
 .training-profile-card legend small { margin-inline-start: 4px; font-size: 10px; font-weight: 500; color: var(--quiet); }
 .training-profile-onboarding fieldset { margin: 0; padding-top: 8px; }
 .training-profile-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.training-profile-identity { background: linear-gradient(110deg, var(--sage), #fbfaf6 78%); }
+.training-profile-identity { background: linear-gradient(110deg, var(--sage), var(--dk-card, #fbfaf6) 78%); }
 .training-profile-person { display: flex; align-items: center; gap: 11px; min-width: 0; }
 .training-profile-person img { width: 38px; height: 65px; object-fit: contain; flex: none; }
 .training-profile-person h2 { font-size: 18px; overflow-wrap: anywhere; }
-.training-profile-edit { flex: none; padding: 6px 8px; border: 1px solid var(--line); border-radius: 9px; color: var(--forest); background: #fbfaf6; font-size: 11px; font-weight: 700; }
+.training-profile-edit { flex: none; padding: 6px 8px; border: 1px solid var(--line); border-radius: 9px; color: var(--forest); background: var(--dk-card, #fbfaf6); font-size: 11px; font-weight: 700; }
 .training-profile-edit:hover { background: var(--sage); }
 .training-profile-metric { display: block; margin-top: 7px; color: var(--forest); font-size: 24px; letter-spacing: -.035em; font-variant-numeric: tabular-nums; }
 .training-profile-metric small { font-size: 12px; letter-spacing: 0; }
@@ -1075,7 +1075,7 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
 .training-profile-models, .training-profile-options.restriction-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .training-profile-options { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .training-profile-models button, .training-profile-options button {
-  min-height: 35px; padding: 5px; border: 1px solid var(--line); border-radius: 9px; background: #fbfaf6;
+  min-height: 35px; padding: 5px; border: 1px solid var(--line); border-radius: 9px; background: var(--dk-card, #fbfaf6);
   color: var(--ink); font-size: 12px;
 }
 .training-profile-models button[aria-pressed="true"], .training-profile-options button[aria-pressed="true"] { border-color: var(--forest); background: var(--sage); color: var(--forest); font-weight: 750; }
@@ -1085,7 +1085,7 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
 .training-profile-form fieldset { padding: 0; margin: 0; border: 0; min-width: 0; }
 .training-profile-form legend { margin-bottom: 7px; }
 .training-profile-input { display: grid; gap: 3px; margin: 5px 0 7px; font-size: 12px; color: var(--quiet); }
-.training-profile-input input, .training-profile-input textarea { width: 100%; min-width: 0; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: #fbfaf6; color: var(--ink); font: inherit; }
+.training-profile-input input, .training-profile-input textarea { width: 100%; min-width: 0; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--dk-card, #fbfaf6); color: var(--ink); font: inherit; }
 .training-profile-input textarea { resize: vertical; min-height: 55px; }
 .training-profile-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 8px; }
 .training-profile-setup .training-profile-actions { margin-top: 0; }

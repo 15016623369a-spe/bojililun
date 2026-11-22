@@ -7,12 +7,15 @@ import { getExercisePreferences } from '@/lib/core/exercise-preferences';
 import { getTrainingProfile } from '@/lib/core/training-profile';
 import { todayStr } from '@/lib/core/workout';
 import { listMemories } from '@/lib/memory';
+import { cookies } from 'next/headers';
+import ThemeSwitch from '@/components/ThemeSwitch';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const metadata = { title: '我的 · FitCheck' };
 
-export default function MePage() {
+export default async function MePage() {
+  const theme = (await cookies()).get('fc-theme')?.value === 'dark' ? 'dark' : 'light';
   const profile = getTrainingProfile();
   if (profile.needsSetup) redirect('/setup');
   const nutrition = getProfileRow();
@@ -28,5 +31,6 @@ export default function MePage() {
     <TrainingProfileDashboard profile={profile} restrictions={restrictions}
       nutrition={nutrition ? { ...nutrition } : null} today={todayStr()}
       preferences={{ liked: prefs.filter((p) => p === 'liked').length, disliked: prefs.filter((p) => p === 'disliked').length }} />
+    <ThemeSwitch initial={theme} />
   </JournalShell>;
 }

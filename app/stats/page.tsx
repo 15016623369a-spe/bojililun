@@ -4,7 +4,7 @@ import StatsBoard, { type Bucket, type MuscleRow } from '@/components/StatsBoard
 import Icon from '@/components/ui/Icon';
 import { muscleDistribution } from '@/lib/muscle-distribution';
 import { PERIOD_LABEL, addDays, periodRange, type Period } from '@/lib/period';
-import { exercisePerformance, primaryMuscleActivity, todayStr, trainingTimeByDate, trendStats, volumeStats } from '@/lib/core/workout';
+import { exercisePerformance, exercisePrimaryMuscles, primaryMuscleActivity, todayStr, trainingTimeByDate, trendStats, volumeStats } from '@/lib/core/workout';
 import type { MuscleId } from '@/lib/muscles';
 import { getTrainingModelSex } from '@/lib/core/training-profile';
 import { sculptureVariant } from '@/lib/sculpture-groups';
@@ -65,7 +65,7 @@ export default async function StatsPage({ searchParams }: { searchParams: SP }) 
     : period === 'month' ? `${short(r.start)} — ${short(r.end)}` : r.label;
 
   return (
-    <JournalShell active="review" title="训练统计" className="is-review is-stats" hideNav
+    <JournalShell active="review" title="训练统计" className="is-review is-stats"
       headerAction={<div className="journal-head-actions">
         <span className="journal-head-label">训练统计</span>
         <Link className="journal-head-circle" href="/review" aria-label="回到回顾"><Icon name="close" size={16} stroke={2} /></Link>
@@ -73,7 +73,7 @@ export default async function StatsPage({ searchParams }: { searchParams: SP }) 
       hero={<div className="review-range">
         <span className="range-label">{rangeLabel}</span>
         <nav className="vseg small" aria-label="统计周期">
-          {PERIODS.map((p) => <Link key={p} href={`/stats?period=${p}&view=${view}`} data-period-link className={period === p ? 'on' : ''}
+          {PERIODS.map((p) => <Link key={p} href={`/stats?period=${p}`} className={period === p ? 'on' : ''}
             aria-current={period === p ? 'page' : undefined}>{PERIOD_SHORT[p]}</Link>)}
         </nav>
       </div>}>
@@ -84,7 +84,7 @@ export default async function StatsPage({ searchParams }: { searchParams: SP }) 
         totalSeconds={trainingTime.reduce((total, { seconds }) => total + seconds, 0)}
         timedSessions={trainingTime.reduce((total, { sessions }) => total + sessions, 0)}
         muscles={muscles} groups={muscleDistribution(activity, period, r.start, r.end)}
-        exercises={exercisePerformance(r.start, r.end)} variant={sculptureVariant(getTrainingModelSex())} />
+        exercises={exercisePerformance(r.start, r.end)} exerciseMuscles={exercisePrimaryMuscles(r.start, r.end)} variant={sculptureVariant(getTrainingModelSex())} />
     </JournalShell>
   );
 }

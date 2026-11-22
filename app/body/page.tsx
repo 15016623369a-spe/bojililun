@@ -1,8 +1,8 @@
-import Link from 'next/link';
 import JournalShell from '@/components/JournalShell';
 import TabBar from '@/components/fc/TabBar';
+import PlanPill from '@/components/PlanPill';
 import PlanBody from '@/components/fc/PlanBody';
-import { activeTraining, getPlan, todayStr } from '@/lib/core/workout';
+import { getPlan, liveTraining, todayStr } from '@/lib/core/workout';
 import { getTrainingModelSex } from '@/lib/core/training-profile';
 import { sculptureGroup, sculptureVariant, type SculptureVariant } from '@/lib/sculpture-groups';
 
@@ -13,7 +13,8 @@ export default async function BodyPage({ searchParams }: { searchParams: Promise
   const sp = await searchParams;
   const today = todayStr();
   const plan = getPlan(today);
-  const active = activeTraining();
+  const live = liveTraining();
+  const active = live?.session ?? null;
   const forced = sp.body === 'male' || sp.body === 'female' ? (sp.body as SculptureVariant) : null;
   const variant = forced ?? sculptureVariant(getTrainingModelSex());
 
@@ -21,15 +22,9 @@ export default async function BodyPage({ searchParams }: { searchParams: Promise
 
   return (
     <JournalShell active="plan" title="点选肌群" today={today} className="is-plan" navigation={<TabBar active="body" />}
-      headerAction={<div className="journal-head-actions">
-        <span className="journal-head-label">训练计划</span>
-        <Link className="journal-head-circle" href="/train" aria-label={`今日计划，${plan.length} 个动作`}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true"><path d="M9 7h11M9 12h11M9 17h11M4.5 7h.01M4.5 12h.01M4.5 17h.01" /></svg>
-          {plan.length > 0 && <b className="journal-head-badge">{plan.length}</b>}
-        </Link>
-      </div>}>
-      <PlanBody key={today + variant + (initialMuscle ?? '')} variant={variant} initialMuscle={initialMuscle} activeSession={active?.id ?? null}
-        todayPlan={{ date: today, exerciseIds: plan.map((item) => item.exercise_id) }} />
+      hero={<></>} headerAction={<PlanPill total={plan.length} done={plan.filter((item) => item.done === 1).length} live={Boolean(active)} />}>
+      <PlanBody key={today + variant + (initialMuscle ?? '')} variant={variant} initialMuscle={initialMuscle} activeSession={active?.id ?? null} activeMeta={live ? `${live.next.name} · 剩 ${live.next.setsLeft} 组` : undefined}
+        todayPlan={{ date: today, exerciseIds: plan.map((item) => item.exercise_id), allDone: plan.length > 0 && plan.every((item) => item.done === 1) }} />
     </JournalShell>
   );
 }

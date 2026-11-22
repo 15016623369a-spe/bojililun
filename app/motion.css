@@ -1,0 +1,77 @@
+/* ============================================================
+   弹簧动效：换页、底部导航胶囊、可点控件的按压回弹
+   用 linear() 写弹簧曲线；不支持的浏览器退回 --ease-spring
+   ============================================================ */
+
+:root {
+  --spring: var(--ease-spring);
+  --spring-bounce: var(--ease-spring);
+}
+@supports (transition-timing-function: linear(0, 1)) {
+  :root {
+    /* 轻微过冲，用于换页 */
+    --spring: linear(0, 0.006 1.1%, 0.024 2.2%, 0.094 4.5%, 0.393 11.5%, 0.615 17.4%, 0.77 23.1%, 0.878 29%, 0.947 35.3%, 0.988 42.2%, 1.008 50%, 1.015 59.3%, 1.013 71.3%, 1);
+    /* 明显回弹，用于按钮松手、胶囊落位 */
+    --spring-bounce: linear(0, 0.007 1%, 0.029 2%, 0.12 4.2%, 0.503 10.6%, 0.755 15.9%, 0.913 21.2%, 1.014 27.1%, 1.054 31.5%, 1.073 36.4%, 1.072 41.5%, 1.053 47.1%, 1.021 54.3%, 0.999 64.1%, 0.993 75.8%, 1);
+  }
+}
+
+/* 换页：页面主体从导航方向的那一侧滑入。动的是 left，不是 transform，
+   这样页面里 position: fixed 的底栏、录音栏、开始训练按钮不会跟着滑 */
+.page-flow { display: contents; }
+.page-flow[data-shift] .journal-content,
+.page-flow[data-shift] .runner-main,
+.page-flow[data-shift] .runner-dark { position: relative; animation: page-in .62s var(--spring) both; }
+.page-flow[data-shift="1"], .page-flow[data-shift="2"] { --from: 44px; }
+.page-flow[data-shift="-1"], .page-flow[data-shift="-2"] { --from: -44px; }
+.page-flow[data-shift="0"] { --from: 0px; }
+.page-flow[data-shift="0"] .journal-content { animation-name: page-rise; }
+@keyframes page-in { from { left: var(--from, 0px); opacity: .35; } to { left: 0; opacity: 1; } }
+@keyframes page-rise { from { top: 14px; opacity: .4; } to { top: 0; opacity: 1; } }
+.page-flow[data-shift] .journal-content { position: relative; }
+
+/* 底部导航：选中胶囊从上一个位置弹到新位置 */
+.page-flow[data-shift="1"] .fc-tabs .fc-tab.on { animation: pill-from .56s var(--spring-bounce) both; --pill-from: -100%; }
+.page-flow[data-shift="2"] .fc-tabs .fc-tab.on { animation: pill-from .62s var(--spring-bounce) both; --pill-from: -200%; }
+.page-flow[data-shift="-1"] .fc-tabs .fc-tab.on { animation: pill-from .56s var(--spring-bounce) both; --pill-from: 100%; }
+.page-flow[data-shift="-2"] .fc-tabs .fc-tab.on { animation: pill-from .62s var(--spring-bounce) both; --pill-from: 200%; }
+@keyframes pill-from { from { translate: var(--pill-from) 0; } to { translate: 0 0; } }
+
+/* 按压回弹：按下快速收一点，松手带回弹弹回。用 scale 属性，和元素已有的 transform 叠加 */
+:is(
+  .fc-tabs .fc-tab, .ink-btn, .ink-pill, .round, .chip, .ghost-pill, .plan-pill, .head-icon, .head-avatar,
+  .journal-head-circle, .stats-chip, .vseg > a, .vseg > button, .deck-card-body, .plan-drawer-rows button,
+  .plan-start, .fc-btn, .heat-scale-cols button, .review-bar, .callout-label, .export-primary, .export-secondary,
+  .plan-done-toggle, .cart-chip, .swipe-act, .range-step, .range-link, .plan-rotate, .v-row, .heat-stat, .stats-tile,
+  .dot-day, .fc-speak, .fc-record-icon, .dict-add-all, .fc-dict-filters button, .muscle-panel-toggle, .add-row,
+  .plan-item-head, .review-pick, .rm-tabs > button, .ex-list button, .day-mark, .energy-col
+) {
+  transition-property: scale, background-color, color, box-shadow, opacity, transform;
+  transition-duration: .55s, .2s, .2s, .25s, .2s, .45s;
+  transition-timing-function: var(--spring-bounce), ease, ease, ease, ease, var(--ease-out);
+}
+:is(
+  .fc-tabs .fc-tab, .ink-btn, .ink-pill, .round, .chip, .ghost-pill, .plan-pill, .head-icon, .head-avatar,
+  .journal-head-circle, .stats-chip, .vseg > a, .vseg > button, .deck-card-body, .plan-drawer-rows button,
+  .plan-start, .fc-btn, .heat-scale-cols button, .callout-label, .export-primary, .export-secondary,
+  .plan-done-toggle, .cart-chip, .swipe-act, .range-step, .range-link, .plan-rotate, .v-row, .heat-stat, .stats-tile,
+  .dot-day, .fc-record-icon, .dict-add-all, .fc-dict-filters button, .muscle-panel-toggle, .add-row,
+  .review-pick, .rm-tabs > button, .ex-list button
+):active:not(:disabled) {
+  scale: .95;
+  transition-duration: .12s, .1s, .1s, .1s, .1s, .12s;
+  transition-timing-function: ease-out;
+}
+/* 大面积的元素按得轻一点 */
+:is(.ink-btn, .plan-start, .deck-card-body, .v-row, .plan-item-head, .review-pick, .muscle-panel-toggle, .add-row):active:not(:disabled) { scale: .975; }
+.review-bar:active, .energy-col:active, .day-mark:active { scale: .92; transition-duration: .12s; transition-timing-function: ease-out; }
+
+/* 选中态切换也带一点回弹：分段控件、页内胶囊 */
+:is(.vseg > .on, .rm-tabs > .on, .fc-dict-filters button.on) { animation: seg-pop .5s var(--spring-bounce); }
+@keyframes seg-pop { from { scale: .9; } to { scale: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .page-flow[data-shift] .journal-content, .page-flow[data-shift] .runner-main, .page-flow[data-shift] .runner-dark,
+  .page-flow[data-shift] .fc-tabs .fc-tab.on, :is(.vseg > .on, .rm-tabs > .on) { animation: none !important; }
+  * { scale: none !important; }
+}

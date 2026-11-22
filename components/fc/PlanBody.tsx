@@ -9,16 +9,17 @@ import type { MuscleId } from '@/lib/muscles';
 import { canonicalMuscle, sculptureGroup, type SculptureVariant } from '@/lib/sculpture-groups';
 import { PLAN_POSES, planPoseFor } from '@/lib/plan-poses';
 
-/** 首屏提示锚点：参考图里只亮胸部一个柠檬黄点。 */
-const HINT: SculptureAnchor = { muscle: 'chest_mid', label: '胸部' };
-
 function haptic(ms = 8) {
   try { navigator.vibrate?.(ms); } catch { /* iOS Safari 没有振动接口 */ }
 }
 
-export default function PlanBody({ variant = 'male', todayPlan, activeSession = null, initialMuscle }: {
+export default function PlanBody({ variant = 'male', todayPlan, activeSession = null, activeMeta, initialMuscle, mode = 'plan' }: {
+  /** 进行中那一节的下一项，例如「杠铃卧推 · 剩 4 组」 */
+  activeMeta?: string;
+  /** extra：加练。挑好的动作作为加练项（火花标记）加入今日计划，再回今日计划开练 */
+  mode?: 'plan' | 'extra';
   variant?: SculptureVariant;
-  todayPlan: { date: string; exerciseIds: string[] };
+  todayPlan: { date: string; exerciseIds: string[]; allDone?: boolean };
   activeSession?: number | null;
   initialMuscle?: MuscleId;
 }) {
@@ -32,6 +33,7 @@ export default function PlanBody({ variant = 'male', todayPlan, activeSession = 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [origin, setOrigin] = useState('50% 36%');
+  const [hovered, setHovered] = useState<MuscleId | null>(null);
   const stage = useRef<HTMLDivElement>(null);
   const openTimer = useRef<number>(0);
   const lock = useRef(false);
@@ -40,7 +42,8 @@ export default function PlanBody({ variant = 'male', todayPlan, activeSession = 
   const close = useCallback(() => {
     setSheet(null);
     setDetail((state) => (state === 'open' ? 'closing' : state));
-    window.setTimeout(() => setDetail(null), 320);
+    // 回到首屏时不留常亮的选中块，人体恢复成纯点阵
+    window.setTimeout(() => { setDetail(null); setPicked(null); }, 320);
   }, []);
 
   // 手机返回手势关闭详情：打开时压一层历史记录
@@ -99,13 +102,14 @@ export default function PlanBody({ variant = 'male', todayPlan, activeSession = 
       const response = await fetch('/api/plan', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ date: todayPlan.date, exerciseIds: [...selected] }),
+        body: JSON.stringify({ date: todayPlan.date, exerciseIds: [...selected], supplemental: mode === 'extra' }),
       });
       const result = await response.json() as { items?: { exercise_id: string }[]; error?: string };
       if (!response.ok || !result.items) throw new Error(result.error || '保存失败，请重试');
       setSaved({ source: todayPlan.exerciseIds, ids: result.items.map((item) => item.exercise_id) });
       setSelected(new Set());
       haptic(12);
+      if (mode === 'extra') { router.push('/train'); return true; }
       router.refresh();
       return true;
     } catch (err) {
@@ -119,14 +123,27 @@ export default function PlanBody({ variant = 'male', todayPlan, activeSession = 
 
   const group = picked ? sculptureGroup(picked) : null;
   const pose = picked ? planPoseFor(picked) : null;
-  const anchor: SculptureAnchor = picked && group ? { muscle: picked, label: group.label } : HINT;
+  const anchor: SculptureAnchor = picked && group ? { muscle: picked, label: group.label } : null;
+  // 大标题就是读数：空闲时是「点选肌群」，手指压住或鼠标停在哪块肌肉，就换成那块的名字
+  const focus = picked ?? hovered;
+  const focusGroup = focus ? sculptureGroup(focus) : null;
+  const focusRegion = focus ? PLAN_POSES[planPoseFor(focus)].label : null;
 
   return (
     <div className="plan-root fc">
-      <div ref={stage} className="plan-stage" data-detail={detail ?? undefined} style={{ transformOrigin: origin }}>
+      <header className="plan-title" data-focus={focus ? (picked ? 'picked' : 'hover') : undefined} aria-live="polite">
+        <div className="plan-title-main" key={focusGroup?.label ?? 'idle'}>{focusGroup?.label ?? (mode === 'extra' ? '加练' : '点选肌群')}</div>
+        <p>
+          <span className="plan-title-side">{side === 'front' ? '正面' : '背面'}</span>
+          {focusRegion
+            ? <span key={focusRegion} className="plan-title-hint">{focusRegion}<em>{picked ? '进入' : <><span className="on-touch">松手进入</span><span className="on-mouse">点击进入</span></>}</em></span>
+            : <span className="plan-title-hint"><span className="on-touch">{mode === 'extra' ? '今天的计划练完了，点一块肌肉再挑几个动作' : '按住一块肌肉看名字，松手进入'}</span><span className="on-mouse">{mode === 'extra' ? '今天的计划练完了，点一块肌肉再挑几个动作' : '指向一块肌肉看名字，点击进入'}</span></span>}
+        </p>
+      </header>
+      <div ref={stage} className="plan-stage" data-detail={detail ?? undefined} data-focus={focus ? '' : undefined} style={{ transformOrigin: origin }}>
         <div className="plan-dots" aria-hidden="true" />
         <SculptureBody look="halftone" key={variant} variant={variant} side={side} selected={picked}
-          onPick={onPick} anchor={anchor} />
+          onPick={onPick} onHover={setHovered} anchor={anchor} />
       </div>
       <button type="button" className="plan-rotate" onClick={() => setSide((s) => (s === 'front' ? 'back' : 'front'))}
         aria-label={side === 'front' ? '转到背面' : '转到正面'}>
@@ -146,7 +163,10 @@ export default function PlanBody({ variant = 'male', todayPlan, activeSession = 
           pose={pose}
           variant={variant}
           planCount={planned.size}
+          planDone={mode === 'plan' && Boolean(todayPlan.allDone) && planned.size === todayPlan.exerciseIds.length}
+          extra={mode === 'extra'}
           activeSession={activeSession}
+          activeMeta={activeMeta}
           onOpenLibrary={(which) => setSheet(which)}
           onClose={dismiss}
         />
