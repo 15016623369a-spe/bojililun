@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { createPortal } from 'react-dom';
 import AskSheet from './AskSheet';
 import { CameraIcon, KeyboardIcon, MicIcon } from './icons';
 import TabBar from './TabBar';
 import Timeline from './Timeline';
+import { createRecordDraft, keepRecordDraft, recordDrafts, removeRecordDraft, sendRecordDraft, type RecordDraft } from '@/lib/record-drafts';
 
 /* ------------------------------ 语音识别（Web Speech API） ------------------------------ */
 
@@ -55,7 +57,10 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
 
   const [sheet, setSheet] = useState<'compose' | 'edit' | null>(null);
   const [text, setText] = useState('');
-  const [photo, setPhoto] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<RecordDraft[]>([]);
+  const [recordError, setRecordError] = useState('');
+  const [activeRequest, setActiveRequest] = useState('');
+  const [editingDraft, setEditingDraft] = useState<RecordDraft | null>(null);
   const [listening, setListening] = useState(false);
   const working = phase === 'busy';
   const composeSource = useRef<'manual' | 'voice'>('manual');
@@ -73,36 +78,38 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
     return () => clearTimeout(t);
   }, [toast]);
 
-  const submit = useCallback(
-    async (value: string, photoDataUrl?: string, source: 'manual' | 'voice' | 'photo' = 'manual') => {
-      if (busyRef.current) return;
-      busyRef.current = true;
-      setPhase('busy');
-      try {
-        const res = await fetch('/api/ledger', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ request_id: crypto.randomUUID(), source, text: value, photo: photoDataUrl }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw Error(data.error);
-        if (data.route === 'qa') setAsk(data.question);
-        else {
-          router.refresh();
-          setToast('已记入手账');
-        }
-        setSheet(null);
-        setPhase('idle');
-      } catch (e) {
-        setToast((e as Error).message);
-        setPhase('idle');
-      } finally {
-        busyRef.current = false;
+  useEffect(() => {
+    let mounted = true;
+    const sync = () => void recordDrafts().then((next) => { if (mounted) setDrafts(next); });
+    sync();
+    window.addEventListener('fitcheck-record-drafts', sync);
+    return () => { mounted = false; window.removeEventListener('fitcheck-record-drafts', sync); };
+  }, []);
+
+  const submit = useCallback(async (draft: RecordDraft) => {
+    if (busyRef.current) { await keepRecordDraft(draft); return; }
+    busyRef.current = true;
+    setRecordError('');
+    setActiveRequest(draft.request_id);
+    setPhase('busy');
+    setSheet(null);
+    try {
+      const result = await sendRecordDraft(draft);
+      if (result.route === 'qa' && result.question) setAsk(result.question);
+      else {
+        router.refresh();
+        setToast(draft.source === 'photo' ? '已记入手账 · 估算' : '已记入手账');
       }
-    },
-    [router],
-  );
-  const handleInput = useCallback((value: string) => void submit(value, undefined, 'voice'), [submit]);
+    } catch (e) {
+      setRecordError((e as Error).message);
+    } finally {
+      setPhase('idle');
+      setActiveRequest('');
+      busyRef.current = false;
+    }
+  }, [router]);
+
+  const handleInput = useCallback((value: string) => void submit(createRecordDraft('voice', value)), [submit]);
 
   const stopRec = useCallback(() => {
     abortRef.current = false;
@@ -135,9 +142,6 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
   const photoInput = useRef<HTMLInputElement>(null);
 
   const openComposer = useCallback(() => {
-    setText('');
-    setPhoto(null);
-    composeSource.current = 'manual';
     setSheet('compose');
   }, []);
 
@@ -232,10 +236,10 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
       stopRec();
     };
     window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', onUp);
+    window.addEventListener('pointercancel', abortRec);
     return () => {
       window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('pointercancel', onUp);
+      window.removeEventListener('pointercancel', abortRec);
     };
   }, [abortRec, openComposer, stopRec]);
 
@@ -255,7 +259,11 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
   const onFile = async (file: File | undefined) => {
     if (!file) return;
     try {
-      setPhoto(await compressImage(file));
+      const image = await compressImage(file);
+      const caption = text.trim();
+      setText('');
+      setEditingDraft(null);
+      void submit(createRecordDraft('photo', caption, image));
     } catch (e) {
       setToast((e as Error).message);
     }
@@ -265,14 +273,17 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
   const submitComposer = async () => {
     const value = text.trim();
     if (working) return;
-    if (!value && !photo) {
+    if (!value) {
       setToast('说点什么，或者加张照片');
       return;
     }
-    await submit(value, photo ?? undefined, photo ? 'photo' : composeSource.current);
+    setText('');
+    setEditingDraft(null);
+    await submit(editingDraft ? { ...editingDraft, text: value } : createRecordDraft(composeSource.current, value));
   };
 
   const recording = phase === 'listening';
+  const recoverySlot = drafts.length > 0 ? document.getElementById('record-recovery-slot') : null;
 
   return (
     <>
@@ -288,9 +299,29 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
         </div>
       )}
 
+      {recoverySlot && createPortal(<section className="record-recovery" aria-label="待保存的记录">
+        {drafts.map((draft) => <article key={draft.request_id}>
+          <div>
+            <strong>{activeRequest === draft.request_id ? '正在保存' : '待保存'} · {draft.source === 'photo' ? '照片记录' : draft.source === 'voice' ? '语音记录' : '文字记录'}</strong>
+            {draft.photo && <img src={draft.photo} alt="待保存的照片" />}
+            {draft.text && <p>{draft.text}</p>}
+          </div>
+          {!working && <div className="record-recovery-actions">
+            <button type="button" onClick={() => void submit(draft)}>重试</button>
+            {draft.source !== 'photo' && <button type="button" onClick={() => {
+              setText(draft.text);
+              setSheet('compose');
+              setEditingDraft(draft);
+            }}>编辑</button>}
+            <button type="button" onClick={() => { void removeRecordDraft(draft.request_id); setRecordError(''); }}>移除草稿</button>
+          </div>}
+        </article>)}
+        {recordError && <p role="alert">{recordError}</p>}
+      </section>, recoverySlot)}
+
       {!ledgerHasRecords && <Timeline entries={[]} />}
 
-      <div className="fc-dock">
+      <div className="fc-dock" aria-busy={working}>
         <div className="fc-dock-inner">
           <div className="fc-record-controls">
             <button
@@ -331,7 +362,6 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
               const file = e.currentTarget.files?.[0];
               e.currentTarget.value = '';
               if (!file) return;
-              if (sheet !== 'compose') openComposer();
               void onFile(file);
             }}
             hidden
@@ -344,8 +374,8 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
       {sheet === 'compose' && (
         <div className="fc-mask" onClick={() => !working && setSheet(null)}>
           <div className="fc-sheet" onClick={(e) => e.stopPropagation()}>
-            <h3>记一条</h3>
-            <p className="hint">说话、打字、拍照都行。带上组数重量，热量和热区才准。</p>
+            <h3>{editingDraft ? '继续编辑记录' : '记一条'}</h3>
+            <p className="hint">说一句、写一句，或拍张照片。照片识别后直接记入手账。</p>
 
             <div className="fc-examples">
               {EXAMPLES.map((x) => (
@@ -365,21 +395,6 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
               }}
               autoFocus
             />
-
-            {photo && (
-              <div className="fc-photo">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={photo} alt="待记录的图" />
-                <button
-                  type="button"
-                  className="fc-photo-x"
-                  onClick={() => setPhoto(null)}
-                  aria-label="去掉照片"
-                >
-                  ×
-                </button>
-              </div>
-            )}
 
             <div className="fc-compose-bar">
               <button
@@ -403,7 +418,7 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
 
             <div className="fc-sheet-actions">
               <button type="button" className="fc-btn ghost" onClick={() => setSheet(null)}>
-                取消
+                稍后再记
               </button>
               <button
                 type="button"

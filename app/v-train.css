@@ -332,3 +332,8 @@ html:has(.v-runner) body { background: var(--canvas); }
 }
 @keyframes lookbook-drawer-in { from { transform: translateY(44px); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .lookbook-drawer[open] { animation: none; } }
+
+.finish-inline { grid-column: 1 / -1; padding: 12px 14px; border: 1px solid var(--hairline); border-radius: 16px; background: var(--silver-2); }
+.finish-inline p { margin: 0 0 8px; font-size: 13px; }
+.finish-inline > div { display: flex; gap: 8px; justify-content: flex-end; }
+.finish-inline button { min-height: 44px; }

@@ -6,7 +6,6 @@ import BigDate from '@/components/ui/BigDate';
 import { getDb } from '@/lib/db';
 import { exportJournal } from '@/lib/export';
 import { readCardPick } from '@/lib/ledger';
-import { calcMealTotals, formatDisplayKcal } from '@/lib/calculations';
 import type { Card } from '@/lib/export';
 import { todayStr } from '@/lib/log';
 
@@ -42,7 +41,7 @@ export default function LogPage() {
   const items: DeckItem[] = [
     ...day.entries.map((c): DeckItem => {
       const sub = c.entry_type === 'meal'
-        ? [formatDisplayKcal(calcMealTotals(c.items).kcal), c.items.length > 1 ? `${c.items.length} 样` : c.items[0]?.portion_text ?? ''].filter(Boolean).join(' · ')
+        ? [c.confidence === 'estimated' ? '估算' : '', c.items.length > 1 ? `${c.items.length} 样` : c.items[0]?.portion_text ?? ''].filter(Boolean).join(' · ')
         : c.entry_type === 'workout'
           ? workoutLine(c)
           : c.note ?? '';
@@ -59,17 +58,15 @@ export default function LogPage() {
 
   const meals = day.entries.filter((c) => c.entry_type === 'meal').length;
   const workouts = day.entries.filter((c) => c.entry_type === 'workout').length;
-  const kcal = day.daily_summary.intake.kcal ?? 0;
 
   return (
     <JournalShell active="record" title="今天" today={today} className="is-record is-ledger" hideNav
       headerAction={<div className="journal-head-actions"><span className="journal-head-label">记录</span></div>}
       hero={<>
         <p className="hero-word" aria-hidden="true">今天</p>
-        <BigDate date={today} note={`${meals} 餐 · ${workouts} 次训练`}>
-          {kcal > 0 && <small className="hero-kcal"><b>{Math.round(kcal).toLocaleString('zh-CN')}</b> kcal 摄入</small>}
-        </BigDate>
+        <BigDate date={today} note={`${meals} 餐 · ${workouts} 次训练`} />
       </>}>
+      <div id="record-recovery-slot" />
       <LedgerDeck items={items} cards={day.entries} picks={picks} nowMinutes={minutesOf(new Date().toISOString())} />
       {/* 录入、长按录音和底部导航沿用手账的 LogScreen；空状态由上面的卡片承担 */}
       <div className="fc ledger-dock-scope">

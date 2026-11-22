@@ -66,7 +66,7 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
   const key = `fitcheck-training:${session.id}:${current?.item.id}:${current?.number}`;
   const [work, setWork] = useState<{ key: string; started: number } | null>(null);
   const [now, setNow] = useState<number | null>(null);
-  const [fields, setFields] = useState<{ itemId: number; weight: string; reps: string } | null>(null);
+  const [fields, setFields] = useState<{ key: string; weight: string; reps: string } | null>(null);
   const [extraRest, setExtraRest] = useState<{ setId: number; seconds: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [ended, setEnded] = useState(Boolean(session.ended_at));
@@ -85,6 +85,8 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
     try {
       const started = Number(sessionStorage.getItem(key));
       if (started > 0) setWork({ key, started });
+      const draft = sessionStorage.getItem(`${key}:fields`);
+      if (draft) setFields({ key, ...JSON.parse(draft) });
     } catch {
       // Training still works when browser storage is unavailable.
     }
@@ -117,8 +119,8 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
   const restLeft = now === null ? restTotal : Math.max(0, Math.ceil((restUntil - now) / 1000));
   const setSeconds = now === null ? 0 : Math.max(0, Math.floor((now - startedAt) / 1000));
   const sessionSeconds = now === null ? 0 : Math.max(0, Math.floor((now - Date.parse(session.started_at)) / 1000));
-  const weight = item && fields?.itemId === item.id ? fields.weight : String(item?.weight ?? 0);
-  const reps = item && fields?.itemId === item.id ? fields.reps : String(item?.reps ?? 0);
+  const weight = item && fields?.key === key ? fields.weight : String(item?.weight ?? 0);
+  const reps = item && fields?.key === key ? fields.reps : String(item?.reps ?? 0);
 
   // 休息结束时震两下
   useEffect(() => {
@@ -139,6 +141,10 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
 
   async function saveSet() {
     if (lock.current || !current || resting) return;
+    if (weight === '' || !Number.isFinite(Number(weight)) || Number(weight) < 0 || Number(weight) > 1000 || !Number.isInteger(Number(reps)) || Number(reps) < 1 || Number(reps) > 1000) {
+      setError('请输入有效的重量和次数');
+      return;
+    }
     lock.current = true;
     setBusy(true);
     setError('');
@@ -162,7 +168,7 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
       if (!response.ok) throw new Error(result.error || '保存失败，请重试');
       if (result.sets) setSets(result.sets);
       haptic(14);
-      try { sessionStorage.removeItem(key); } catch { /* 缓存清理不影响已保存的数据 */ }
+      try { sessionStorage.removeItem(key); sessionStorage.removeItem(`${key}:fields`); } catch { /* 缓存清理不影响已保存的数据 */ }
       setNow(Date.now());
       if (result.ended) {
         setEnded(true);
@@ -179,7 +185,7 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
   }
 
   const endTraining = <EndTrainingButton sessionId={session.id} completedSets={sets.length} disabled={busy} onEnded={() => {
-    try { sessionStorage.removeItem(key); } catch { /* 缓存清理不影响已保存的数据 */ }
+    try { sessionStorage.removeItem(key); sessionStorage.removeItem(`${key}:fields`); } catch { /* 缓存清理不影响已保存的数据 */ }
     router.replace(receiptHref);
     router.refresh();
   }} />;
@@ -347,7 +353,11 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
   // ---------- 记录一组 ----------
   const weightNum = Number(weight) || 0;
   const repsNum = Number(reps) || 0;
-  const setField = (patch: Partial<{ weight: string; reps: string }>) => setFields({ itemId: item.id, weight, reps, ...patch });
+  function setField(patch: Partial<{ weight: string; reps: string }>) {
+    const next = { key, weight, reps, ...patch };
+    setFields(next);
+    try { sessionStorage.setItem(`${key}:fields`, JSON.stringify(next)); } catch { /* 当前页面仍可调整 */ }
+  }
   return <div className="runner v-runner" data-mode="set">
     {header}
     <main className="runner-main">

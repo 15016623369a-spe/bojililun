@@ -98,12 +98,12 @@ export async function parseInput(text: string, photo: string | undefined, source
         })),
       };
     } catch (error) {
-      if (!text.trim()) throw error;
+      if (photo || !text.trim()) throw error;
       // Text can still be recorded with the local parser if the provider is unavailable.
     }
   }
+  if (photo) throw Error('照片识别暂不可用，照片已保留，可稍后重试');
   if (detectIntent(text).intent === 'question') return { route: 'qa', question: text };
-  if (photo && !text.trim()) throw Error('照片解析需要配置视觉模型，可直接输入文字');
   const records: Draft[] = [];
   const number = (v: string) =>
     Number(

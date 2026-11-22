@@ -12,6 +12,7 @@ import type { Draft, Source } from "./ledger";
 export interface Card extends Draft {
   id: number;
   input_method: Source | null;
+  has_photo?: boolean;
   exercises: Movement[];
   items: (Item & { id: number })[];
 }
@@ -39,7 +40,7 @@ export function exportJournal(
     throw Error("日期范围无效");
   const rows = db
     .prepare(
-      "SELECT id,date,entry_type,logged_at,input_method,confidence,raw_text,summary_title,feeling_tags,note,actions FROM entries WHERE user_id=? AND is_deleted=0 AND date BETWEEN ? AND ? ORDER BY logged_at,id",
+      "SELECT id,date,entry_type,logged_at,input_method,confidence,raw_text,summary_title,feeling_tags,note,actions,EXISTS(SELECT 1 FROM ledger_photos WHERE entry_id=entries.id) AS photo_present FROM entries WHERE user_id=? AND is_deleted=0 AND date BETWEEN ? AND ? ORDER BY logged_at,id",
     )
     .all(user, start, end);
   const items = db.prepare(
@@ -51,8 +52,9 @@ export function exportJournal(
   const exerciseMetrics = db.prepare(
     "SELECT mechanic,movement_pattern FROM exercises WHERE id=?",
   );
-  const cards = rows.map(({ actions, feeling_tags, ...r }) => ({
+  const cards = rows.map(({ actions, feeling_tags, photo_present, ...r }) => ({
     ...r,
+    ...(photo_present ? { has_photo: true } : {}),
     feeling_tags: JSON.parse(String(feeling_tags)),
     items: items.all(r.id).map(({ nutrition_basis, ...item }) => ({
       ...item,

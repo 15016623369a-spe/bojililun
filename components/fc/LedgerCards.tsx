@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { offerRecordUndo } from '../RecordUndoNotice';
 import type { CardPick } from '@/lib/ledger';
 import type { Card } from '@/lib/export';
 import { calcMealTotals, formatDisplayKcal, formatWorkoutSummary } from '@/lib/calculations';
@@ -37,9 +38,9 @@ export default function LedgerCards({
   const router = useRouter(),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
-  const [hideKcal, setHideKcal] = useState(false);
-  useEffect(() => setHideKcal(localStorage.getItem('ledger.hideKcal') === '1'), []);
-  async function patch(payload: object) {
+  const [hideKcal, setHideKcal] = useState(true);
+  useEffect(() => setHideKcal(localStorage.getItem('ledger.hideKcal') !== '0'), []);
+  async function patch(payload: object, removedId?: number) {
     setBusy(true);
     setError('');
     try {
@@ -49,6 +50,7 @@ export default function LedgerCards({
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw Error((await res.json()).error);
+      if (removedId) offerRecordUndo({ cardId: removedId, label: '记录已移除' });
       router.refresh();
     } catch (e) {
       setError((e as Error).message);
@@ -62,16 +64,19 @@ export default function LedgerCards({
         <article className="fc-card fc-ledger-card" data-kind={c.entry_type} key={c.id}>
           <RecordStamp kind={c.entry_type} loggedAt={c.logged_at} />
           <h3>{c.summary_title}</h3>
+          {c.has_photo && <img className="record-card-photo" src={`/api/ledger/photo/${c.id}`} alt="记录原图" loading="lazy" />}
+          {c.entry_type === 'meal' && c.confidence === 'estimated' && <small className="record-estimated">估算</small>}
           {c.entry_type === 'meal' && (
             <button
               type="button"
+              className="record-nutrition-toggle"
               aria-label={hideKcal ? '显示热量' : '隐藏热量'}
               onClick={() => {
                 setHideKcal(!hideKcal);
                 localStorage.setItem('ledger.hideKcal', hideKcal ? '0' : '1');
               }}
             >
-              <small>{hideKcal ? '显示估算' : formatDisplayKcal(calcMealTotals(c.items).kcal)}</small>
+              <small>{hideKcal ? '显示热量估算' : formatDisplayKcal(calcMealTotals(c.items).kcal)}</small>
             </button>
           )}
           {c.exercises.map((m, index) => (
@@ -92,6 +97,7 @@ export default function LedgerCards({
           {picks[c.id] && (
             <fieldset className="fc-quick-pick">
               <legend>{picks[c.id]?.question}</legend>
+              {c.entry_type === 'meal' && <small>已按估算记下，可在这里修正。</small>}
               <div className="fc-examples">
                 {[...(picks[c.id]?.options ?? []), { id: 'skip', label: '跳过' }].map((option) => (
                   <button
@@ -213,7 +219,7 @@ export default function LedgerCards({
                   </form>
                 </div>
               ))}
-            <button onClick={() => void patch({ id: c.id, deleted: true })}>撤销记录</button>
+            <button onClick={() => void patch({ id: c.id, deleted: true }, c.id)}>移除记录</button>
           </details>
         </article>
       ))}

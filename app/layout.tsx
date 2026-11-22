@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import RecordUndoNotice from '@/components/RecordUndoNotice';
 import './globals.css';
 import './journal.css';
 import './replica.css';
@@ -25,7 +26,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="zh-CN">
-      <body>{children}</body>
+      <body>{children}<RecordUndoNotice /></body>
     </html>
   );
 }
