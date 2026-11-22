@@ -137,10 +137,9 @@ export function saveTrainingProfile(input: TrainingProfileInput) {
       const first = !db.prepare('SELECT 1 FROM weight_entry LIMIT 1').get();
       const oldWeight = first ? legacyWeight(legacyProfile()) : null;
       if (oldWeight) db.prepare('INSERT INTO weight_entry (date, weight) VALUES (?, ?)').run(oldWeight.date, oldWeight.weight);
-      db.prepare(`
-        INSERT INTO weight_entry (date, weight) VALUES (?, ?)
-        ON CONFLICT(date) DO UPDATE SET weight = excluded.weight
-      `).run(weightDate, weight);
+      // Keep the legacy bridge trigger's conflict handling when the date already exists.
+      const updated = db.prepare('UPDATE weight_entry SET weight = ? WHERE date = ?').run(weight, weightDate);
+      if (!updated.changes) db.prepare('INSERT INTO weight_entry (date, weight) VALUES (?, ?)').run(weightDate, weight);
     }
     if (restriction) {
       const content = restriction.trim();

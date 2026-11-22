@@ -56,6 +56,7 @@ export function initLedger(db: DatabaseSync) {
     CREATE INDEX IF NOT EXISTS ledger_date ON entries(user_id,date,logged_at);
     CREATE INDEX IF NOT EXISTS metric_date ON body_metrics(user_id,date,logged_at);
     CREATE INDEX IF NOT EXISTS ledger_ex_history ON workout_sets(exercise_id,entry_id);
+    CREATE TABLE IF NOT EXISTS ledger_photos(entry_id INTEGER PRIMARY KEY, image TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS ledger_requests(user_id TEXT,request_id TEXT,PRIMARY KEY(user_id,request_id));`);
     if (
       !db
@@ -158,6 +159,7 @@ export function saveBatch(
   request: string,
   source: Source | null,
   records: Draft[],
+  photo?: string,
 ) {
   if (
     !request ||
@@ -247,6 +249,7 @@ export function saveBatch(
             key,
           ).lastInsertRowid,
       );
+      if (photo) db.prepare("INSERT INTO ledger_photos VALUES(?,?)").run(id, photo);
       if (r.entry_type === "meal") {
         const items = r.items ?? [];
         writeItems(db, id, items);

@@ -142,7 +142,7 @@ function Overview({ periodLabel, period, volume, time, cur, prev, totalSeconds, 
       </button>
     </div>
     {cur.quickSessions > 0 && <p className="hint">另有 {cur.quickSessions} 次语音训练没有组数和时长，只计入次数与天数。</p>}
-    {cur.sessions === 0 && <p className="hint center">{period === 'week' ? '本周' : '这段时间'}还没有完成的训练。<Link href="/body">去安排</Link></p>}
+    {cur.sessions === 0 && <p className="hint center">{period === 'week' ? '本周' : '这段时间'}还没有完成的训练。<Link href="/train">去安排</Link></p>}
   </div>;
 }
 

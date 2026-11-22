@@ -7,6 +7,7 @@ import { LIMITS, equipmentFactor, estimateEnergy, muscleHeat, sanitizeSet } from
 import { imageUrl, TARGET_LABEL } from '@/lib/exercise-label';
 import type { TrainingDetail } from '@/lib/log';
 import BodyHeat from './BodyHeat';
+import { offerRecordUndo } from '../RecordUndoNotice';
 
 interface Row {
   key: string;
@@ -142,11 +143,12 @@ export default function RecordDetail({ detail }: { detail: TrainingDetail }) {
 
   const remove = async () => {
     if (saving) return;
-    if (!window.confirm('删除这次训练记录？会自动回到记录页。')) return;
     setSaving(true);
     try {
-      const res = await fetch(`/api/log?kind=training&id=${detail.id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('删除失败');
+      const res = await fetch(`/api/session?id=${detail.id}`, { method: 'DELETE' });
+      const result = await res.json();
+      if (!res.ok || !result.undoToken) throw new Error(result.error || '移除失败');
+      offerRecordUndo({ token: result.undoToken, label: '训练记录已移除', href: `/log/training/${detail.id}` });
       router.replace('/log');
       router.refresh();
     } catch (e) {
@@ -194,7 +196,7 @@ export default function RecordDetail({ detail }: { detail: TrainingDetail }) {
       </div>
 
       <div style={{ textAlign: 'right' }}>
-        <a className="fc-dict-link" href="/atlas">
+        <a className="fc-dict-link" href="/body">
           按部位查标准动作 →
         </a>
       </div>

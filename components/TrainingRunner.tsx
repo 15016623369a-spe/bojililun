@@ -8,6 +8,8 @@ import ExerciseMedia from './ExerciseMedia';
 import DotDigits from './ui/DotDigits';
 import TickRuler from './ui/TickRuler';
 import HalftoneImage from './ui/HalftoneImage';
+import EndTrainingButton from './EndTrainingButton';
+import type { SculptureVariant } from '@/lib/sculpture-groups';
 import Icon from './ui/Icon';
 
 function clock(seconds: number) {
@@ -18,12 +20,12 @@ function clock(seconds: number) {
 
 function haptic(pattern: number | number[] = 8) { try { navigator.vibrate?.(pattern); } catch { /* iOS 网页无振动 */ } }
 
-function progress(plan: PlanItem[], sets: SetRow[]) {
-  for (const [index, item] of plan.entries()) {
+/** 还没练完的动作，按计划顺序；可以在「动作 n / m」里换一个先练 */
+function pendingActions(plan: PlanItem[], sets: SetRow[]) {
+  return plan.flatMap((item, index) => {
     const completed = sets.filter((set) => set.plan_item_id === item.id).length;
-    if (completed < item.sets) return { item, index, number: completed + 1 };
-  }
-  return null;
+    return completed < item.sets ? [{ item, index, number: completed + 1 }] : [];
+  });
 }
 
 const e1rm = (weight: number, reps: number) => (reps <= 0 || reps > 15 || weight <= 0 ? 0 : reps === 1 ? weight : weight * (1 + reps / 30));
@@ -44,21 +46,29 @@ function BigValue({ value, onChange, label, unit, step }: { value: string; onCha
   </div>;
 }
 
-export default function TrainingRunner({ session, plan, initialSets, demonstrations, priorBest = {} }: {
+export default function TrainingRunner({ session, plan, initialSets, demonstrations, priorBest = {}, receiptHref = '/train' }: {
   session: SessionRow;
   plan: PlanItem[];
   initialSets: SetRow[];
   demonstrations: Record<string, { image?: string; hasAnimation: boolean }>;
   priorBest?: Record<string, number>;
+  variant?: SculptureVariant;
+  /** 训练结束后回到哪里：当天的训练单，或过去那天的详情 */
+  receiptHref?: string;
 }) {
   const router = useRouter();
   const [sets, setSets] = useState(initialSets);
-  const current = progress(plan, sets);
+  const [chosen, setChosen] = useState<number | null>(null);
+  const [showActions, setShowActions] = useState(false);
+  const actionsKey = `fitcheck-training-action:${session.id}`;
+  const pending = pendingActions(plan, sets);
+  const current = pending.find(({ item }) => item.id === chosen) ?? pending[0];
   const previous = sets.at(-1);
   const key = `fitcheck-training:${session.id}:${current?.item.id}:${current?.number}`;
   const [work, setWork] = useState<{ key: string; started: number } | null>(null);
   const [now, setNow] = useState<number | null>(null);
-  const [fields, setFields] = useState<{ itemId: number; weight: string; reps: string } | null>(null);
+  // 还没提交的重量和次数按「这一节 · 这个动作 · 第几组」存在 sessionStorage，刷新或离开再回来都还在
+  const [fields, setFields] = useState<{ key: string; weight: string; reps: string } | null>(null);
   const [extraRest, setExtraRest] = useState<{ setId: number; seconds: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [ended, setEnded] = useState(Boolean(session.ended_at));
@@ -77,10 +87,28 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
     try {
       const started = Number(sessionStorage.getItem(key));
       if (started > 0) setWork({ key, started });
+      const draft = sessionStorage.getItem(`${key}:fields`);
+      if (draft) setFields({ key, ...JSON.parse(draft) });
     } catch {
       // Training still works when browser storage is unavailable.
     }
   }, [key]);
+
+  useEffect(() => {
+    try {
+      const stored = Number(sessionStorage.getItem(actionsKey));
+      if (stored > 0) setChosen(stored);
+    } catch { /* 浏览器存储不可用时，从待练动作继续 */ }
+  }, [actionsKey]);
+
+  function chooseAction(id: number) {
+    setChosen(id);
+    setShowActions(false);
+    setDemo(false);
+    setError('');
+    try { sessionStorage.setItem(actionsKey, String(id)); } catch { /* 当次切换仍生效 */ }
+    haptic(8);
+  }
 
   const item = current?.item;
   const demoMedia = item ? demonstrations[item.exercise_id] : undefined;
@@ -93,8 +121,8 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
   const restLeft = now === null ? restTotal : Math.max(0, Math.ceil((restUntil - now) / 1000));
   const setSeconds = now === null ? 0 : Math.max(0, Math.floor((now - startedAt) / 1000));
   const sessionSeconds = now === null ? 0 : Math.max(0, Math.floor((now - Date.parse(session.started_at)) / 1000));
-  const weight = item && fields?.itemId === item.id ? fields.weight : String(item?.weight ?? 0);
-  const reps = item && fields?.itemId === item.id ? fields.reps : String(item?.reps ?? 0);
+  const weight = item && fields?.key === key ? fields.weight : String(item?.weight ?? 0);
+  const reps = item && fields?.key === key ? fields.reps : String(item?.reps ?? 0);
 
   // 休息结束时震两下
   useEffect(() => {
@@ -115,6 +143,11 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
 
   async function save(finishEarly: boolean) {
     if (lock.current || (!finishEarly && (!current || resting))) return;
+    if (!finishEarly && (weight === '' || !Number.isFinite(Number(weight)) || Number(weight) < 0 || Number(weight) > 1000
+      || !Number.isInteger(Number(reps)) || Number(reps) < 1 || Number(reps) > 1000)) {
+      setError('请输入有效的重量和次数');
+      return;
+    }
     lock.current = true;
     setBusy(true);
     setError('');
@@ -124,7 +157,7 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
         method: finishing ? 'PATCH' : 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(finishing ? { id: session.id } : {
-          sessionId: session.id, planItemId: current.item.id, setIndex: current.number,
+          sessionId: session.id, chooseExercise: current.item.id === chosen, planItemId: current.item.id, setIndex: current.number,
           exerciseId: current.item.exercise_id, exerciseName: current.item.name,
           bodyPart: current.item.body_part, target: current.item.target,
           weight: Number(weight), reps: Number(reps),
@@ -139,11 +172,11 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
       if (!response.ok) throw new Error(result.error || '保存失败，请重试');
       if (result.sets) setSets(result.sets);
       if (!finishing) haptic(14);
-      try { sessionStorage.removeItem(key); } catch { /* 缓存清理不影响已保存的数据 */ }
+      try { sessionStorage.removeItem(key); sessionStorage.removeItem(`${key}:fields`); } catch { /* 缓存清理不影响已保存的数据 */ }
       setNow(Date.now());
       if (finishing) {
         setEnded(true);
-        router.replace('/log');
+        router.replace(receiptHref);
         router.refresh();
       } else if (result.ended) {
         // 最后一组完成，服务端已归档：留在本页展示小结
@@ -189,13 +222,13 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
     const time = clock(duration);
     return <div className="runner v-runner" data-mode="summary">
       <header className="runner-head">
-        <Link className="runner-back" href="/train"><Icon name="chevron-left" size={20} stroke={2} />今日计划</Link>
+        <Link className="runner-back" href="/train"><Icon name="chevron-left" size={20} stroke={2} />今日训练</Link>
         <span className="runner-head-meta">训练完成</span>
       </header>
       <main className="runner-main">
         {done.length === 0 ? <div className="runner-ended">
           <h1>这节训练没有动作</h1>
-          <button type="button" className="ink-btn" onClick={() => void save(true)} disabled={busy}><span>结束训练</span></button>
+          <button type="button" className="ink-btn" onClick={() => void save(true)} disabled={busy}><span>{busy ? '正在结束…' : '结束训练'}</span></button>
           {error && <p className="form-err" role="alert">{error}</p>}
         </div> : <>
           <section className="summary-time">
@@ -234,18 +267,43 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
       {done.length > 0 && <footer className="runner-foot">
         {error && <p className="form-err" role="alert">{error}</p>}
         <button type="button" className="ink-btn" disabled={busy}
-          onClick={() => { if (ended) { router.replace('/log'); router.refresh(); } else void save(true); }}>
-          <span>{busy ? '正在保存…' : ended ? '完成，回到记录' : '保存到今天的记录'}</span>
+          onClick={() => { if (ended) { router.replace(receiptHref); router.refresh(); } else void save(true); }}>
+          <span>{busy ? '正在保存…' : ended ? '完成，回到训练' : '保存这节训练'}</span>
           <span className="ink-btn-meta"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg></span>
         </button>
       </footer>}
     </div>;
   }
 
+  const endTraining = <EndTrainingButton sessionId={session.id} completedSets={sets.length} disabled={busy} onEnded={() => {
+    try { sessionStorage.removeItem(key); sessionStorage.removeItem(`${key}:fields`); sessionStorage.removeItem(actionsKey); } catch { /* 缓存清理不影响已保存的数据 */ }
+    setEnded(true);
+    router.replace(receiptHref);
+    router.refresh();
+  }} />;
+
+  // 动作 n / m：展开后可以换一个还没练完的动作先练（只有一个动作时不显示）
+  const actionChooser = plan.length > 1 && <div className="runner-action-chooser">
+    <button type="button" className="runner-action-toggle" aria-expanded={showActions}
+      aria-controls="runner-action-list" onClick={() => setShowActions(!showActions)}>
+      动作 {current.index + 1} / {plan.length} <Icon name="chevron-down" size={16} />
+    </button>
+    <ul id="runner-action-list" hidden={!showActions}>
+      {plan.map((entry) => {
+        const action = pending.find(({ item: pendingItem }) => pendingItem.id === entry.id);
+        return <li key={entry.id}>
+          <button type="button" disabled={busy || !action || entry.id === current.item.id} onClick={() => chooseAction(entry.id)}>
+            {entry.name}<small>{entry.id === current.item.id ? '当前动作' : action ? `剩 ${entry.sets - action.number + 1} 组` : '已完成'}</small>
+          </button>
+        </li>;
+      })}
+    </ul>
+  </div>;
+
   const itemSets = sets.filter((s) => s.plan_item_id === item.id);
   const next = current.number < item.sets ? null : plan[current.index + 1];
   const header = <header className="runner-head">
-    <Link className="runner-back" href="/train"><Icon name="chevron-left" size={20} stroke={2} />今日计划</Link>
+    <Link className="runner-back" href="/train"><Icon name="chevron-left" size={20} stroke={2} />今日训练</Link>
     <span className="runner-head-meta">训练中 · <b>{clock(sessionSeconds)}</b></span>
     <span className="runner-progress" aria-label={`已完成 ${sets.length} / ${totalSets} 组`}>
       {Array.from({ length: totalSets }, (_, i) => <i key={i} data-on={i < sets.length || undefined} />)}
@@ -293,10 +351,12 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
         <span className="rest-total">总休息 <b>{clock(restTotal)}</b>
           <button type="button" className="chip" onClick={() => { haptic(5); setExtraRest({ setId: previous.id, seconds: extra + 15 }); }}>+15 秒</button>
         </span>
+        {actionChooser}
         <button type="button" className="ink-pill" onClick={beginNextSet} disabled={busy}>
           {finished ? `开始第 ${current.number} 组` : '跳过休息'}
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6" /></svg>
         </button>
+        {endTraining}
       </footer>
     </div>;
   }
@@ -304,7 +364,11 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
   // ---------- 记录一组（柠檬黄整屏 = 正在产生容量） ----------
   const weightNum = Number(weight) || 0;
   const repsNum = Number(reps) || 0;
-  const setField = (patch: Partial<{ weight: string; reps: string }>) => setFields({ itemId: item.id, weight, reps, ...patch });
+  function setField(patch: Partial<{ weight: string; reps: string }>) {
+    const next = { key, weight, reps, ...patch };
+    setFields(next);
+    try { sessionStorage.setItem(`${key}:fields`, JSON.stringify({ weight: next.weight, reps: next.reps })); } catch { /* 当前页面仍可调整 */ }
+  }
   return <div className="runner v-runner" data-mode="set">
     {/* 上半屏炭黑：动作、组次和重量；下半屏冷银灰：次数和组次卡。刻度尺压在两块底色的交界上 */}
     <section className="runner-dark">
@@ -353,6 +417,7 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
         })}
       </ol>
 
+      {actionChooser}
       {next && <div className="runner-next">
         <span className="thumb small">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -369,7 +434,7 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6" /></svg>
         </span>
       </button>
-      <button type="button" className="runner-quiet" onClick={() => void save(true)} disabled={busy}>{sets.length ? '结束训练并归档' : '结束训练'}</button>
+      {endTraining}
     </footer>
 
     {demo && <div className="demo-sheet" role="dialog" aria-modal="true" aria-label={`${item.name}动作演示`} onClick={() => setDemo(false)}>

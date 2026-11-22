@@ -79,7 +79,7 @@
 .record-card-sub { font-size: 12px; line-height: 1.45; color: var(--quiet); }
 .record-fresh-actions { display: flex; gap: 8px; justify-content: flex-end; align-items: center; margin: 0 5px; color: var(--quiet); }
 .record-fresh-actions button { padding: 6px 4px; font-size: 12px; }
-.record-fresh-actions button + button::before { content: '|'; margin-right: 11px; color: var(--dk-line, #c9c4bb); }
+.record-fresh-actions button + button::before { content: '|'; margin-right: 11px; color: #c9c4bb; }
 .journal-dialog.record-editor {
   position: fixed; inset: auto 0 0; margin: 0 auto; width: min(560px, 100%); max-width: 100%;
   min-height: min(32dvh, 260px); max-height: 64dvh; overflow-y: auto;

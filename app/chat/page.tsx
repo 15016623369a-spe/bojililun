@@ -8,6 +8,7 @@ import type { MealType } from '@/lib/date';
 import FoodCard from '@/components/FoodCard';
 import MemoryProposal from '@/components/MemoryProposal';
 import Drawer from '@/components/Drawer';
+import { createRecordDraft, sendRecordDraft } from '@/lib/record-drafts';
 import Icon from '@/components/ui/Icon';
 
 type Msg =
@@ -114,14 +115,7 @@ export default function Page() {
     const t = (await fetch('/api/today', { cache: 'no-store' }).then((r) => r.json())) as TodayPayload;
     setToday(t);
 
-    const target = t.profile?.target_kcal ?? 0;
-    const protein = t.profile?.target_protein ?? 0;
-    const greeting =
-      !t.profile ? '可以拍照记录饮食，也可以告诉我想练哪个部位。' : t.consumed.kcal > 0
-        ? `今天已摄入 ${t.consumed.kcal} kcal（目标 ${target}），还剩 ${Math.max(0, t.remainingKcal)} kcal；蛋白质 ${Math.round(
-            t.consumed.protein,
-          )}/${protein}g。`
-        : `今天还没记录。你的目标是 ${target} kcal、蛋白质 ${protein}g。\n拍一张照片就能记一餐，也可以直接说「午饭吃了米饭 200g 和一个鸡腿」。`;
+    const greeting = '拍一张照片记下这一餐，也可以直接写下吃了什么。';
 
     const init: Msg[] = [{ id: uid(), role: 'assistant', kind: 'text', text: greeting }];
 
@@ -285,20 +279,15 @@ export default function Page() {
     if (busy) return;
     setErr('');
     setBusy(true);
-    const pendingId = uid();
     const caption = input.trim();
-    setInput('');
     try {
-      const dataUrl = await compressImage(file);
-      setMsgs((prev) => [
-        ...prev,
-        { id: uid(), role: 'user', image: dataUrl, text: caption || undefined },
-        { id: pendingId, role: 'assistant', kind: 'pending', text: '看照片' },
-      ]);
-      await postChat({ image: dataUrl, text: caption || undefined }, pendingId);
-    } catch (e) {
-      failPending(pendingId, `照片处理失败：${(e as Error).message}`);
-      setErr((e as Error).message);
+      const image = await compressImage(file);
+      const result = await sendRecordDraft(createRecordDraft('photo', caption, image)).catch(() => null);
+      setInput('');
+      router.push('/log');
+      if (result) router.refresh();
+    } catch (error) {
+      setErr((error as Error).message);
     } finally {
       setBusy(false);
     }
@@ -365,23 +354,14 @@ export default function Page() {
   }
 
   const profile = today?.profile;
-  const consumed = today?.consumed.kcal ?? 0;
-  const target = profile?.target_kcal ?? 0;
-  const kcalPct = target > 0 ? Math.min(100, Math.round((consumed / target) * 100)) : 0;
-  const protein = Math.round(today?.consumed.protein ?? 0);
-  const targetProtein = profile?.target_protein ?? 0;
-  const proteinPct = targetProtein > 0 ? Math.min(100, Math.round((protein / targetProtein) * 100)) : 0;
-  const remaining = target - consumed;
-
   const hasFood = msgs.some((m) => m.role === 'assistant' && m.kind === 'food');
+  const target = profile?.target_kcal ?? 0;
+  const targetProtein = profile?.target_protein ?? 0;
   const targets = profile ? {
     protein: targetProtein || 120,
     carb: target ? Math.round(target * .5 / 4) : 280,
     fat: target ? Math.round(target * .3 / 9) : 70,
   } : undefined;
-  const meter = (value: number, max: number) => Array.from({ length: 40 }, (_, i) =>
-    <i key={i} data-on={(max > 0 && i < Math.round(Math.min(1, value / max) * 40)) || undefined} />);
-
   return (
     <div className="snap">
       <header className="snap-head">
@@ -401,14 +381,6 @@ export default function Page() {
           <button type="button" className="journal-head-circle" aria-label="今日饮食记录" onClick={() => setDrawer(true)}><Icon name="list" size={17} stroke={1.9} /></button>
         </div>
       </header>
-
-      {profile && <div className="snap-meters">
-        <div className="meter"><span className="meter-label">热量</span><span className="meter-ticks" aria-hidden="true">{meter(consumed, target)}</span>
-          <span className="meter-value"><b>{consumed}</b><em>/ {target}</em> kcal</span></div>
-        <div className="meter"><span className="meter-label">蛋白质</span><span className="meter-ticks" aria-hidden="true">{meter(protein, targetProtein)}</span>
-          <span className="meter-value"><b>{protein}</b><em>/ {targetProtein}</em> g</span></div>
-        <p className="snap-remaining">{remaining >= 0 ? `今天还剩 ${remaining} kcal` : `已超出 ${Math.abs(remaining)} kcal`}</p>
-      </div>}
 
       <main className="snap-thread" ref={scrollRef}>
         {msgs.map((m, index) => {

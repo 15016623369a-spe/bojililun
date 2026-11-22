@@ -6,7 +6,6 @@ import JournalIcon from './JournalIcon';
 import TabBar, { type TabKey } from './fc/TabBar';
 import Icon from './ui/Icon';
 
-/** 主导航统一用手账的 TabBar：计划 /atlas · 记录 /log（长按录音）· 回顾 /review */
 const TAB: Record<'plan' | 'record' | 'review', TabKey> = { plan: 'body', record: 'log', review: 'review' };
 
 export default function JournalShell({ active, title, subtitle, subtitleAside, children, footer, back, headerAction, navigation, today = todayStr(), className, hero, hideNav = false }: {

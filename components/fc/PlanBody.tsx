@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation';
 import ExerciseSheet from './ExerciseSheet';
 import SculptureBody, { type SculptureAnchor } from './SculptureBody';
 import PlanDetail from './PlanDetail';
+import PlanModelSwitch from './PlanModelSwitch';
+import PlanMusclePicker from './PlanMusclePicker';
+import { BODY_MODEL_COOKIE } from '@/lib/body-model-preference';
 import type { MuscleId } from '@/lib/muscles';
 import { canonicalMuscle, sculptureGroup, type SculptureVariant } from '@/lib/sculpture-groups';
 import { PLAN_POSES, planPoseFor } from '@/lib/plan-poses';
@@ -13,7 +16,11 @@ function haptic(ms = 8) {
   try { navigator.vibrate?.(ms); } catch { /* iOS Safari 没有振动接口 */ }
 }
 
-export default function PlanBody({ variant = 'male', todayPlan, activeSession = null, activeMeta, initialMuscle, mode = 'plan' }: {
+export default function PlanBody({ variant = 'male', profileModel, modelChoice = null, todayPlan, activeSession = null, activeMeta, initialMuscle, mode = 'plan' }: {
+  /** 个人档案对应的默认模型；「默认」选项用它 */
+  profileModel?: SculptureVariant;
+  /** 「默认 / 男 / 女」当前的选择，null 表示跟随档案。存在 cookie 里，回顾、统计也用 */
+  modelChoice?: SculptureVariant | null;
   /** 进行中那一节的下一项，例如「杠铃卧推 · 剩 4 组」 */
   activeMeta?: string;
   /** extra：加练。挑好的动作作为加练项（火花标记）加入今日计划，再回今日计划开练 */
@@ -28,15 +35,21 @@ export default function PlanBody({ variant = 'male', todayPlan, activeSession = 
   const [picked, setPicked] = useState<MuscleId | null>(initialMuscle ?? null);
   const [detail, setDetail] = useState<'open' | 'closing' | null>(initialMuscle ? 'open' : null);
   const [sheet, setSheet] = useState<'all' | 'liked' | null>(null);
+  const sheetRef = useRef(sheet);
+  sheetRef.current = sheet;
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [saved, setSaved] = useState<{ source: string[]; ids: string[] }>();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [origin, setOrigin] = useState('50% 36%');
   const [hovered, setHovered] = useState<MuscleId | null>(null);
+  const [localChoice, setLocalChoice] = useState<SculptureVariant | null | undefined>(undefined);
+  const choice = localChoice === undefined ? modelChoice : localChoice;
+  const model = localChoice === undefined ? variant : (localChoice ?? profileModel ?? variant);
   const stage = useRef<HTMLDivElement>(null);
   const openTimer = useRef<number>(0);
   const lock = useRef(false);
+  const leaving = useRef(false);
   const planned = new Set(saved && saved.source === todayPlan.exerciseIds ? saved.ids : todayPlan.exerciseIds);
 
   const close = useCallback(() => {
@@ -46,13 +59,36 @@ export default function PlanBody({ variant = 'male', todayPlan, activeSession = 
     window.setTimeout(() => { setDetail(null); setPicked(null); }, 320);
   }, []);
 
-  // 手机返回手势关闭详情：打开时压一层历史记录
+  // 浏览器返回逐层退出：动作库开着时先收起动作库，再退出姿势详情。打开每一层时各压一条历史记录
   useEffect(() => {
     if (detail !== 'open') return;
-    const onPop = () => close();
+    const onPop = () => {
+      if (sheetRef.current) { setSheet(null); return; }
+      close();
+    };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, [detail, close]);
+
+  function changeModel(next: SculptureVariant | null) {
+    if (next === choice) return;
+    haptic(6);
+    document.cookie = `${BODY_MODEL_COOKIE}=${next ?? ''}; Path=/; SameSite=Lax; Max-Age=${next ? 31536000 : 0}`;
+    setLocalChoice(next);
+    router.refresh();
+  }
+
+  function openLibrary(which: 'all' | 'liked') {
+    history.pushState({ planLibrary: which }, '');
+    setSheet(which);
+  }
+
+  function closeLibrary() {
+    // 刚保存完、正在跳回训练单时，不再后退一层，免得把跳转抵消掉
+    if (leaving.current) { setSheet(null); return; }
+    if (history.state?.planLibrary) history.back();
+    else setSheet(null);
+  }
 
   useEffect(() => () => window.clearTimeout(openTimer.current), []);
 
@@ -109,8 +145,9 @@ export default function PlanBody({ variant = 'male', todayPlan, activeSession = 
       setSaved({ source: todayPlan.exerciseIds, ids: result.items.map((item) => item.exercise_id) });
       setSelected(new Set());
       haptic(12);
-      if (mode === 'extra') { router.push('/train'); return true; }
-      router.refresh();
+      // 选好后直接回到今日训练单（加练同样回去开练）
+      leaving.current = true;
+      router.replace('/train');
       return true;
     } catch (err) {
       setError((err as Error).message);
@@ -135,6 +172,7 @@ export default function PlanBody({ variant = 'male', todayPlan, activeSession = 
         <div className="plan-title-main" key={focusGroup?.label ?? 'idle'}>{focusGroup?.label ?? (mode === 'extra' ? '加练' : '点选肌群')}</div>
         <p>
           <span className="plan-title-side">{side === 'front' ? '正面' : '背面'}</span>
+          <PlanModelSwitch choice={choice} onChange={changeModel} />
           {focusRegion
             ? <span key={focusRegion} className="plan-title-hint">{focusRegion}<em>{picked ? '进入' : <><span className="on-touch">松手进入</span><span className="on-mouse">点击进入</span></>}</em></span>
             : <span className="plan-title-hint"><span className="on-touch">{mode === 'extra' ? '今天的计划练完了，点一块肌肉再挑几个动作' : '按住一块肌肉看名字，松手进入'}</span><span className="on-mouse">{mode === 'extra' ? '今天的计划练完了，点一块肌肉再挑几个动作' : '指向一块肌肉看名字，点击进入'}</span></span>}
@@ -142,16 +180,22 @@ export default function PlanBody({ variant = 'male', todayPlan, activeSession = 
       </header>
       <div ref={stage} className="plan-stage" data-detail={detail ?? undefined} data-focus={focus ? '' : undefined} style={{ transformOrigin: origin }}>
         <div className="plan-dots" aria-hidden="true" />
-        <SculptureBody look="halftone" key={variant} variant={variant} side={side} selected={picked}
+        <SculptureBody look="halftone" key={model} variant={model} side={side} selected={picked}
           onPick={onPick} onHover={setHovered} anchor={anchor} />
       </div>
-      <button type="button" className="plan-rotate" onClick={() => setSide((s) => (s === 'front' ? 'back' : 'front'))}
-        aria-label={side === 'front' ? '转到背面' : '转到正面'}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v4.5h-4.5" />
-        </svg>
-        拖动旋转
-      </button>
+      <div className="plan-under">
+        <PlanMusclePicker onPick={(id) => {
+          setSide(sculptureGroup(id)?.side === 'back' ? 'back' : 'front');
+          onPick(id);
+        }} />
+        <button type="button" className="plan-rotate" onClick={() => setSide((s) => (s === 'front' ? 'back' : 'front'))}
+          aria-label={side === 'front' ? '转到背面' : '转到正面'}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v4.5h-4.5" />
+          </svg>
+          {side === 'front' ? '看背面' : '看正面'}
+        </button>
+      </div>
 
       {detail && picked && pose && (
         <PlanDetail
@@ -161,13 +205,13 @@ export default function PlanBody({ variant = 'male', todayPlan, activeSession = 
           muscleLabel={group?.label ?? ''}
           region={PLAN_POSES[pose].label}
           pose={pose}
-          variant={variant}
+          variant={model}
           planCount={planned.size}
           planDone={mode === 'plan' && Boolean(todayPlan.allDone) && planned.size === todayPlan.exerciseIds.length}
           extra={mode === 'extra'}
           activeSession={activeSession}
           activeMeta={activeMeta}
-          onOpenLibrary={(which) => setSheet(which)}
+          onOpenLibrary={openLibrary}
           onClose={dismiss}
         />
       )}
@@ -176,7 +220,7 @@ export default function PlanBody({ variant = 'male', todayPlan, activeSession = 
         muscle={sheet ? picked : null}
         grouped
         preference={sheet === 'liked' ? 'liked' : undefined}
-        onClose={() => setSheet(null)}
+        onClose={closeLibrary}
         selection={{ planned, selected, toggle, saving, error, complete }}
       />
     </div>

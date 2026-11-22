@@ -10,11 +10,11 @@ import { exportJournal } from '@/lib/export';
 import { calcMuscleHeatmap, calcWeightTrend } from '@/lib/calculations';
 import { localDay } from '@/lib/ledger';
 import { addDays, periodRange } from '@/lib/period';
-import { getTrainingModelSex } from '@/lib/core/training-profile';
+import { getBodyModelSettings } from '@/lib/core/body-model';
 import { daySessions } from '@/lib/core/workout';
 import { todaySnapshot } from '@/lib/core/meals';
 import { dayExerciseBurn } from '@/lib/exercise-burn';
-import { sculptureGroup, sculptureVariant } from '@/lib/sculpture-groups';
+import { sculptureGroup } from '@/lib/sculpture-groups';
 import type { MuscleId } from '@/lib/muscles';
 
 export const runtime = 'nodejs';
@@ -91,7 +91,7 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
   });
   const trainingDays = inRange.filter((d) => d.entries.some((e) => e.entry_type === 'workout')).length;
   const totalSets = inRange.reduce((sum, d) => sum + d.daily_summary.totalSets, 0);
-  const variant = sculptureVariant(getTrainingModelSex());
+  const variant = (await getBodyModelSettings()).model;
   const weight = trend.latest === null ? null : {
     latest: trend.latest,
     change: trend.change ?? 0,
