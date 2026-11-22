@@ -8,9 +8,10 @@ export default async function AtlasPage({ searchParams }: {
 }) {
   const query = await searchParams;
   const legacy = new URLSearchParams();
-  for (const key of ['muscle', 'library', 'body']) {
+  for (const key of ['muscle', 'library']) {
     const value = query[key];
     if (typeof value === 'string' && value) legacy.set(key, value);
   }
-  redirect(legacy.size ? `/body?${legacy}` : '/train');
+  if (legacy.size) redirect(`/body?${legacy}`);
+  redirect(typeof query.body === 'string' && query.body ? '/body' : '/train');
 }

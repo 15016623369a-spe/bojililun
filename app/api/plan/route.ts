@@ -30,7 +30,7 @@ export async function POST(req: Request) {
         if (!exercise) throw new Error('动作不存在');
         return exercise;
       });
-      return NextResponse.json({ items: addPlanExercises(body.date, exercises) });
+      return NextResponse.json(addPlanExercises(body.date, exercises));
     }
     if (!body.exerciseId) return NextResponse.json({ error: '缺少 exerciseId' }, { status: 400 });
     const ex = getExercise(body.exerciseId);
@@ -65,8 +65,8 @@ export async function PATCH(req: Request) {
       completePlannedExercise(body.id);
       return NextResponse.json({ ok: true });
     }
-    updatePlanItem(body.id, body);
-    return NextResponse.json({ ok: true, items: getPlan() });
+    const date = updatePlanItem(body.id, body);
+    return NextResponse.json({ ok: true, items: getPlan(date) });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 400 });
   }
@@ -75,6 +75,6 @@ export async function PATCH(req: Request) {
 export async function DELETE(req: Request) {
   const id = Number(new URL(req.url).searchParams.get('id'));
   if (!Number.isFinite(id) || id <= 0) return NextResponse.json({ error: '缺少 id' }, { status: 400 });
-  deletePlanItem(id);
-  return NextResponse.json({ ok: true, items: getPlan() });
+  const date = deletePlanItem(id);
+  return NextResponse.json({ ok: true, items: getPlan(date) });
 }

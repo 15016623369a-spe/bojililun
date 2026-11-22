@@ -45,7 +45,10 @@ const HALFTONE_FRAG = `
       float r = (0.46 + min(1.22, tone) * 1.78) * uCell / 5.0;
       float cov = 1.0 - smoothstep(r - uAA, r + uAA, length(px - c));
       float a = (0.4 + min(1.0, tone) * 0.6) * cov * s.a;
-      col = vec4(vec3(20.0, 26.0, 20.0) / 255.0 * a, a) + col * (1.0 - a);
+      float planned = smoothstep(0.19, 0.36, min(s.r, s.g) - s.b);
+      vec3 dotColor = mix(vec3(20.0, 26.0, 20.0), vec3(229.0, 218.0, 25.0), planned) / 255.0;
+      a = mix(a, cov * s.a, planned);
+      col = vec4(dotColor * a, a) + col * (1.0 - a);
     }
     gl_FragColor = col;
   }
@@ -77,7 +80,8 @@ async function verifyHash(bytes: ArrayBuffer, expected: string) {
   if (actual !== expected) throw new Error('人体资源版本不匹配');
 }
 
-export default function SculptureBody({ recorded = [], selected = null, side = 'front', onPick, spin = false, variant = 'male', heatLevels, heatTint, heatPalette, look = 'sculpture', anchor = null }: {
+export default function SculptureBody({ recorded = [], planned, selected = null, side = 'front', onPick, spin = false, variant = 'male', heatLevels, heatTint, heatPalette, look = 'sculpture', anchor = null }: {
+  planned?: readonly MuscleId[];
   recorded?: MuscleId[];
   selected?: MuscleId | null;
   side?: 'front' | 'back';
@@ -96,12 +100,12 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
 }) {
   const mount = useRef<HTMLDivElement>(null);
   const anchorEl = useRef<HTMLDivElement>(null);
-  const latest = useRef({ recorded, selected, side, onPick, spin, heatLevels, heatTint, anchor });
-  latest.current = { recorded, selected, side, onPick, spin, heatLevels, heatTint, anchor };
+  const latest = useRef({ recorded, planned, selected, side, onPick, spin, heatLevels, heatTint, anchor });
+  latest.current = { recorded, planned, selected, side, onPick, spin, heatLevels, heatTint, anchor };
   const api = useRef<{ refresh: () => void; setSide: (side: 'front' | 'back') => void; anchor: () => void } | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [hovered, setHovered] = useState<MuscleId | null>(null);
-  useEffect(() => { api.current?.refresh(); }, [recorded, selected, heatLevels, heatTint]);
+  useEffect(() => { api.current?.refresh(); }, [recorded, planned, selected, heatLevels, heatTint]);
   useEffect(() => { api.current?.setSide(side); }, [side]);
   useEffect(() => { api.current?.anchor(); }, [anchor?.muscle]);
 
@@ -203,6 +207,7 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
         heatData[i] = levels ? Math.round((levels.get(g.id) ?? 0) * 255)
           : selectedId === g.id || active.has(g.id) ? 255 : 0;
         heatData[i + 1] = hover === g.id ? 255 : 0;
+        heatData[i + 2] = latest.current.planned?.includes(g.id) && !active.has(g.id) ? 255 : 0;
         heatData[i + 3] = 255;
       }
       heat.needsUpdate = true;
@@ -255,11 +260,12 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
         // Background always occludes picks and receives zero highlight, including
         // the background portion of triangles crossing a muscle boundary.
         if (id < 32.0) {
-          vec2 state = texture2D(uMuscleHeat, vec2((id+0.5)/32.0, 0.5)).rg;
+          vec3 state = texture2D(uMuscleHeat, vec2((id+0.5)/32.0, 0.5)).rgb;
           float feather = smoothstep(0.0, 1.0, vMuscleEdge);
           vec3 tint = state.r > 0.0 ? uMuscleGreen : uMuscleHover;
           float intensity = state.r > 0.0 ? state.r : state.g;
           diffuseColor.rgb = mix(diffuseColor.rgb, tint, intensity * feather);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.64, 0.59, 0.006), state.b);
           if (${rimOnHover ? 'true' : 'false'} && state.r > 0.0 && state.g > 0.0) {
             float rim = 4.0 * feather * (1.0 - feather);
             diffuseColor.rgb = mix(diffuseColor.rgb, uMuscleHover, 0.55 * rim);

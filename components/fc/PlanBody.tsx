@@ -2,12 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import ExerciseSheet from './ExerciseSheet';
+import ExerciseSheet, { type ExerciseChoice } from './ExerciseSheet';
 import SculptureBody, { type SculptureAnchor } from './SculptureBody';
 import PlanDetail from './PlanDetail';
-import PlanModelSwitch from './PlanModelSwitch';
 import PlanMusclePicker from './PlanMusclePicker';
-import { BODY_MODEL_COOKIE, parseBodyModel } from '@/lib/body-model-preference';
 import type { MuscleId } from '@/lib/muscles';
 import { canonicalMuscle, sculptureGroup, type SculptureVariant } from '@/lib/sculpture-groups';
 import { PLAN_POSES, planPoseFor } from '@/lib/plan-poses';
@@ -42,10 +40,9 @@ function closeLayer(layer: PlanLayer) {
   window.history.replaceState(null, '', url);
 }
 
-export default function PlanBody({ profileModel, modelPreference, todayPlan }: {
-  profileModel: SculptureVariant;
-  modelPreference: SculptureVariant | null;
-  todayPlan: { date: string; exerciseIds: string[] };
+export default function PlanBody({ variant, todayPlan }: {
+  variant: SculptureVariant;
+  todayPlan: { date: string; label?: string; exerciseIds: string[] };
 }) {
   const router = useRouter();
   const query = useSearchParams();
@@ -53,13 +50,8 @@ export default function PlanBody({ profileModel, modelPreference, todayPlan }: {
   const group = sculptureGroup(picked);
   const library = query.get('library');
   const sheet = picked && (library === 'all' || library === 'liked') ? library : null;
-  const [localPreference, setLocalPreference] = useState<SculptureVariant | null>();
-  const choice = localPreference === undefined
-    ? parseBodyModel(query.get('body')) ?? modelPreference
-    : localPreference;
-  const variant = choice ?? profileModel;
   const [side, setSide] = useState<'front' | 'back'>(group?.side === 'back' ? 'back' : 'front');
-  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const [selected, setSelected] = useState<ReadonlyMap<string, ExerciseChoice>>(new Map());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const root = useRef<HTMLDivElement>(null);
@@ -69,7 +61,7 @@ export default function PlanBody({ profileModel, modelPreference, todayPlan }: {
   const planned = new Set(todayPlan.exerciseIds);
 
   useEffect(() => {
-    setSelected(new Set());
+    setSelected(new Map());
     setError('');
   }, [picked]);
 
@@ -81,19 +73,6 @@ export default function PlanBody({ profileModel, modelPreference, todayPlan }: {
     if (layer === 'muscle') root.current?.querySelector<HTMLButtonElement>('.plan-detail-close')?.focus();
     if (layer === 'library') root.current?.querySelector<HTMLDivElement>('.fc-dict-sheet')?.focus();
   }, [picked, sheet]);
-
-  function changeModel(model: SculptureVariant | null) {
-    const url = new URL(window.location.href);
-    if (model === choice && !url.searchParams.has('body')) return;
-    document.cookie = `${BODY_MODEL_COOKIE}=${model ?? ''}; Path=/; SameSite=Lax; Max-Age=${model ? 31536000 : 0}`;
-    setLocalPreference(model);
-    if (url.searchParams.has('body')) {
-      url.searchParams.delete('body');
-      const layer = window.history.state?.fitcheckPlanLayer;
-      window.history.replaceState(layer ? { fitcheckPlanLayer: layer } : null, '', url);
-    }
-    router.refresh();
-  }
 
   function onPick(id: MuscleId, trigger: HTMLElement | null = null) {
     const muscle = canonicalMuscle(id);
@@ -107,20 +86,20 @@ export default function PlanBody({ profileModel, modelPreference, todayPlan }: {
     pushLayer('library', which);
   }
 
-  function toggle(exerciseId: string) {
-    if (lock.current || planned.has(exerciseId)) return;
+  function toggle(exercise: ExerciseChoice) {
+    if (lock.current || planned.has(exercise.id)) return;
     setError('');
     haptic(5);
     setSelected((current) => {
-      const next = new Set(current);
-      if (next.has(exerciseId)) next.delete(exerciseId);
-      else next.add(exerciseId);
+      const next = new Map(current);
+      if (next.has(exercise.id)) next.delete(exercise.id);
+      else next.set(exercise.id, exercise);
       return next;
     });
   }
 
   async function complete() {
-    if (lock.current || selected.size === 0) return false;
+    if (lock.current || selected.size === 0) return null;
     lock.current = true;
     setSaving(true);
     setError('');
@@ -128,20 +107,18 @@ export default function PlanBody({ profileModel, modelPreference, todayPlan }: {
       const response = await fetch('/api/plan', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ date: todayPlan.date, exerciseIds: [...selected] }),
+        body: JSON.stringify({ date: todayPlan.date, exerciseIds: [...selected.keys()] }),
       });
-      if (!response.ok) {
-        const result = await response.json() as { error?: string };
-        throw new Error(result.error || '保存失败，请重试');
-      }
+      const result = await response.json() as { addedItemIds?: number[]; error?: string };
+      if (!response.ok) throw new Error(result.error || '保存失败，请重试');
+      haptic(12);
+      return result.addedItemIds ?? [];
     } catch (err) {
       setError((err as Error).message);
       lock.current = false;
       setSaving(false);
-      return false;
+      return null;
     }
-    haptic(12);
-    return true;
   }
 
   const pose = picked ? planPoseFor(picked) : null;
@@ -151,7 +128,6 @@ export default function PlanBody({ profileModel, modelPreference, todayPlan }: {
     <div ref={root} className="plan-root fc">
       <div inert={Boolean(picked)} aria-hidden={picked ? true : undefined}>
         <div className="plan-overview-controls">
-          <PlanModelSwitch choice={choice} onChange={changeModel} />
           <button type="button" className="plan-rotate" onClick={() => setSide((current) => current === 'front' ? 'back' : 'front')}>
             {side === 'front' ? '看背面' : '看正面'}
           </button>
@@ -175,8 +151,6 @@ export default function PlanBody({ profileModel, modelPreference, todayPlan }: {
           region={PLAN_POSES[pose].label}
           pose={pose}
           variant={variant}
-          modelChoice={choice}
-          onModelChange={changeModel}
           onOpenLibrary={openLibrary}
           onClose={() => closeLayer('muscle')}
         />
@@ -187,9 +161,11 @@ export default function PlanBody({ profileModel, modelPreference, todayPlan }: {
         grouped
         preference={sheet === 'liked' ? 'liked' : undefined}
         onClose={() => { if (!lock.current) closeLayer('library'); }}
-        selection={{ planned, selected, toggle, saving, error, complete }}
-        onSelectionComplete={() => {
-          router.replace('/train');
+        selection={{ label: todayPlan.label, planned, selected, toggle, saving, error, complete }}
+        onSelectionComplete={(addedItemIds) => {
+          const query = new URLSearchParams(addedItemIds.map((id) => ['added', String(id)]));
+          if (todayPlan.label) query.set('date', todayPlan.date);
+          router.replace(query.size ? `/train?${query}` : '/train');
           router.refresh();
         }}
       />

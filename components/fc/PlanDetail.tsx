@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
 import JournalIcon from '@/components/JournalIcon';
-import PlanModelSwitch from './PlanModelSwitch';
 import type { MuscleId } from '@/lib/muscles';
 import type { SculptureVariant } from '@/lib/sculpture-groups';
 import type { PlanPose } from '@/lib/plan-poses';
@@ -13,14 +12,12 @@ async function countOf(url: string, signal: AbortSignal) {
   return ((await res.json()) as { total?: number }).total ?? 0;
 }
 
-export default function PlanDetail({ muscle, muscleLabel, region, pose, variant, modelChoice, onModelChange, libraryOpen, onOpenLibrary, onClose }: {
+export default function PlanDetail({ muscle, muscleLabel, region, pose, variant, libraryOpen, onOpenLibrary, onClose }: {
   muscle: MuscleId;
   muscleLabel: string;
   region: string;
   pose: PlanPose;
   variant: SculptureVariant;
-  modelChoice: SculptureVariant | null;
-  onModelChange: (model: SculptureVariant | null) => void;
   /** 动作库抽屉开着时，Esc 交给抽屉处理 */
   libraryOpen: boolean;
   onOpenLibrary: (which: 'all' | 'liked') => void;
@@ -83,12 +80,9 @@ export default function PlanDetail({ muscle, muscleLabel, region, pose, variant,
       <div className="plan-detail-dots" aria-hidden="true" />
       <header className="plan-detail-head">
         <div className="journal-brand"><JournalIcon name="brand" />FitCheck</div>
-        <div className="journal-head-actions">
-          <PlanModelSwitch choice={modelChoice} onChange={onModelChange} />
-          <button type="button" className="journal-head-circle plan-detail-close" onClick={onClose} aria-label="返回点选肌群">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
-          </button>
-        </div>
+        <button type="button" className="journal-head-circle plan-detail-close" onClick={onClose} aria-label="返回点选肌群">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+        </button>
       </header>
 
       <figure className="plan-detail-figure" data-variant={variant} data-pose={pose}>

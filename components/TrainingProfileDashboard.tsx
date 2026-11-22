@@ -122,7 +122,7 @@ export default function TrainingProfileDashboard({ profile, restrictions, nutrit
       </span>
       <div className="me-identity-main">
         <h2>{profile.name}</h2>
-        <p>{profile.sex ? `${profile.sex === 'female' ? '女' : '男'} · 默认${profile.sex === 'female' ? '女性' : '男性'}模型` : '性别未填 · 默认男性模型'}</p>
+        <p>{profile.sex === 'female' ? '女 · 女性模型' : profile.sex === 'male' ? '男 · 男性模型' : '性别未填 · 默认男性模型'}</p>
         <div className="me-tags">
           {profile.goal && <span className="tag ink">{TRAINING_GOALS[profile.goal]}</span>}
           {active.length > 0 && <span className="tag">{active.length} 项限制</span>}

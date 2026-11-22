@@ -1,5 +1,5 @@
 import { getDb } from '../db';
-import { DEFAULT_TZ, todayKey } from '../date';
+import { DEFAULT_TZ, todayKey, weekDates } from '../date';
 import { idsForTarget } from '../energy';
 import { mentionedMuscles } from '../journal';
 import { MUSCLES, muscleMatchesExercise, type MuscleId } from '../muscles';
@@ -128,20 +128,22 @@ function clamp(value: unknown, min: number, max: number, fallback: number): numb
   return Number.isFinite(number) ? Math.min(max, Math.max(min, number)) : fallback;
 }
 
-export function addPlanExercises(date: string, exercises: ExerciseRow[]): PlanItem[] {
+export function addPlanExercises(date: string, exercises: ExerciseRow[]): { items: PlanItem[]; addedItemIds: number[] } {
   const db = getDb();
   db.exec('BEGIN IMMEDIATE');
   try {
-    if (date !== todayStr()) throw new Error('日期已变化，请刷新今日计划后再选择');
+    const today = todayStr();
+    if (date < today || !weekDates(today).includes(date)) throw new Error('请重新选择本周尚可安排的日期');
     const existing = new Set(getPlan(date).map((item) => item.exercise_id));
+    const addedItemIds: number[] = [];
     for (const exercise of exercises) {
       if (existing.has(exercise.id)) continue;
-      addPlanItem(exercise, { date });
+      addedItemIds.push(addPlanItem(exercise, { date }).id);
       existing.add(exercise.id);
     }
     const items = getPlan(date);
     db.exec('COMMIT');
-    return items;
+    return { items, addedItemIds };
   } catch (error) {
     db.exec('ROLLBACK');
     throw error;
@@ -151,7 +153,7 @@ export function addPlanExercises(date: string, exercises: ExerciseRow[]): PlanIt
 export function updatePlanItem(
   id: number,
   patch: { sets?: number; reps?: number; weight?: number; restSec?: number; done?: number },
-): void {
+): string | undefined {
   const cur = getDb().prepare('SELECT * FROM plan_item WHERE id = ?').get(id) as PlanItem | undefined;
   if (!cur) return;
   getDb()
@@ -164,10 +166,12 @@ export function updatePlanItem(
       patch.done === undefined ? cur.done : patch.done ? 1 : 0,
       id,
     );
+  return cur.date;
 }
 
-export function deletePlanItem(id: number): void {
-  getDb().prepare('DELETE FROM plan_item WHERE id = ?').run(id);
+export function deletePlanItem(id: number): string | undefined {
+  const deleted = getDb().prepare('DELETE FROM plan_item WHERE id = ? RETURNING date').get(id) as { date: string } | undefined;
+  return deleted?.date;
 }
 
 export function clearPlan(date = todayStr()): void {
@@ -376,6 +380,7 @@ export function saveGuidedSet(
     restSec: number;
     previousSetId?: number;
     previousRestSec?: number;
+    chooseExercise?: boolean;
   },
 ): { ended: boolean; sets: SetRow[] } {
   const db = getDb();
@@ -392,7 +397,8 @@ export function saveGuidedSet(
       for (const set of sets) {
         if (set.plan_item_id !== null) completed.set(set.plan_item_id, (completed.get(set.plan_item_id) ?? 0) + 1);
       }
-      const item = plan.find((entry) => (completed.get(entry.id) ?? 0) < entry.sets);
+      const item = plan.find((entry) => (completed.get(entry.id) ?? 0) < entry.sets
+        && (!data.chooseExercise || entry.id === data.planItemId));
       if (item?.id !== data.planItemId || data.setIndex !== (completed.get(item.id) ?? 0) + 1) {
         throw new Error('训练进度已更新，请刷新后继续');
       }

@@ -10,7 +10,7 @@ import { exportJournal } from '@/lib/export';
 import { calcMuscleHeatmap, calcWeightTrend } from '@/lib/calculations';
 import { localDay } from '@/lib/ledger';
 import { addDays, periodRange } from '@/lib/period';
-import { getBodyModelSettings } from '@/lib/core/body-model';
+import { getTrainingBodyModel } from '@/lib/core/body-model';
 import { sculptureGroup } from '@/lib/sculpture-groups';
 import type { MuscleId } from '@/lib/muscles';
 
@@ -86,7 +86,7 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
   });
   const trainingDays = inRange.filter((d) => d.entries.some((e) => e.entry_type === 'workout')).length;
   const totalSets = inRange.reduce((sum, d) => sum + d.daily_summary.totalSets, 0);
-  const variant = (await getBodyModelSettings()).model;
+  const variant = getTrainingBodyModel();
   const weight = trend.latest === null ? null : {
     latest: trend.latest,
     change: trend.change ?? 0,

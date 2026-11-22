@@ -2,7 +2,8 @@ import { notFound } from 'next/navigation';
 import { getExercise } from '@/lib/exercise';
 import { imageUrl } from '@/lib/exercise-label';
 import TrainingRunner from '@/components/TrainingRunner';
-import { exercisePerformance, getSession, getSessionSets, sessionPlan } from '@/lib/core/workout';
+import { getTrainingBodyModel } from '@/lib/core/body-model';
+import { exercisePerformance, getSession, getSessionSets, sessionPlan, todayStr } from '@/lib/core/workout';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -26,5 +27,6 @@ export default async function TrainSessionPage({ params }: { params: Promise<{ i
   const priorBest = Object.fromEntries(exercisePerformance('0000-01-01', session.date)
     .filter((exercise) => planned.has(exercise.id))
     .map((exercise) => [exercise.id, Math.max(0, ...exercise.sessions.filter((s) => s.id !== sid && s.pr).map((s) => s.pr!.value))]));
-  return <TrainingRunner session={session} plan={plan} initialSets={getSessionSets(sid)} demonstrations={demonstrations} priorBest={priorBest} />;
+  return <TrainingRunner session={session} plan={plan} initialSets={getSessionSets(sid)} demonstrations={demonstrations} priorBest={priorBest} variant={getTrainingBodyModel()}
+    receiptHref={session.date === todayStr() ? '/train' : `/history/${session.date}`} />;
 }

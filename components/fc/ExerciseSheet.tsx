@@ -6,6 +6,7 @@ import { EQUIPMENT_LABEL, TARGET_LABEL, imageUrl } from "@/lib/exercise-label";
 import { muscleById, type MuscleId } from "@/lib/muscles";
 import { sculptureGroup } from "@/lib/sculpture-groups";
 import JournalIcon from "@/components/JournalIcon";
+import Icon from "@/components/ui/Icon";
 import type { ExercisePreference } from "@/lib/core/exercise-preferences";
 
 interface DictItem {
@@ -35,12 +36,13 @@ interface DictResult {
 
 export type ExerciseChoice = { id: string; name: string };
 export type ExerciseSelection = {
+  label?: string;
   planned: ReadonlySet<string>;
-  selected: ReadonlySet<string>;
-  toggle: (exerciseId: string) => void;
+  selected: ReadonlyMap<string, ExerciseChoice>;
+  toggle: (exercise: ExerciseChoice) => void;
   saving: boolean;
   error: string;
-  complete: () => Promise<boolean>;
+  complete: () => Promise<number[] | null>;
 };
 
 const FILTERS: { key: string; label: string; equip: string[] }[] = [
@@ -106,7 +108,7 @@ export default function ExerciseSheet({
   onClose: () => void;
   grouped?: boolean;
   selection?: ExerciseSelection;
-  onSelectionComplete?: () => void;
+  onSelectionComplete?: (addedItemIds: number[]) => void;
   onChooseExercise?: (exercise: ExerciseChoice) => void;
   /** liked：只看「我的动作库」（在「我的 · 动作偏好」里标为常练的动作） */
   preference?: "liked";
@@ -119,11 +121,14 @@ export default function ExerciseSheet({
   const [reload, setReload] = useState(0);
   const [filter, setFilter] = useState<string>("all");
   const [active, setActive] = useState<DictItem | null>(null);
+  const [showSelected, setShowSelected] = useState(false);
   const [state, setState] = useState<Record<string, "busy" | "done" | "err">>(
     {},
   );
   const [toast, setToast] = useState("");
   const list = useRef<HTMLDivElement>(null);
+  const selectedList = useRef<HTMLElement>(null);
+  const trayToggle = useRef<HTMLButtonElement>(null);
   const listScroll = useRef(0);
   const listRequest = useRef<AbortController | null>(null);
   const moreRequest = useRef<AbortController | null>(null);
@@ -139,6 +144,9 @@ export default function ExerciseSheet({
     query.append("equipment", equipment);
   }
   const listUrl = `/api/exercises?${query}`;
+  const selectedChoices = selection ? [...selection.selected.values()] : [];
+  const reviewing = showSelected && selectedChoices.length > 0;
+  const loading = busyList || (!data && !listError);
 
   function showDetails(item: DictItem) {
     listScroll.current = list.current?.scrollTop ?? 0;
@@ -146,13 +154,15 @@ export default function ExerciseSheet({
   }
 
   useEffect(() => {
-    if (!active && list.current) list.current.scrollTop = listScroll.current;
-  }, [active]);
+    if (!active && !reviewing && list.current) list.current.scrollTop = listScroll.current;
+    if (reviewing) selectedList.current?.focus({ preventScroll: true });
+  }, [active, reviewing]);
 
   useEffect(() => {
     listScroll.current = 0;
     setFilter("all");
     setActive(null);
+    setShowSelected(false);
   }, [muscle, grouped]);
 
   useEffect(() => {
@@ -210,11 +220,15 @@ export default function ExerciseSheet({
     const close = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       if (active) setActive(null);
+      else if (reviewing) {
+        setShowSelected(false);
+        trayToggle.current?.focus();
+      }
       else onClose();
     };
     window.addEventListener("keydown", close);
     return () => window.removeEventListener("keydown", close);
-  }, [muscle, active, onClose]);
+  }, [muscle, active, onClose, reviewing]);
 
   useEffect(() => {
     if (!toast) return;
@@ -256,7 +270,7 @@ export default function ExerciseSheet({
         });
         if (!res.ok) throw new Error("加入失败");
         setState((prev) => ({ ...prev, [`plan-${it.id}`]: "done" }));
-        setToast("已加入今日训练清单");
+        setToast(`已加入${selection?.label ?? "今日训练"}清单`);
         router.refresh();
       } catch {
         setState((prev) => ({ ...prev, [`plan-${it.id}`]: "err" }));
@@ -279,7 +293,7 @@ export default function ExerciseSheet({
     <>
       <div className="fc-mask dict" onClick={onClose}>
         <div
-          className={`fc-sheet fc-dict-sheet${active ? " fc-dict-detail" : ""}`}
+          className={`fc-sheet fc-dict-sheet${active ? " fc-dict-detail" : ""}${selection ? " fc-dict-picker" : ""}`}
           role="dialog"
           tabIndex={-1}
           aria-modal="true"
@@ -370,7 +384,16 @@ export default function ExerciseSheet({
                 )}
               </div>
 
-              {selection ? null : onChooseExercise ? (
+              {selection ? (
+                <div className="fc-dict-actions">
+                  <button type="button" className="fc-btn primary"
+                    disabled={selection.saving || selection.planned.has(active.id)}
+                    aria-pressed={selection.selected.has(active.id)}
+                    onClick={() => selection.toggle({ id: active.id, name: active.zh_name || active.name })}>
+                    {selection.planned.has(active.id) ? `已在${selection?.label ?? "今日训练"}` : selection.selected.has(active.id) ? "取消选择" : "选择这个动作"}
+                  </button>
+                </div>
+              ) : onChooseExercise ? (
                 <div className="fc-dict-actions">
                   <button
                     type="button"
@@ -426,12 +449,10 @@ export default function ExerciseSheet({
                   <div className="fc-dict-title">
                     {title ?? "这块肌肉"}
                     <span className="fc-dict-count">
-                      {busyList ? "…" : `${data?.total ?? 0} 个动作`}
+                      {reviewing ? null : loading ? "…" : `${data?.total ?? 0} 个动作`}
                     </span>
                   </div>
-                  <div className="fc-dict-note">
-                    {selection ? "勾选要加入今日训练的动作" : "点动作看动图与要点"}
-                  </div>
+                  {!selection && <div className="fc-dict-note">点动作看动图与要点</div>}
                 </div>
                 <button
                   type="button"
@@ -442,11 +463,12 @@ export default function ExerciseSheet({
                 </button>
               </div>
 
-              <div className="fc-dict-filters">
+              {!reviewing && <div className="fc-dict-filters" aria-label="按器械筛选" role="group">
                 {FILTERS.map((f) => (
                   <button
                     key={f.key}
                     type="button"
+                    aria-pressed={filter === f.key}
                     className={filter === f.key ? "on" : ""}
                     onClick={() => {
                       listScroll.current = 0;
@@ -457,11 +479,38 @@ export default function ExerciseSheet({
                     {f.label}
                   </button>
                 ))}
-              </div>
+              </div>}
 
-              <div className="fc-dict-list" ref={list}>
-                {busyList && <p className="fc-note">正在取这一块的动作…</p>}
-                {!busyList &&
+              {reviewing && selection ? (
+                <section className="fc-dict-list fc-picker-review" ref={selectedList} tabIndex={-1} aria-label="待添加动作">
+                  <h3>待添加</h3>
+                  <ul>
+                    {selectedChoices.map((exercise) => (
+                      <li key={exercise.id}>
+                        <span>{exercise.name}</span>
+                        <button type="button" aria-label={`取消选择：${exercise.name}`} disabled={selection.saving}
+                          onClick={() => {
+                            if (selectedChoices.length === 1) setShowSelected(false);
+                            selection.toggle(exercise);
+                          }}>
+                          <Icon name="close" size={16} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : <div className="fc-dict-list" ref={list} aria-busy={loading}>
+                {loading && (selection ? (
+                  <div role="status">
+                    <span className="sr-only">正在加载动作</span>
+                    {Array.from({ length: 4 }, (_, index) => (
+                      <div className="fc-picker-skeleton" key={index} aria-hidden="true">
+                        <i /><span><i /><i /></span><i />
+                      </div>
+                    ))}
+                  </div>
+                ) : <p className="fc-note">正在取这一块的动作…</p>)}
+                {!loading &&
                   items.map((it) => {
                     const name = it.zh_name || it.name;
                     const planned = selection?.planned.has(it.id);
@@ -513,12 +562,18 @@ export default function ExerciseSheet({
                           className="fc-dict-item"
                           aria-pressed={selected}
                           disabled={selection.saving || planned}
-                          onClick={() => selection.toggle(it.id)}
+                          onClick={() => selection.toggle({ id: it.id, name })}
                         >
                           {preview}
-                          {planned && (
-                            <span className="fc-dict-planned">已在计划</span>
-                          )}
+                          {planned
+                            ? <span className="fc-dict-planned">已安排</span>
+                            : <span className="fc-picker-mark" aria-hidden="true">
+                                <Icon name="plus" size={16} />
+                                <svg className="fc-picker-check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                  strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="m5 12.5 4.5 4.5L19 7.5" pathLength={1} />
+                                </svg>
+                              </span>}
                         </button>
                         <button
                           type="button"
@@ -532,7 +587,7 @@ export default function ExerciseSheet({
                       </div>
                     );
                   })}
-                {!busyList && !listError && items.length === 0 && (
+                {!loading && !listError && items.length === 0 && (
                   <p className="fc-note">
                     {preference ? (
                       <>
@@ -568,9 +623,27 @@ export default function ExerciseSheet({
                     {busyMore ? "正在加载…" : "加载更多动作"}
                   </button>
                 )}
-              </div>
+                <p className="fc-dict-src">
+                  动作数据：hasaneyldrm/exercises-dataset（MIT）· 动图版权 Gym visual
+                </p>
+              </div>}
               {selection && (
-                <div className="fc-dict-actions">
+                <div className="fc-dict-actions fc-picker-actions">
+                  <span className="sr-only" role="status">{selectedChoices.length} 个动作待添加</span>
+                  {selectedChoices.length > 0 ? (
+                    <button type="button" className="fc-picker-tray" ref={trayToggle} aria-expanded={reviewing}
+                      onClick={() => {
+                        if (!reviewing) listScroll.current = list.current?.scrollTop ?? 0;
+                        setShowSelected(!reviewing);
+                      }}>
+                      <span className="fc-picker-count">已选 {selectedChoices.length}</span>
+                      {!reviewing && <span className="fc-picker-names">{selectedChoices.map(({ name }) => name).join("、")}</span>}
+                      <span className="fc-picker-review-link">
+                        {reviewing ? "返回列表" : "查看"}
+                        <Icon name={reviewing ? "chevron-left" : "chevron-right"} size={15} />
+                      </span>
+                    </button>
+                  ) : <p className="fc-picker-empty">点 ＋ 选动作，可连续添加</p>}
                   {selection.error && (
                     <p className="fc-note" role="alert">
                       {selection.error}
@@ -581,21 +654,14 @@ export default function ExerciseSheet({
                     className="fc-btn primary"
                     disabled={selection.saving || selection.selected.size === 0}
                     onClick={async () => {
-                      if (await selection.complete()) (onSelectionComplete ?? onClose)();
+                      const addedItemIds = await selection.complete();
+                      if (addedItemIds) (onSelectionComplete ?? onClose)(addedItemIds);
                     }}
                   >
-                    {selection.saving
-                      ? "加入中…"
-                      : selection.selected.size
-                        ? `加入今日训练（${selection.selected.size}）`
-                        : "加入今日训练"}
+                    {selection.saving ? "加入中…" : `加入${selection?.label ?? "今日训练"}`}
                   </button>
                 </div>
               )}
-              <p className="fc-dict-src">
-                动作数据：hasaneyldrm/exercises-dataset（MIT）· 动图版权 Gym
-                visual
-              </p>
             </>
           )}
         </div>

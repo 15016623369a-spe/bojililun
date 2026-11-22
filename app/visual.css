@@ -631,5 +631,5 @@
 .icon { flex: none; display: inline-block; vertical-align: -.18em; }
 .row-chev { color: var(--gray-1); }
 .runner-back { display: inline-flex; align-items: center; gap: 2px; margin-left: -6px; }
-.set-strip small .icon, .tile-num small .icon { vertical-align: -.15em; margin-left: 2px; }
+.tile-num small .icon { vertical-align: -.15em; margin-left: 2px; }
 .live-banner span { display: inline-flex; align-items: center; gap: 4px; }

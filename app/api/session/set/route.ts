@@ -35,6 +35,7 @@ export async function POST(req: Request) {
       durationSec?: number;
       restSec?: number;
       previousSetId?: number;
+      chooseExercise?: boolean;
       previousRestSec?: number;
       /** 回顾页追加一组：只追加，不走引导式训练进度校验 */
       append?: boolean;
@@ -59,6 +60,7 @@ export async function POST(req: Request) {
         durationSec: clampNumber(b.durationSec),
         restSec: Math.min(600, clampNumber(b.restSec)),
         previousSetId: b.previousSetId,
+        chooseExercise: b.chooseExercise === true,
         previousRestSec: b.previousRestSec === undefined ? undefined : Math.min(86400, clampNumber(b.previousRestSec)),
       }));
     }

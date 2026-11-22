@@ -1,79 +1,91 @@
 import Link from 'next/link';
 import JournalShell from '@/components/JournalShell';
 import TodayPlan from '@/components/TodayPlan';
-import BigDate from '@/components/ui/BigDate';
-import { activeTraining, daySessions, getPlan, getSessionSets, sessionPlan, sessionTotals, todayStr } from '@/lib/core/workout';
+import TrainingOverview from '@/components/TrainingOverview';
+import { activeTraining, daySessions, getPlan, getSessionSets, sessionPlan, todayStr } from '@/lib/core/workout';
+import { getTrainingBodyModel } from '@/lib/core/body-model';
 import { journalForDate } from '@/lib/core/journal';
 import { hasRecordedData } from '@/lib/journal';
 import { getExercise } from '@/lib/exercise';
-import { BODY_LABEL, imageUrl } from '@/lib/exercise-label';
-import Icon from '@/components/ui/Icon';
+import { BODY_LABEL, imageUrl, TARGET_LABEL } from '@/lib/exercise-label';
+import { weekDates } from '@/lib/date';
+import { idsForTarget } from '@/lib/energy';
+import type { PlanItem } from '@/lib/types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const metadata = { title: '训练 · FitCheck' };
 
-export const metadata = { title: '今日训练 · FitCheck' };
+function trainingFocus(exercises: Pick<PlanItem, 'target' | 'body_part'>[]) {
+  const labels = [...new Set(exercises.map(({ target, body_part }) => {
+    if (target === 'pectorals') return '胸';
+    return TARGET_LABEL[target] ?? BODY_LABEL[body_part] ?? '全身';
+  }))];
+  return labels.length > 3 ? '全身训练' : labels.join('与');
+}
 
-export default function TrainPage() {
+export default async function TrainPage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
   const today = todayStr();
-  const plan = getPlan(today);
-  const details = daySessions(today);
-  const quickEntries = journalForDate(today).filter((entry) => entry.quickId !== undefined);
-  const quickWorkouts = quickEntries.filter((entry) => entry.kind === 'training');
-  // 有详细训练时，纯名称提及不列入「今天已练」；仅语音的日子保留记录入口
-  const listedQuickWorkouts = details.length > 0
-    ? quickWorkouts.filter((entry) => (entry.payload?.exercises ?? []).some(hasRecordedData))
-    : quickWorkouts;
-  const completedSessions = details.filter(({ session, sets }) => session.ended_at && sets.length > 0);
-  const lastCompletedSession = completedSessions.at(-1)?.session;
-  const hasRecordedWorkout = quickWorkouts.some((entry) => entry.payload?.exercises?.some(hasRecordedData));
-  const totals = sessionTotals(completedSessions);
-  const activeSession = activeTraining() ?? details.find(({ session }) => !session.ended_at)?.session ?? null;
+  const week = weekDates(today);
+  const query = await searchParams;
+  const date = query.date && week.includes(query.date) ? query.date : today;
+  const days = week.map((day) => {
+    const plan = getPlan(day);
+    const details = daySessions(day);
+    const completed = details.filter(({ session, sets }) => session.ended_at && sets.length > 0);
+    const quick = journalForDate(day).filter((entry) => entry.quickId !== undefined && entry.kind === 'training');
+    const quickExercises = quick.flatMap((entry) => entry.payload?.exercises ?? []).filter(hasRecordedData);
+    const sets = completed.flatMap((entry) => entry.sets);
+    return { date: day, plan, details, completed, quick, quickExercises, sets,
+      focus: trainingFocus(plan.length ? plan : sets), recorded: sets.length > 0 || quickExercises.length > 0 };
+  });
+  const selected = days.find((day) => day.date === date)!;
+  const { plan, completed, quick, quickExercises, sets } = selected;
+  const active = activeTraining();
+  const activeSession = date === today ? active ?? selected.details.find(({ session }) => !session.ended_at)?.session ?? null : null;
+  const activeSets = activeSession ? getSessionSets(activeSession.id) : [];
+  const activePlan = activeSession ? sessionPlan(activeSession) : [];
+  const activeProgress = activeSession ? {
+    id: activeSession.id, completedSets: activeSets.length,
+    totalSets: activeSession.plan_json ? activePlan.reduce((sum, item) => sum + item.sets, 0) : null,
+  } : null;
   const images = Object.fromEntries(plan.map((item) => {
     const image = getExercise(item.exercise_id)?.image;
     return [item.exercise_id, image ? imageUrl(image) : ''];
   }));
-  const regions = [...new Set(plan.map((item) => BODY_LABEL[item.body_part] ?? item.body_part))].slice(0, 3);
-
-  const activeProgress = activeSession ? {
-    id: activeSession.id,
-    completedSets: (details.find(({ session }) => session.id === activeSession.id)?.sets ?? getSessionSets(activeSession.id)).length,
-    totalSets: activeSession.plan_json ? sessionPlan(activeSession).reduce((sum, item) => sum + item.sets, 0) : null,
-  } : null;
+  const names = new Map<string, number>();
+  for (const set of sets) names.set(set.exercise_name, (names.get(set.exercise_name) ?? 0) + 1);
+  const last = completed.at(-1);
+  const finished = last?.session.plan_json && sessionPlan(last.session)
+    .every((item) => last.sets.filter((set) => set.plan_item_id === item.id).length >= item.sets);
+  const lastEnded = selected.details.findLast(({ session }) => session.plan_json && session.ended_at);
+  const pending = plan.filter((item) => !item.done);
+  const targets = activeSession ? activePlan : pending;
+  const focus = (activeSession && trainingFocus(activePlan)) || selected.focus || (quick.length ? '训练记录' : '暂无训练安排');
+  const status = activeProgress ? `训练中 · 已记录 ${activeProgress.completedSets} 组`
+    : sets.length ? `${finished && pending.length === 0 ? '已完成' : completed.length > 1 ? '当天已记录' : '本次已记录'} ${sets.length} 组`
+    : lastEnded ? '训练已结束 · 已记录 0 组'
+    : quick.length ? '已有训练记录'
+    : plan.length ? `${plan.length} 个动作 · ${plan.reduce((sum, item) => sum + item.sets, 0)} 组`
+    : '';
+  const receipt = [...names].map(([name, count]) => `${name} ${count} 组`).join(' · ')
+    || quickExercises.map((exercise) => exercise.name).join(' · ');
 
   return (
-    <JournalShell active="plan" title="今日训练" today={today} className="is-train"
-      headerAction={<span className="journal-head-label" aria-hidden="true">今日训练</span>}
-      hero={<BigDate date={today} note={regions.join(' · ')} />}>
+    <JournalShell active="plan" title="训练" today={today} className="is-train"
+      headerAction={<span className="journal-head-label">训练</span>}
+      hero={<TrainingOverview key={date} today={today} date={date} focus={focus} status={status} receipt={receipt}
+        variant={getTrainingBodyModel()}
+        planned={[...new Set(targets.flatMap((item) => idsForTarget(item.target)))]}
+        recorded={[...new Set([...sets, ...activeSets].flatMap((set) => idsForTarget(set.target)))]}
+        days={days.map((day) => ({ date: day.date, focus: day.focus, recorded: day.recorded }))} />}>
 
-      <TodayPlan key={today} date={today} initialItems={plan} images={images} activeSession={activeProgress}
-        hasCompletedTraining={Boolean(lastCompletedSession) || hasRecordedWorkout}
-        completedSessionId={lastCompletedSession?.plan_json ? lastCompletedSession.id : null} />
+      {date >= today && <TodayPlan key={date} date={date} isToday={date === today} initialItems={plan} images={images}
+        activeSession={activeProgress} hasCompletedTraining={Boolean(last) || quickExercises.length > 0}
+        completedSessionId={last?.session.plan_json ? last.session.id : null} />}
 
-      {(completedSessions.length > 0 || listedQuickWorkouts.length > 0) && (
-        <section className="v-section">
-          <h2 className="v-section-title">今天已练</h2>
-          <div className="readouts">
-            <div className="readout lemon"><b className="big-num">{totals.volume.toLocaleString()}</b><span>kg</span><em>训练容量</em></div>
-            <div className="readout"><b className="big-num">{totals.sets}</b><span>组</span><em>完成组数</em></div>
-            <div className="readout"><b className="big-num">{completedSessions.length > 0 ? totals.durationMin : '—'}</b><span>分钟</span><em>训练时长</em></div>
-          </div>
-          <div className="v-rows">
-            {completedSessions.map((d) => (
-              <Link key={d.session.id} href={`/history/${today}`} className="v-row">
-                <span><b>{d.groups.length} 个动作 · {d.sets.length} 组</b><small>{d.groups.map((g) => g.exercise_name).join('、')}</small></span>
-                <Icon name="chevron-right" size={18} className="row-chev" />
-              </Link>
-            ))}
-            {listedQuickWorkouts.map((entry) => (
-              <Link key={entry.id} href={`/history/${today}`} className="v-row">
-                <span><b>语音训练记录</b><small>{(entry.payload?.exercises ?? []).map((exercise) => exercise.name).join('、')
-                  || entry.payload?.summary || entry.title}</small></span>
-                <Icon name="chevron-right" size={18} className="row-chev" />
-              </Link>
-            ))}
-          </div>
-        </section>
+      {(quick.length > 0 || (date < today && sets.length > 0)) && (
+        <Link href={`/history/${date}`} className="add-row">查看当天记录</Link>
       )}
     </JournalShell>
   );
