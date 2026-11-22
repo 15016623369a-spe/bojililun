@@ -114,3 +114,9 @@ html[data-theme="dark"] .ledger-moves { background: #1a1c1f; box-shadow: inset 0
 html[data-theme="dark"] .fc-dict-filters button { color: #a3a6a0; }
 html[data-theme="dark"] .fc-dict-filters button.on { color: #151613; }
 html[data-theme="dark"] .fc-dict-select-row[data-selected="true"] .fc-dict-item::after { background: #ecebe6 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23151613' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 12.5 4 4 8-9'/%3E%3C/svg%3E") center / 15px no-repeat; border-color: #ecebe6; }
+
+/* 合并 #20 后补的夜间配色：撤销回执、待保存草稿；今日训练的柠檬黄进行中横幅保持墨色字 */
+html[data-theme="dark"] .record-undo-notice { background: #222428; color: #eeefea; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 8%), 0 14px 30px -16px rgb(0 0 0 / 80%); }
+html[data-theme="dark"] .record-recovery article { background: #1a1c1f; color: #eeefea; }
+html[data-theme="dark"] .live-banner { --ink-0: #151613; color: #151613; }
+html[data-theme="dark"] .plan-model-switch button:not([aria-pressed="true"]), html[data-theme="dark"] .plan-under :is(.plan-muscle-picker, .plan-rotate) { color: #c9cbc5; }

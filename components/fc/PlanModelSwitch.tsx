@@ -11,9 +11,9 @@ export default function PlanModelSwitch({ choice, onChange }: {
   choice: ModelChoice;
   onChange: (model: ModelChoice) => void;
 }) {
-  return <div className="plan-model-switch" role="group" aria-label="人体模型">
+  return <span className="plan-model-switch" role="group" aria-label="人体模型">
     {choices.map(({ value, label }) => <button key={label} type="button" aria-pressed={choice === value}
       aria-label={value === null ? '跟随个人档案' : value === 'male' ? '男性模型' : '女性模型'}
       onClick={() => onChange(value)}>{label}</button>)}
-  </div>;
+  </span>;
 }

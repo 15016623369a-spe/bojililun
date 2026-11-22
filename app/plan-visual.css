@@ -807,3 +807,7 @@
 html[data-theme="dark"] .plan-model-switch button[aria-pressed="true"] { background: #ecebe6; color: #151613; }
 html[data-theme="dark"] .plan-muscle-dialog { background: rgb(22 24 27 / 92%); }
 html[data-theme="dark"] .plan-muscle-dialog::backdrop { background: rgb(0 0 0 / 45%); }
+/* 标题下一行：「正面」和模型切换在一排，提示文字换到下一行 */
+.plan-title p { flex-wrap: wrap; row-gap: 8px; }
+.plan-title-side, .plan-model-switch button { white-space: nowrap; flex: none; }
+.plan-title .plan-title-hint { order: 3; flex-basis: 100%; }

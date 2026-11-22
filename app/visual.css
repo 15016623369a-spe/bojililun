@@ -74,7 +74,7 @@
   padding: 0 12px;
   border: 0;
   border-radius: 999px;
-  color: var(--dk-line, #d2d4cd);
+  color: #d2d4cd;
   font-size: 14px;
   letter-spacing: 0.025em;
   text-decoration: none;
@@ -107,7 +107,7 @@
 .fc .fc-speak {
   height: 49px;
   background: var(--dk-fill, var(--ink-0));
-  color: var(--dk-card, #f4f5f0);
+  color: #f4f5f0;
   box-shadow: none;
   font-size: 16px;
 }
@@ -486,7 +486,7 @@
   padding: 0.35rem 0.6rem;
   border-radius: 999px;
   background: #242522;
-  color: var(--dk-card, #f1f1ed);
+  color: #f1f1ed;
   font-size: 0.75rem;
 }
 .exercise-metrics p {
