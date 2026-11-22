@@ -9,7 +9,6 @@ import PlanModelSwitch from './PlanModelSwitch';
 import PlanMusclePicker from './PlanMusclePicker';
 import { BODY_MODEL_COOKIE, parseBodyModel } from '@/lib/body-model-preference';
 import type { MuscleId } from '@/lib/muscles';
-import type { PlanItem } from '@/lib/types';
 import { canonicalMuscle, sculptureGroup, type SculptureVariant } from '@/lib/sculpture-groups';
 import { PLAN_POSES, planPoseFor } from '@/lib/plan-poses';
 
@@ -20,7 +19,6 @@ function haptic(ms = 8) {
   try { navigator.vibrate?.(ms); } catch { /* iOS Safari 没有振动接口 */ }
 }
 
-type PlanExercise = Pick<PlanItem, 'exercise_id' | 'done'>;
 type Library = 'all' | 'liked';
 type PlanLayer = 'muscle' | 'library';
 
@@ -44,11 +42,10 @@ function closeLayer(layer: PlanLayer) {
   window.history.replaceState(null, '', url);
 }
 
-export default function PlanBody({ profileModel, modelPreference, todayPlan, activeSession = null }: {
+export default function PlanBody({ profileModel, modelPreference, todayPlan }: {
   profileModel: SculptureVariant;
   modelPreference: SculptureVariant | null;
-  todayPlan: { date: string; items: PlanExercise[] };
-  activeSession?: number | null;
+  todayPlan: { date: string; exerciseIds: string[] };
 }) {
   const router = useRouter();
   const query = useSearchParams();
@@ -63,16 +60,13 @@ export default function PlanBody({ profileModel, modelPreference, todayPlan, act
   const variant = choice ?? profileModel;
   const [side, setSide] = useState<'front' | 'back'>(group?.side === 'back' ? 'back' : 'front');
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
-  const [saved, setSaved] = useState<{ source: PlanExercise[]; items: PlanExercise[] }>();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const root = useRef<HTMLDivElement>(null);
   const detailTrigger = useRef<HTMLElement | null>(null);
   const lock = useRef(false);
   const lastLayer = useRef<PlanLayer | null>(null);
-  const items = saved?.source === todayPlan.items ? saved.items : todayPlan.items;
-  const planned = new Set(items.map((item) => item.exercise_id));
-  const pendingCount = items.filter((item) => !item.done).length;
+  const planned = new Set(todayPlan.exerciseIds);
 
   useEffect(() => {
     setSelected(new Set());
@@ -136,20 +130,18 @@ export default function PlanBody({ profileModel, modelPreference, todayPlan, act
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ date: todayPlan.date, exerciseIds: [...selected] }),
       });
-      const result = await response.json() as { items?: PlanExercise[]; error?: string };
-      if (!response.ok || !result.items) throw new Error(result.error || '保存失败，请重试');
-      setSaved({ source: todayPlan.items, items: result.items });
-      setSelected(new Set());
-      haptic(12);
-      router.refresh();
-      return true;
+      if (!response.ok) {
+        const result = await response.json() as { error?: string };
+        throw new Error(result.error || '保存失败，请重试');
+      }
     } catch (err) {
       setError((err as Error).message);
-      return false;
-    } finally {
       lock.current = false;
       setSaving(false);
+      return false;
     }
+    haptic(12);
+    return true;
   }
 
   const pose = picked ? planPoseFor(picked) : null;
@@ -185,8 +177,6 @@ export default function PlanBody({ profileModel, modelPreference, todayPlan, act
           variant={variant}
           modelChoice={choice}
           onModelChange={changeModel}
-          pendingCount={pendingCount}
-          activeSession={activeSession}
           onOpenLibrary={openLibrary}
           onClose={() => closeLayer('muscle')}
         />
@@ -196,8 +186,12 @@ export default function PlanBody({ profileModel, modelPreference, todayPlan, act
         muscle={sheet ? picked : null}
         grouped
         preference={sheet === 'liked' ? 'liked' : undefined}
-        onClose={() => closeLayer('library')}
+        onClose={() => { if (!lock.current) closeLayer('library'); }}
         selection={{ planned, selected, toggle, saving, error, complete }}
+        onSelectionComplete={() => {
+          router.replace('/train');
+          router.refresh();
+        }}
       />
     </div>
   );

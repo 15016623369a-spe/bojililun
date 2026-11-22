@@ -188,7 +188,7 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
     const time = clock(duration);
     return <div className="runner v-runner" data-mode="summary">
       <header className="runner-head">
-        <Link className="runner-back" href="/train"><Icon name="chevron-left" size={20} stroke={2} />今日计划</Link>
+        <Link className="runner-back" href="/train"><Icon name="chevron-left" size={20} stroke={2} />今日训练</Link>
         <span className="runner-head-meta">训练完成</span>
       </header>
       <main className="runner-main">
@@ -244,7 +244,7 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
   const itemSets = sets.filter((s) => s.plan_item_id === item.id);
   const next = current.number < item.sets ? null : plan[current.index + 1];
   const header = <header className="runner-head">
-    <Link className="runner-back" href="/train"><Icon name="chevron-left" size={20} stroke={2} />今日计划</Link>
+    <Link className="runner-back" href="/train"><Icon name="chevron-left" size={20} stroke={2} />今日训练</Link>
     <span className="runner-head-meta">训练中 · <b>{clock(sessionSeconds)}</b></span>
     <span className="runner-progress" aria-label={`已完成 ${sets.length} / ${totalSets} 组`}>
       {Array.from({ length: totalSets }, (_, i) => <i key={i} data-on={i < sets.length || undefined} />)}

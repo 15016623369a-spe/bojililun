@@ -194,7 +194,7 @@ export default function RecordDetail({ detail }: { detail: TrainingDetail }) {
       </div>
 
       <div style={{ textAlign: 'right' }}>
-        <a className="fc-dict-link" href="/atlas">
+        <a className="fc-dict-link" href="/body">
           按部位查标准动作 →
         </a>
       </div>

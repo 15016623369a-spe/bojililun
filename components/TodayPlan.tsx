@@ -14,13 +14,19 @@ const REST_CHOICES = [60, 90, 120, 180];
 function haptic(ms = 6) { try { navigator.vibrate?.(ms); } catch { /* iOS 网页无振动 */ } }
 
 export default function TodayPlan({
+  date,
   initialItems,
   images,
   activeSession,
+  hasCompletedTraining,
+  completedSessionId,
 }: {
+  date: string;
   initialItems: PlanItem[];
   images: Record<string, string>;
-  activeSession: { id: number; startedAt: string } | null;
+  activeSession: { id: number; completedSets: number; totalSets: number | null } | null;
+  hasCompletedTraining: boolean;
+  completedSessionId: number | null;
 }) {
   const router = useRouter();
   const [items, setItems] = useState<PlanItem[]>(initialItems);
@@ -70,10 +76,6 @@ export default function TodayPlan({
 
   async function start() {
     if (busy || saving) return;
-    if (activeSession) {
-      router.push(`/train/${activeSession.id}`);
-      return;
-    }
     setBusy(true);
     setErr('');
     try {
@@ -96,29 +98,32 @@ export default function TodayPlan({
   const pendingSets = items.reduce((sum, item) => sum + (item.done ? 0 : item.sets), 0);
   const totalSets = items.reduce((a, x) => a + x.sets, 0);
   const minutes = Math.round(items.reduce((a, x) => a + x.sets * (40 + x.rest_sec), 0) / 60);
-  const startedAt = activeSession ? new Date(activeSession.startedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '';
+  const completed = !activeSession && pendingSets === 0 && (items.length > 0 || hasCompletedTraining);
 
   return (
     <section className="today-plan">
-      <div className="readouts">
+      {items.length > 0 && !activeSession && <div className="readouts">
         <div className="readout"><b className="big-num">{items.length}</b><span>个</span><em>动作</em></div>
         <div className="readout"><b className="big-num">{totalSets}</b><span>组</span><em>计划组数</em></div>
         <div className="readout"><b className="big-num">{minutes ? `≈${minutes}` : '—'}</b><span>分钟</span><em>含休息</em></div>
-      </div>
+      </div>}
 
       {activeSession && (
-        <Link href={`/train/${activeSession.id}`} className="live-banner">
-          <i aria-hidden="true" />训练进行中 · {startedAt} 开始<span>继续 <Icon name="arrow-right" size={16} stroke={2} /></span>
-        </Link>
+        <p className="live-banner">
+          <i aria-hidden="true" />训练进行中
+          <span>已完成 {activeSession.completedSets}{activeSession.totalSets ? ` / ${activeSession.totalSets}` : ''} 组</span>
+        </p>
       )}
 
-      {items.length === 0 ? (
+      {completed && <p className="training-complete">今日训练已完成</p>}
+
+      {items.length === 0 && !activeSession && !completed && (
         <div className="empty-plan">
           <b>还没有安排动作</b>
-          <p>回到人体上点一块肌肉挑几个动作，或者直接说「今天练胸，给我排四个动作」。</p>
-          <Link className="ghost-pill" href="/atlas">去点选肌群</Link>
         </div>
-      ) : (
+      )}
+
+      {items.length > 0 && (
         <ol className="plan-rows">
           {items.map((it) => {
             const expanded = open === it.id;
@@ -163,20 +168,34 @@ export default function TodayPlan({
         </ol>
       )}
 
-      <Link href="/atlas" className="add-row">
-        <span className="add-row-icon" aria-hidden="true"><Icon name="plus" size={18} /></span>从动作库添加 · 也可以说「再加一个飞鸟」
-      </Link>
+      {!activeSession && items.length > 0 && !completed && (
+        <Link href="/body" className="add-row">
+          <span className="add-row-icon" aria-hidden="true"><Icon name="plus" size={18} /></span>添加动作
+        </Link>
+      )}
+      {completed && (
+        <div className="completed-actions">
+          <Link href={completedSessionId ? `/train/${completedSessionId}` : `/history/${date}`} className="ink-btn">
+            {completedSessionId ? '查看本次训练' : '查看今日记录'} <Icon name="arrow-right" size={20} />
+          </Link>
+          <Link href="/train/extra?from=train" className="ghost-pill">加练</Link>
+        </div>
+      )}
 
       {err && <p className="form-err" role="alert">{err}</p>}
 
-      {(pendingSets > 0 || activeSession) && (
+      {!completed && (
         <div className="start-dock">
-          <button type="button" className="ink-btn" onClick={start} disabled={busy || saving}>
-            <span>{busy ? '正在开始…' : activeSession ? '继续训练' : '开始训练'}</span>
-            <span className="ink-btn-meta">{pendingSets > 0 && `${pendingSets} 组`}
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6" /></svg>
-            </span>
-          </button>
+          {activeSession ? (
+            <Link href={`/train/${activeSession.id}`} className="ink-btn">继续训练 <Icon name="arrow-right" size={20} /></Link>
+          ) : pendingSets > 0 ? (
+            <button type="button" className="ink-btn" onClick={start} disabled={busy || saving}>
+              <span>{busy ? '正在开始…' : '开始训练'}</span>
+              <span className="ink-btn-meta">{pendingSets} 组 <Icon name="arrow-right" size={20} /></span>
+            </button>
+          ) : (
+            <Link href="/body" className="ink-btn">添加动作 <Icon name="plus" size={20} /></Link>
+          )}
         </div>
       )}
     </section>

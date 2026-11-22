@@ -100,11 +100,13 @@ export default function ExerciseSheet({
   onChooseExercise,
   selection,
   preference,
+  onSelectionComplete,
 }: {
   muscle: MuscleId | null;
   onClose: () => void;
   grouped?: boolean;
   selection?: ExerciseSelection;
+  onSelectionComplete?: () => void;
   onChooseExercise?: (exercise: ExerciseChoice) => void;
   /** liked：只看「我的动作库」（在「我的 · 动作偏好」里标为常练的动作） */
   preference?: "liked";
@@ -428,7 +430,7 @@ export default function ExerciseSheet({
                     </span>
                   </div>
                   <div className="fc-dict-note">
-                    {selection ? "点动作加入或取消选择" : "点动作看动图与要点"}
+                    {selection ? "勾选要加入今日训练的动作" : "点动作看动图与要点"}
                   </div>
                 </div>
                 <button
@@ -579,14 +581,14 @@ export default function ExerciseSheet({
                     className="fc-btn primary"
                     disabled={selection.saving || selection.selected.size === 0}
                     onClick={async () => {
-                      if (await selection.complete()) onClose();
+                      if (await selection.complete()) (onSelectionComplete ?? onClose)();
                     }}
                   >
                     {selection.saving
-                      ? "保存中…"
+                      ? "加入中…"
                       : selection.selected.size
-                        ? `完成（${selection.selected.size}）`
-                        : "完成"}
+                        ? `加入今日训练（${selection.selected.size}）`
+                        : "加入今日训练"}
                   </button>
                 </div>
               )}

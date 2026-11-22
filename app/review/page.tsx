@@ -113,7 +113,7 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
       <nav className="review-links" aria-label="更多">
         <Link href={`/stats?period=${period === 'month' ? 'month' : 'week'}`}><Icon name="chart" size={18} />训练统计<Icon name="chevron-right" size={18} /></Link>
         <Link href={`/history/calendar?date=${today}&period=${period}`}><Icon name="calendar" size={18} />训练月历<Icon name="chevron-right" size={18} /></Link>
-        <Link href="/train"><Icon name="list" size={18} />训练计划<Icon name="chevron-right" size={18} /></Link>
+        <Link href="/train"><Icon name="list" size={18} />今日训练<Icon name="chevron-right" size={18} /></Link>
         <Link href="/exercises"><Icon name="book" size={18} />动作库<Icon name="chevron-right" size={18} /></Link>
       </nav>
 

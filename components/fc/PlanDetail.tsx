@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
-import { useRouter } from 'next/navigation';
 import JournalIcon from '@/components/JournalIcon';
 import PlanModelSwitch from './PlanModelSwitch';
 import type { MuscleId } from '@/lib/muscles';
@@ -14,15 +13,12 @@ async function countOf(url: string, signal: AbortSignal) {
   return ((await res.json()) as { total?: number }).total ?? 0;
 }
 
-/** 点选肌群后的姿势详情：灰白石膏姿势 + 雾银抽屉（动作库 / 我的动作库 / 开始训练）。 */
-export default function PlanDetail({ muscle, muscleLabel, region, pose, variant, modelChoice, onModelChange, pendingCount, activeSession, libraryOpen, onOpenLibrary, onClose }: {
+export default function PlanDetail({ muscle, muscleLabel, region, pose, variant, modelChoice, onModelChange, libraryOpen, onOpenLibrary, onClose }: {
   muscle: MuscleId;
   muscleLabel: string;
   region: string;
   pose: PlanPose;
   variant: SculptureVariant;
-  pendingCount: number;
-  activeSession: number | null;
   modelChoice: SculptureVariant | null;
   onModelChange: (model: SculptureVariant | null) => void;
   /** 动作库抽屉开着时，Esc 交给抽屉处理 */
@@ -30,10 +26,7 @@ export default function PlanDetail({ muscle, muscleLabel, region, pose, variant,
   onOpenLibrary: (which: 'all' | 'liked') => void;
   onClose: () => void;
 }) {
-  const router = useRouter();
   const [counts, setCounts] = useState<{ all?: number; liked?: number }>({});
-  const [starting, setStarting] = useState(false);
-  const [error, setError] = useState('');
   // 下拉抽屉关闭：跟手位移，人物同时轻微下沉放大，松手按距离或速度决定关闭还是回弹
   const [drag, setDrag] = useState<{ dy: number; live: boolean }>({ dy: 0, live: false });
   const dragStart = useRef<{ y: number; t: number; id: number } | null>(null);
@@ -41,7 +34,7 @@ export default function PlanDetail({ muscle, muscleLabel, region, pose, variant,
 
   function onDragStart(event: PointerEvent<HTMLElement>) {
     const target = event.target as Element;
-    if (!event.isPrimary || target.closest('.plan-drawer-rows, .plan-start')) return;
+    if (!event.isPrimary || target.closest('.plan-drawer-rows, .plan-browse')) return;
     dragStart.current = { y: event.clientY, t: performance.now(), id: event.pointerId };
     moved.current = false;
     target.setPointerCapture(event.pointerId);
@@ -81,31 +74,7 @@ export default function PlanDetail({ muscle, muscleLabel, region, pose, variant,
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose, libraryOpen]);
 
-  async function start() {
-    if (starting) return;
-    if (activeSession) { router.push(`/train/${activeSession}`); return; }
-    if (pendingCount === 0) { onOpenLibrary('all'); return; }
-    setStarting(true);
-    setError('');
-    try {
-      const res = await fetch('/api/session', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ guided: true }),
-      });
-      const data = (await res.json()) as { session?: { id: number }; error?: string };
-      if (!res.ok || !data.session) throw new Error(data.error ?? '开始训练失败');
-      try { navigator.vibrate?.(14); } catch { /* 无振动接口 */ }
-      router.push(`/train/${data.session.id}`);
-      router.refresh();
-    } catch (err) {
-      setError((err as Error).message);
-      setStarting(false);
-    }
-  }
-
   const count = (n?: number) => (n === undefined ? '' : `${n} 个`);
-  const startLabel = activeSession ? '继续训练' : pendingCount ? '开始训练' : '选动作';
 
   return (
     <div className="plan-detail" inert={libraryOpen} aria-hidden={libraryOpen || undefined} data-dragging={drag.live || undefined}
@@ -136,21 +105,15 @@ export default function PlanDetail({ muscle, muscleLabel, region, pose, variant,
         <p className="plan-kicker"><i aria-hidden="true" />已选部位 · {region}</p>
         <h2 className="plan-drawer-title">{muscleLabel}</h2>
         <div className="plan-drawer-rows">
-          <button type="button" onClick={() => onOpenLibrary('all')}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" /></svg>
-            <span>动作库</span><small>{count(counts.all)}</small>
-            <svg className="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
-          </button>
           <button type="button" onClick={() => onOpenLibrary('liked')}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden="true"><path d="M7 4h10v16l-5-4-5 4Z" /></svg>
             <span>我的动作库</span><small>{count(counts.liked)}</small>
             <svg className="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
           </button>
         </div>
-        {error && <p className="plan-error" role="alert">{error}</p>}
-        <button type="button" className="plan-start" onClick={() => void start()} disabled={starting}>
-          <span>{starting ? '正在开始…' : startLabel}</span>
-          <span className="plan-start-meta">{pendingCount > 0 && !activeSession && `今日 ${pendingCount} 个动作`}
+        <button type="button" className="plan-browse" onClick={() => onOpenLibrary('all')}>
+          <span>选择{muscleLabel}动作</span>
+          <span className="plan-browse-meta">{count(counts.all)}
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6" /></svg>
           </span>
         </button>

@@ -63,7 +63,10 @@
 .add-row-icon { display: grid; place-items: center; width: 52px; height: 40px; border-radius: 14px; border: 1.5px dashed #a3a59f; font-size: 20px; color: var(--ink-2); }
 .empty-plan { padding: 34px 6px; text-align: center; border-top: 1px solid var(--hairline); }
 .empty-plan b { font-size: 17px; }
-.empty-plan p { margin: 8px 0 18px; font-size: 13.5px; color: var(--gray-1); line-height: 1.6; }
+.training-complete { margin: 0 0 14px; font-size: 15px; font-weight: 600; }
+.completed-actions { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
+.completed-actions .ink-btn { flex: 1; }
+.completed-actions .ghost-pill { flex: none; }
 
 .start-dock {
   position: fixed; left: 0; right: 0; bottom: calc(88px + env(safe-area-inset-bottom));
