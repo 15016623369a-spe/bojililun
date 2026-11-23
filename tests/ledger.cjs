@@ -352,3 +352,37 @@ test('训练每张卡最多一个快选，收起后不再追问另一动作', ()
   assert.equal(store.readCardPick(db, user, id), null);
   db.close();
 });
+test('排进计划的默认重量取上次实练，练完写回计划', () => {
+  delete require.cache[require.resolve('../lib/db.ts')];
+  delete globalThis.__fitDb;
+  delete globalThis.__fitDbSchema;
+  const tmp = fs.mkdtempSync(require('node:os').tmpdir() + '/fit-weight-');
+  process.env.FITCHECK_DB_PATH = path.join(tmp, 'weight.db');
+  const { getDb } = require('../lib/db.ts');
+  const workout = require('../lib/core/workout.ts');
+  const { getExercise } = require('../lib/exercise.ts');
+  const db = getDb();
+  // 训练页上周练过卧推 60 kg
+  const { lastInsertRowid: old } = db.prepare('INSERT INTO session(date,started_at,ended_at) VALUES(?,?,?)')
+    .run('2026-11-16', '2026-11-16T11:00:00.000Z', '2026-11-16T11:40:00.000Z');
+  db.prepare("INSERT INTO session_set(session_id,exercise_id,exercise_name,set_index,weight,reps,created_at) VALUES(?,'0025','杠铃卧推',1,60,8,?)")
+    .run(old, '2026-11-16T11:10:00.000Z');
+  assert.equal(workout.lastWeight('0025'), 60);
+  // 之后在记录页说了一次卧推 62.5 kg：取更近的那次
+  store.saveBatch(db, user, 'said', 'voice', [
+    { ...base, logged_at: '2026-11-20T11:00:00Z', entry_type: 'workout', summary_title: '杠铃卧推',
+      exercises: [{ exercise_name: '杠铃卧推', sets: [{ weight_kg: 62.5, reps: 8, duration_sec: null }] }] },
+  ]);
+  assert.equal(workout.lastWeight('0025'), 62.5);
+  const bench = workout.addPlanItem(getExercise('0025'));
+  assert.equal(bench.weight, 62.5);
+  // 没练过的动作仍是 0，显式给的重量照用
+  assert.equal(workout.addPlanItem(getExercise('0047')).weight, 0);
+  assert.equal(workout.addPlanItem(getExercise('0289'), { weight: 20 }).weight, 20);
+  // 开练后第一组改成 65 kg：今日计划跟着变成 65
+  const session = workout.startSession({ guided: true });
+  workout.saveGuidedSet(session.id, { planItemId: bench.id, setIndex: 1, weight: 65, reps: 8, durationSec: 40, restSec: 90 });
+  assert.equal(workout.getPlan().find((p) => p.id === bench.id).weight, 65);
+  db.close();
+  fs.rmSync(tmp, { recursive: true });
+});

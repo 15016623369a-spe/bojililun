@@ -5,6 +5,7 @@ import { idsForTarget } from '../energy';
 import { mentionedMuscles } from '../journal';
 import { MUSCLES, muscleMatchesExercise, type MuscleId } from '../muscles';
 import type { ExerciseRow } from '../exercise';
+import dictionary from '../../data/exercises-seed.json';
 import type {
   ExercisePerformance,
   MuscleStat,
@@ -92,6 +93,23 @@ export function completePlannedExercise(id: number): void {
   }
 }
 
+/**
+ * 这个动作上次实练的重量：训练页记的组和记录页说的同一动作（词典按 legacy_id 对上），取更近的一次；没有就是 0。
+ * 排进计划时用它当默认重量，开练不用再从 0 拖到上次的重量。
+ */
+export function lastWeight(exerciseId: string): number {
+  const db = getDb();
+  const set = db.prepare(`SELECT weight, created_at AS at FROM session_set
+    WHERE exercise_id = ? AND weight > 0 ORDER BY created_at DESC, id DESC LIMIT 1`).get(exerciseId) as { weight: number; at: string } | undefined;
+  const dict = dictionary.find((entry) => entry.legacy_id === exerciseId);
+  const said = dict ? db.prepare(`SELECT s.weight_kg AS weight, e.logged_at AS at FROM workout_sets s JOIN entries e ON e.id = s.entry_id
+    WHERE e.user_id = 'local' AND e.is_deleted = 0 AND e.entry_type = 'workout' AND s.exercise_id = ? AND s.weight_kg > 0
+    ORDER BY e.logged_at DESC, s.set_order DESC LIMIT 1`).get(dict.id) as { weight: number; at: string } | undefined : undefined;
+  const latest = [set, said].filter((x): x is { weight: number; at: string } => Boolean(x))
+    .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0];
+  return latest?.weight ?? 0;
+}
+
 export function addPlanItem(
   ex: ExerciseRow,
   opts: { sets?: number; reps?: number; weight?: number; restSec?: number; date?: string; supplemental?: boolean } = {},
@@ -113,7 +131,7 @@ export function addPlanItem(
     ex.equipment,
     Math.round(clamp(opts.sets, 1, 20, 4)),
     Math.round(clamp(opts.reps, 1, 100, 10)),
-    clamp(opts.weight, 0, 1000, 0),
+    clamp(opts.weight ?? lastWeight(ex.id), 0, 1000, 0),
     Math.round(clamp(opts.restSec, 0, 600, 90)),
     pos,
     opts.supplemental ? 1 : 0,
@@ -439,6 +457,8 @@ export function saveGuidedSet(
         bodyPart: item.body_part,
         target: item.target,
       });
+      // 实练的重量写回今日计划：训练页显示实际重量，下次开练也从这里起
+      if (data.weight > 0) db.prepare('UPDATE plan_item SET weight = ? WHERE id = ?').run(data.weight, item.id);
       completed.set(item.id, data.setIndex);
       if (data.setIndex === item.sets) markPlanDone(item.id);
       if (plan.every((entry) => (completed.get(entry.id) ?? 0) >= entry.sets)) finishSession(sessionId);

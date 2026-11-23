@@ -72,7 +72,7 @@ export default function TrainingQueue({ items, activeId }: {
           <div className="queue-list">
             {items.map((item) => <button key={item.id} type="button" className="queue-item" aria-pressed={!activeId && firstItem?.id === item.id} disabled={Boolean(busy || activeId || item.done)} onClick={() => setSelected(item.id)}>
               <strong>{item.supplemental ? <SupplementalMark /> : null}{item.name}</strong>
-              <span>{item.sets} 组 × {item.reps} 次 · {item.weight > 0 ? `${item.weight} kg` : '自重'} · 休息 {item.rest_sec} 秒{item.done ? ' · 已完成' : ''}</span>
+              <span>{item.sets} 组 × {item.reps} 次 · {item.weight > 0 ? `${item.weight} kg` : item.equipment === 'body weight' ? '自重' : '重量待定'} · 休息 {item.rest_sec} 秒{item.done ? ' · 已完成' : ''}</span>
             </button>)}
           </div>
         ) : <p className="journal-muted">在计划里点选肌肉，加入今天想练的动作。</p>}
