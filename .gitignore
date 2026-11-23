@@ -1,4 +1,5 @@
-node_modules/
+# 不带斜杠：node_modules 在有的机器上是软链接，带斜杠只能忽略目录
+node_modules
 .next/
 certificates/
 data/fitness.db*
