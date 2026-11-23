@@ -23,6 +23,16 @@ const user = 'local',
   time = '2026-11-21T04:00:00Z',
   day = '2026-11-21';
 const base = { logged_at: time, note: '外食', confidence: 'exact', raw_text: '原话', feeling_tags: ['轻松'] };
+/**
+ * 用真库（getDb）的测试各开一个新库。lib 下已加载的模块各自绑着上一个测试的 getDb，
+ * 只清 db.ts 不够（例如先加载的 workout.ts 还指着已删掉的旧库），所以把 lib 下的模块缓存都清掉。
+ */
+function freshModules() {
+  const lib = path.join(__dirname, '..', 'lib') + path.sep;
+  for (const key of Object.keys(require.cache)) if (key.startsWith(lib)) delete require.cache[key];
+  delete globalThis.__fitDb;
+  delete globalThis.__fitDbSchema;
+}
 function setup() {
   const db = new DatabaseSync(':memory:');
   store.initLedger(db);
@@ -352,6 +362,38 @@ test('训练每张卡最多一个快选，收起后不再追问另一动作', ()
   assert.equal(store.readCardPick(db, user, id), null);
   db.close();
 });
+test('排进计划的默认重量取上次实练，练完写回计划', () => {
+  freshModules();
+  const tmp = fs.mkdtempSync(require('node:os').tmpdir() + '/fit-weight-');
+  process.env.FITCHECK_DB_PATH = path.join(tmp, 'weight.db');
+  const { getDb } = require('../lib/db.ts');
+  const workout = require('../lib/core/workout.ts');
+  const { getExercise } = require('../lib/exercise.ts');
+  const db = getDb();
+  // 训练页上周练过卧推 60 kg
+  const { lastInsertRowid: old } = db.prepare('INSERT INTO session(date,started_at,ended_at) VALUES(?,?,?)')
+    .run('2026-11-16', '2026-11-16T11:00:00.000Z', '2026-11-16T11:40:00.000Z');
+  db.prepare("INSERT INTO session_set(session_id,exercise_id,exercise_name,set_index,weight,reps,created_at) VALUES(?,'0025','杠铃卧推',1,60,8,?)")
+    .run(old, '2026-11-16T11:10:00.000Z');
+  assert.equal(workout.lastWeight('0025'), 60);
+  // 之后在记录页说了一次卧推 62.5 kg：取更近的那次
+  store.saveBatch(db, user, 'said', 'voice', [
+    { ...base, logged_at: '2026-11-20T11:00:00Z', entry_type: 'workout', summary_title: '杠铃卧推',
+      exercises: [{ exercise_name: '杠铃卧推', sets: [{ weight_kg: 62.5, reps: 8, duration_sec: null }] }] },
+  ]);
+  assert.equal(workout.lastWeight('0025'), 62.5);
+  const bench = workout.addPlanItem(getExercise('0025'));
+  assert.equal(bench.weight, 62.5);
+  // 没练过的动作仍是 0，显式给的重量照用
+  assert.equal(workout.addPlanItem(getExercise('0047')).weight, 0);
+  assert.equal(workout.addPlanItem(getExercise('0289'), { weight: 20 }).weight, 20);
+  // 开练后第一组改成 65 kg：今日计划跟着变成 65
+  const session = workout.startSession({ guided: true });
+  workout.saveGuidedSet(session.id, { planItemId: bench.id, setIndex: 1, weight: 65, reps: 8, durationSec: 40, restSec: 90 });
+  assert.equal(workout.getPlan().find((p) => p.id === bench.id).weight, 65);
+  db.close();
+  fs.rmSync(tmp, { recursive: true });
+});
 test('本地解析：长名优先，词典外动作照原话记，份量跟着食物走', async (t) => {
   const keys = { DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY, AI_API_KEY: process.env.AI_API_KEY };
   delete process.env.DEEPSEEK_API_KEY;
@@ -392,9 +434,7 @@ test('本地解析：长名优先，词典外动作照原话记，份量跟着�
   db.close();
 });
 test('按住「记录」说话排今日计划：按部位、点名动作，吃的和记录不误排', () => {
-  delete require.cache[require.resolve('../lib/db.ts')];
-  delete globalThis.__fitDb;
-  delete globalThis.__fitDbSchema;
+  freshModules();
   const tmp = fs.mkdtempSync(require('node:os').tmpdir() + '/fit-plan-');
   process.env.FITCHECK_DB_PATH = path.join(tmp, 'plan.db');
   const { getDb } = require('../lib/db.ts');
@@ -436,10 +476,7 @@ test('热量目标有下限，未成年不按减脂扣热量', () => {
   assert.equal(man.target_kcal, Math.round((man.tdee - 400) / 10) * 10);
 });
 test('回顾与统计共用手账训练：训练页和语音同一天，不重复计，移除后两页都不算', () => {
-  // 上面的迁移测试已缓存并关掉了它的库，这里换一个新库重新加载
-  delete require.cache[require.resolve('../lib/db.ts')];
-  delete globalThis.__fitDb;
-  delete globalThis.__fitDbSchema;
+  freshModules();
   const tmp = fs.mkdtempSync(require('node:os').tmpdir() + '/fit-log-');
   process.env.FITCHECK_DB_PATH = path.join(tmp, 'log.db');
   const { getDb } = require('../lib/db.ts'),

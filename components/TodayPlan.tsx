@@ -157,7 +157,7 @@ export default function TodayPlan({
                   </span>
                   <span className="plan-item-main">
                     <b>{it.supplemental ? <SupplementalMark /> : null}{it.name}{it.done === 1 && <em className="tag">已练</em>}</b>
-                    <small>{it.sets} × {it.reps} · {it.weight ? `${it.weight} kg` : '自重'}<span className="sep">·</span>{TARGET_LABEL[it.target] ?? it.target}</small>
+                    <small>{it.sets} × {it.reps} · {it.weight ? `${it.weight} kg` : it.equipment === 'body weight' ? '自重' : '重量待定'}<span className="sep">·</span>{TARGET_LABEL[it.target] ?? it.target}</small>
                   </span>
                   <span className="set-dots" aria-label={`${it.sets} 组`}>
                     {Array.from({ length: Math.min(it.sets, 8) }, (_, i) => <i key={i} data-on={it.done === 1 || undefined} />)}

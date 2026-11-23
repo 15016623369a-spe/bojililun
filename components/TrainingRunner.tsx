@@ -9,6 +9,7 @@ import DotDigits from './ui/DotDigits';
 import TickRuler from './ui/TickRuler';
 import HalftoneImage from './ui/HalftoneImage';
 import EndTrainingButton from './EndTrainingButton';
+import { playChime, unlockChime, useWakeLock } from '@/lib/rest-alert';
 import type { SculptureVariant } from '@/lib/sculpture-groups';
 import Icon from './ui/Icon';
 
@@ -121,15 +122,21 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
   const restLeft = now === null ? restTotal : Math.max(0, Math.ceil((restUntil - now) / 1000));
   const setSeconds = now === null ? 0 : Math.max(0, Math.floor((now - startedAt) / 1000));
   const sessionSeconds = now === null ? 0 : Math.max(0, Math.floor((now - Date.parse(session.started_at)) / 1000));
-  const weight = item && fields?.key === key ? fields.weight : String(item?.weight ?? 0);
+  // 下一组默认沿用这个动作上一组的重量；还没练过就用计划里的重量
+  const lastOfItem = item ? sets.filter((s) => s.plan_item_id === item.id).at(-1) : undefined;
+  const weight = item && fields?.key === key ? fields.weight : String(lastOfItem?.weight ?? item?.weight ?? 0);
   const reps = item && fields?.key === key ? fields.reps : String(item?.reps ?? 0);
 
-  // 休息结束时震两下
+  // 训练没结束就保持屏幕常亮，休息倒计时一直看得见
+  useWakeLock(!ended);
+
+  // 休息结束时响两声、震两下（iPhone 网页没有振动，只有声音）
   useEffect(() => {
     if (!resting || !previous || now === null) return;
     if (restLeft === 0 && restBuzzed.current !== previous.id) {
       restBuzzed.current = previous.id;
       haptic([24, 70, 24]);
+      playChime();
     }
   }, [resting, restLeft, previous, now]);
 
@@ -143,6 +150,8 @@ export default function TrainingRunner({ session, plan, initialSets, demonstrati
 
   async function save(finishEarly: boolean) {
     if (lock.current || (!finishEarly && (!current || resting))) return;
+    // 这次点击里解锁提示音，休息结束时才响得出来
+    if (!finishEarly) unlockChime();
     if (!finishEarly && (weight === '' || !Number.isFinite(Number(weight)) || Number(weight) < 0 || Number(weight) > 1000
       || !Number.isInteger(Number(reps)) || Number(reps) < 1 || Number(reps) > 1000)) {
       setError('请输入有效的重量和次数');
