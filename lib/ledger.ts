@@ -224,6 +224,8 @@ export function saveBatch(
           // 词典优先；词典里没有的动作（多为旧训练表同步来的）沿用传入的肌群，只收已知肌群 id
           primary_muscles: e?.primary_muscles ?? knownMuscles(m.primary_muscles),
           secondary_muscles: e?.secondary_muscles ?? knownMuscles(m.secondary_muscles),
+          // 训练页同步来的动作保留它在训练页动作库里的 id，统计和回顾按它判定肌群（lib/training-log.ts）
+          ...(typeof m.library_id === "string" && m.library_id ? { library_id: m.library_id } : {}),
           sets: m.sets,
         };
       });
