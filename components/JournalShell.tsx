@@ -44,9 +44,9 @@ export default function JournalShell({ active, title, subtitle, subtitleAside, c
       </>}
       {children}
     </main>
-    <footer className="journal-footer">
+    {(footer || !hideNav) && <footer className="journal-footer">
       {footer}
       {!hideNav && (navigation ?? <TabBar active={TAB[active]} />)}
-    </footer>
+    </footer>}
   </div>;
 }
