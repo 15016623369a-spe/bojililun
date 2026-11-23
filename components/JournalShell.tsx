@@ -8,7 +8,7 @@ import Icon from './ui/Icon';
 
 const TAB: Record<'plan' | 'record' | 'review', TabKey> = { plan: 'body', record: 'log', review: 'review' };
 
-export default function JournalShell({ active, title, subtitle, subtitleAside, children, footer, back, headerAction, navigation, today = todayStr(), className, hero, hideNav = false }: {
+export default function JournalShell({ active, title, subtitle, subtitleAside, children, footer, back, headerAction, navigation, today = todayStr(), className, hero, hideNav = false, backdrop }: {
   active: 'plan' | 'record' | 'review';
   title: string;
   subtitle?: string;
@@ -25,8 +25,12 @@ export default function JournalShell({ active, title, subtitle, subtitleAside, c
   hero?: ReactNode;
   /** 页面自带页内导航时隐藏主导航（如训练统计） */
   hideNav?: boolean;
+  /** 自定义背景（回顾、记录）：铺在整屏后面，不跟内容滚动；glass 是回顾页数据块的透明度 0–100 */
+  backdrop?: { url: string; glass?: number } | null;
 }) {
-  return <div className={className ? `journal-shell ${className}` : 'journal-shell'}>
+  return <div className={className ? `journal-shell ${className}` : 'journal-shell'} data-backdrop={backdrop ? '' : undefined}
+    style={backdrop ? { '--glass': (backdrop.glass ?? 40) / 100 } as React.CSSProperties : undefined}>
+    {backdrop && <div className="fc-backdrop" aria-hidden="true" style={{ backgroundImage: `url("${backdrop.url}")` }} />}
     <DailyRefresh date={today} timeZone={WORKOUT_TIME_ZONE} />
     <header className="journal-head">
       <div className="journal-brand"><JournalIcon name="brand" />FitCheck</div>

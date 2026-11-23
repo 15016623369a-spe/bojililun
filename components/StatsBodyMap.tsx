@@ -41,6 +41,26 @@ export const LABELS: Partial<Record<MuscleId, string>> = {
   glutes: '臀部',
 };
 
+export const muscleLabel = (id: MuscleId) => LABELS[id] ?? muscleById(id)?.label ?? id;
+
+/** 两张身体图各占半边：正面图靠右、标注收在左侧；背面图靠左、标注收在右侧，肌肉两侧对称，标注点都换到靠外的那一侧 */
+export const STAGE = { front: { left: 32, labelEdge: 33 }, back: { left: -2, labelEdge: 67 } } as const;
+export const IMG_W = 70;
+export function callouts(side: 'front' | 'back', markers: Marker[], trained: { has(id: MuscleId): boolean }) {
+  const { left } = STAGE[side];
+  const points = markers.filter(([id]) => trained.has(id)).map(([id, , , x, y]) => {
+    let ix = (x - 22) / 56 * 100;
+    if (side === 'front' ? ix > 50 : ix < 50) ix = 100 - ix;
+    return { id, px: left + ix * IMG_W / 100, py: y, ly: y };
+  }).sort((a, b) => a.py - b.py);
+  // 标注至少隔开 13%，超出底部就整体上移
+  let prev = -Infinity;
+  for (const p of points) { p.ly = Math.max(p.py, prev + 13); prev = p.ly; }
+  const overflow = (points.at(-1)?.ly ?? 0) - 94;
+  if (overflow > 0) for (const p of points) p.ly = Math.max(4, p.ly - overflow);
+  return points;
+}
+
 export default function StatsBodyMap({ stats, variant }: {
   stats: ReadonlyMap<MuscleId, number>;
   variant: SculptureVariant;

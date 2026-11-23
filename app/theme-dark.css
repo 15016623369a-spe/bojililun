@@ -120,3 +120,14 @@ html[data-theme="dark"] .record-undo-notice { background: #222428; color: #eeefe
 html[data-theme="dark"] .record-recovery article { background: #1a1c1f; color: #eeefea; }
 html[data-theme="dark"] .live-banner { --ink-0: #151613; color: #151613; }
 html[data-theme="dark"] .plan-model-switch button:not([aria-pressed="true"]), html[data-theme="dark"] .plan-under :is(.plan-muscle-picker, .plan-rotate) { color: #c9cbc5; }
+
+/* 回顾 · 数据块墙：深灰数据块、浅色选中态、深色毛玻璃抽屉；石膏人体保持浅色，点仍用墨点白圈 */
+html[data-theme="dark"] :is(.rw, .rw-layer) {
+  --rw-tile: #1c1e21; --rw-tile-2: #17191b; --rw-hi: rgb(255 255 255 / 6%);
+  --rw-sel-bg: #ecebe6; --rw-sel-fg: #151613; --rw-heat: #91bce8; --rw-coral-ink: #ff8a78; --rw-gap: #55585c;
+  --rw-cdot: #222428; --rw-cring: rgb(10 11 12 / 85%); --rw-clab: rgb(26 28 31 / 78%); --rw-cgrid: rgb(238 239 234 / 14%); --rw-chip: #222428; --rw-cur: #1c1e21;
+}
+html[data-theme="dark"] .rw-sheet { background: linear-gradient(180deg, rgb(30 32 35 / 55%) 0, rgb(22 24 27 / 70%) 40%, rgb(16 17 19 / 86%) 100%); box-shadow: inset 0 1px 0 rgb(255 255 255 / 12%), 0 -24px 48px -30px rgb(0 0 0 / 80%); }
+html[data-theme="dark"] .rw-pill.mist { background: rgb(145 188 232 / 20%); }
+html[data-theme="dark"] .rw-pill.lilac { background: rgb(189 173 240 / 22%); }
+html[data-theme="dark"] .rw-go-ico, html[data-theme="dark"] .rw-chip { box-shadow: inset 0 0 0 1px rgb(255 255 255 / 7%); }

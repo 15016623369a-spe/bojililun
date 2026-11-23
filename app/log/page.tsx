@@ -10,6 +10,7 @@ import { calcMealTotals, formatDisplayKcal } from '@/lib/calculations';
 import type { Card } from '@/lib/export';
 import { todayStr } from '@/lib/log';
 import { validDate } from '@/lib/period';
+import { readBackdrop } from '@/lib/core/backdrop';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -65,9 +66,10 @@ export default async function LogPage({ searchParams }: { searchParams: Promise<
   const meals = day.entries.filter((c) => c.entry_type === 'meal').length;
   const workouts = day.entries.filter((c) => c.entry_type === 'workout').length;
   const kcal = day.daily_summary.intake.kcal ?? 0;
+  const backdrop = await readBackdrop();
 
   return (
-    <JournalShell active="record" title={past ? '当天记录' : '今天'} today={now} className={`is-record is-ledger${past ? ' is-past' : ''}`} hideNav={!past}
+    <JournalShell active="record" title={past ? '当天记录' : '今天'} today={now} className={`is-record is-ledger${past ? ' is-past' : ''}`} hideNav={!past} backdrop={backdrop}
       back={past ? { href: `/history/calendar?date=${past}`, label: '月历' } : undefined}
       headerAction={<div className="journal-head-actions"><span className="journal-head-label">记录</span></div>}
       hero={<>

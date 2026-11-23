@@ -1,0 +1,1119 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>回顾数据块墙</title>
+<style>
+/* 色彩与动效令牌：取自 app/globals.css、app/motion.css、app/theme-dark.css */
+:root {
+  --bg: #e2e3df; --bg-deep: #c4c5c0; --tile: #e9eae6; --tile-2: #dddeda; --tile-hi: rgb(255 255 255 / .85); --sheet: #e4e5e1; --sheet-top: #ebece8;
+  --stripe-gap: #858780;
+  --ink: #151613; --ink2: #3a3c37; --mute: #6b6d67; --faint: #8d8f89; --rgb: 21 22 19;
+  --fill: #151613; --on-fill: #f1f2ee;
+  --chip: #151613; --cdot: #151613; --cring: rgb(255 255 255 / .85); --clab: rgb(226 227 223 / .72); --cgrid: rgb(150 152 146 / .55);
+  --lemon: #f2ed21; --coral: #f06351; --coral-ink: #b8402e; --mist: #91bce8; --lilac: #bdadf0; --heat: #1f4e7e; --carb: #c9c43a;
+  --desk: #cfd0cb;
+  --stripe: repeating-linear-gradient(90deg, rgb(var(--rgb) / .88) 0 1.4px, var(--stripe-gap) 1.4px 4.6px);
+  --stripe-lemon: repeating-linear-gradient(90deg, rgb(21 22 19 / .8) 0 1.2px, var(--lemon) 1.2px 4.6px);
+  --font: 'Helvetica Neue', 'SF Pro Display', -apple-system, 'PingFang SC', 'Hiragino Sans GB', system-ui, sans-serif;
+  --ease-out: cubic-bezier(.2, .8, .2, 1);
+  --spring: cubic-bezier(.32, 1.25, .4, 1);
+  --spring-bounce: cubic-bezier(.32, 1.25, .4, 1);
+}
+@supports (transition-timing-function: linear(0, 1)) {
+  :root {
+    --spring: linear(0, 0.006 1.1%, 0.024 2.2%, 0.094 4.5%, 0.393 11.5%, 0.615 17.4%, 0.77 23.1%, 0.878 29%, 0.947 35.3%, 0.988 42.2%, 1.008 50%, 1.015 59.3%, 1.013 71.3%, 1);
+    --spring-bounce: linear(0, 0.007 1%, 0.029 2%, 0.12 4.2%, 0.503 10.6%, 0.755 15.9%, 0.913 21.2%, 1.014 27.1%, 1.054 31.5%, 1.073 36.4%, 1.072 41.5%, 1.053 47.1%, 1.021 54.3%, 0.999 64.1%, 0.993 75.8%, 1);
+  }
+}
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0e0f10; --bg-deep: #000; --tile: #1c1e21; --tile-2: #17191b; --tile-hi: rgb(255 255 255 / .06); --sheet: #17191c; --sheet-top: #1c1e21;
+  --stripe-gap: #55585c;
+  --ink: #eeefea; --ink2: #c2c4be; --mute: #8a8d92; --faint: #5f6267; --rgb: 238 239 234;
+  --fill: #ecebe6; --on-fill: #151613; --heat: #91bce8; --coral-ink: #ff8a78; --desk: #1d1e20;
+  --chip: #222428; --cdot: #222428; --cring: rgb(10 11 12 / .85); --clab: rgb(26 28 31 / .78); --cgrid: rgb(238 239 234 / .14);
+}
+
+* { box-sizing: border-box; margin: 0; }
+html, body { min-height: 100%; }
+body { background: var(--desk); color: var(--ink); font-family: var(--font); -webkit-font-smoothing: antialiased; transition: background-color .35s; }
+button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+
+.stage { min-height: 100vh; display: flex; align-items: center; justify-content: center; gap: 56px; padding: 32px 24px; }
+.notes { width: 320px; font-size: 13px; line-height: 1.65; color: var(--ink2); }
+.notes h1 { font-size: 22px; color: var(--ink); letter-spacing: -.01em; margin-bottom: 4px; }
+.notes > p { color: var(--mute); margin-bottom: 18px; }
+.notes ol { padding-left: 18px; display: grid; gap: 9px; }
+.notes li::marker { color: var(--mute); font-variant-numeric: tabular-nums; }
+.notes b { color: var(--ink); }
+.notes .row { display: flex; gap: 8px; margin-top: 22px; }
+.ghost-btn { height: 34px; padding: 0 14px; border-radius: 999px; background: rgb(var(--rgb) / .08); font-size: 12.5px; font-weight: 600; transition: scale .5s var(--spring-bounce), background-color .2s; }
+.ghost-btn:active { scale: .94; transition-duration: .12s; }
+@media (max-width: 900px) { .notes { display: none; } }
+
+/* 手机 */
+.phone { position: relative; flex: none; width: 390px; height: 844px; border-radius: 48px; overflow: hidden; background: var(--bg-deep); isolation: isolate;
+  box-shadow: 0 0 0 11px #0b0c0d, 0 0 0 12px #2a2c2f, 0 50px 90px -30px rgb(0 0 0 / .55); }
+@media (max-width: 520px) {
+  .stage { padding: 0; }
+  .phone { width: 100vw; height: 100dvh; border-radius: 0; box-shadow: none; }
+}
+
+/* 回顾页（背后那一层） */
+.screen { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; background: var(--bg); transform-origin: 50% 0; scrollbar-width: none;
+  transition: scale .62s var(--spring), translate .62s var(--spring), border-radius .62s var(--spring), filter .45s ease, background-color .35s; }
+.screen::-webkit-scrollbar { display: none; }
+.phone.open .screen { scale: .93; translate: 0 12px; border-radius: 30px; }
+.wall { padding: 54px 16px 0; display: flex; flex-direction: column; gap: 16px; }
+
+.top { display: flex; align-items: center; justify-content: space-between; }
+.brand { font-size: 19px; font-weight: 700; letter-spacing: -.03em; }
+.top-r { display: flex; gap: 8px; }
+.circ { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; box-shadow: inset 0 0 0 1px rgb(var(--rgb) / .14); transition: scale .5s var(--spring-bounce); }
+.circ.avatar { background: rgb(var(--rgb) / .08); }
+.circ svg { width: 18px; height: 18px; }
+.circ:active { scale: .92; transition-duration: .12s; }
+
+.title h1 { font-size: 34px; letter-spacing: -.01em; line-height: 1.15; }
+.range-row { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
+.range { display: inline-flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.range-text { display: inline-block; transition: opacity .18s, translate .18s; }
+.range-text.swap { opacity: 0; translate: 0 6px; }
+.cal { width: 22px; height: 22px; border-radius: 7px; background: rgb(var(--rgb) / .08); display: grid; grid-template-columns: repeat(3, 3.4px); gap: 1.6px; place-content: center; }
+.cal i { width: 3.4px; height: 3.4px; border-radius: 50%; background: rgb(var(--rgb) / .4); }
+.cal i:nth-child(5) { background: var(--coral); }
+
+/* 分段控件：胶囊带回弹滑到选中项 */
+.seg { position: relative; display: inline-flex; padding: 3px; border-radius: 999px; background: rgb(var(--rgb) / .08); }
+.seg button { position: relative; z-index: 1; height: 28px; min-width: 38px; padding: 0 11px; border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--ink2); transition: color .25s; }
+.seg button.on { color: var(--on-fill); }
+.seg .ind { position: absolute; z-index: 0; top: 3px; left: 0; height: 28px; border-radius: 999px; background: var(--fill); box-shadow: 0 6px 14px -8px rgb(0 0 0 / .5);
+  transition: translate .55s var(--spring-bounce), width .55s var(--spring-bounce); }
+
+/* 数据块：同一种结构 */
+.tile { position: relative; background: linear-gradient(180deg, var(--tile), var(--tile-2)); border-radius: 22px; padding: 13px 14px 12px; display: flex; flex-direction: column; gap: 10px; min-height: 186px; cursor: pointer; user-select: none; -webkit-user-select: none;
+  box-shadow: inset 0 1px 0 var(--tile-hi), inset 0 0 0 1px rgb(var(--rgb) / .05), 0 12px 24px -16px rgb(0 0 0 / .3);
+  transition: scale .55s var(--spring-bounce), opacity .25s ease, background-color .35s; -webkit-tap-highlight-color: transparent; }
+.tile:active:not(:has([data-pick]:active, .stats-chip:active, .cpt:active, .clab:active)) { scale: .97; transition-duration: .12s, .25s, .35s; transition-timing-function: ease-out; }
+.tile.lifted { opacity: 0; transition-duration: .55s, .12s, .35s; }
+.tile-h { display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 600; color: var(--ink2); }
+.tile-h svg { width: 14px; height: 14px; color: var(--faint); }
+.tile-b { flex: 1; display: flex; flex-direction: column; gap: 8px; position: relative; }
+.tile-f { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--mute); white-space: nowrap; }
+.tile-f b { font-weight: 600; color: var(--ink); }
+.tile-f .c { color: var(--coral-ink); }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+.num { display: inline-flex; align-items: baseline; font-weight: 700; letter-spacing: -.04em; line-height: 1; font-variant-numeric: tabular-nums; }
+.num small { font-size: .4em; font-weight: 600; letter-spacing: 0; color: var(--mute); margin-left: 4px; }
+.num .gray { color: var(--mute); }
+.pill { display: inline-flex; align-items: center; gap: 3px; height: 22px; padding: 0 9px; border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap; background: rgb(var(--rgb) / .08); }
+.pill.lemon { background: var(--lemon); color: #151613; }
+.pill.coral { background: rgb(240 99 81 / .2); color: var(--coral-ink); }
+.pill.mist { background: rgb(145 188 232 / .45); }
+.pill.lilac { background: rgb(189 173 240 / .5); }
+html[data-theme="dark"] .pill.mist { background: rgb(145 188 232 / .2); }
+html[data-theme="dark"] .pill.lilac { background: rgb(189 173 240 / .22); }
+
+/* 主块：容量 */
+.hero { min-height: 0; }
+.hero-row { display: flex; align-items: flex-end; justify-content: space-between; }
+.hero .num { font-size: 52px; }
+.hero-chart { margin-top: 2px; }
+.hplot { height: 84px; display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: var(--gap); align-items: end; touch-action: none; cursor: ew-resize; }
+.hcol { position: relative; height: 100%; display: flex; align-items: flex-end; }
+.hcol .trk { position: absolute; inset: 0; border-radius: 9px; background: rgb(var(--rgb) / .05); transition: background-color .2s; }
+.hcol .hb { position: relative; width: 100%; height: var(--h); min-height: 0; border-radius: 8px; background: var(--stripe); transform-origin: 50% 100%;
+  animation: grow .75s var(--spring) var(--d) both; transition: background-color .2s; }
+.hcol.sel .trk { background: rgb(242 237 33 / .3); }
+.hcol.sel .hb { background: var(--stripe-lemon); }
+.hero-reads { display: flex; justify-content: space-between; }
+.hero-reads .num { font-size: 20px; }
+.hero-reads p { font-size: 10.5px; color: var(--mute); margin-top: 2px; }
+.hero-reads > div:nth-child(2) { text-align: center; }
+.hero-reads > div:last-child { text-align: right; }
+
+.sec { display: flex; align-items: center; gap: 8px; padding-top: 4px; }
+.sec i { width: 7px; height: 7px; border-radius: 50%; background: var(--coral); }
+.sec b { font-size: 16px; }
+.sec span { font-size: 12px; color: var(--mute); }
+
+/* 小图 */
+.mini { width: 100%; height: auto; display: block; overflow: visible; }
+.mini .ln { fill: none; stroke: var(--heat); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.mini .avg { fill: none; stroke: rgb(var(--rgb) / .4); stroke-width: 1; stroke-dasharray: 2 3; }
+.mini .pt { fill: var(--heat); }
+.mini .pt.last { fill: var(--ink); }
+.rings { width: 70px; height: 70px; flex: none; }
+.rings circle { fill: none; }
+.rings .tk { stroke: rgb(var(--rgb) / .08); }
+.rings .pg { stroke-dasharray: var(--p) 100; stroke-linecap: butt; animation: ring 1.1s var(--spring) .35s both; }
+@keyframes ring { from { stroke-dasharray: 0 100; } }
+.macro-row { display: flex; align-items: center; gap: 10px; }
+.legend { display: grid; gap: 4px; font-size: 10px; color: var(--ink2); }
+.legend b { display: block; font-size: 11px; color: var(--ink); }
+.legend i { display: inline-block; width: 6px; height: 6px; border-radius: 1.5px; margin-right: 4px; vertical-align: 1px; }
+.gauge { position: relative; }
+.gauge svg { width: 100%; display: block; }
+.gauge .tk { fill: none; stroke: rgb(var(--rgb) / .08); stroke-width: 7; }
+.gauge .band { fill: none; stroke: rgb(240 99 81 / .22); stroke-width: 7; stroke-dasharray: 0 25 37.5 200; }
+.gauge .val { fill: none; stroke: var(--coral); stroke-width: 7; stroke-dasharray: var(--v) 100; animation: ring 1.2s var(--spring) .35s both; }
+.gauge text { font-size: 9px; font-weight: 600; fill: var(--mute); font-family: var(--font); }
+.gauge .mark { stroke: var(--ink); stroke-width: 1.5; }
+.gauge .center { position: absolute; left: 0; right: 0; top: 40px; display: grid; justify-items: center; gap: 4px; }
+.gauge .num { font-size: 24px; }
+.steps { display: flex; align-items: flex-end; gap: 7px; height: 28px; }
+.steps i { flex: 1; height: var(--h); border-radius: 3px; background: rgb(var(--rgb) / .14); transform-origin: bottom; animation: grow .7s var(--spring) var(--d) both; }
+.steps i.up { background: var(--lilac); }
+.bodies { position: relative; display: flex; justify-content: center; gap: 18px; height: 104px; }
+.bodies figure { position: relative; height: 100%; aspect-ratio: 46 / 104; margin: 0; }
+.bodies img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.bodies::before { content: ''; position: absolute; inset: -4px -14px; pointer-events: none; background-image: radial-gradient(circle at center, var(--cgrid) 0 .8px, transparent 1.05px); background-size: 7px 7px;
+  -webkit-mask-image: linear-gradient(transparent, #000 14%, #000 86%, transparent); mask-image: linear-gradient(transparent, #000 14%, #000 86%, transparent); }
+.bodies img { position: relative; filter: grayscale(1) contrast(1.04) brightness(1.02); }
+.bodies figure i { position: absolute; z-index: 1; width: var(--s, 7px); height: var(--s, 7px); border-radius: 50%; background: var(--cdot); translate: -50% -50%;
+  box-shadow: 0 0 0 1.2px var(--cring); animation: pop .5s var(--spring-bounce) var(--d, .3s) both; }
+.bodies figure i::before { content: ''; position: absolute; z-index: -1; left: 50%; top: 50%; width: 11px; height: 11px; translate: -50% -50%; opacity: .32;
+  background: linear-gradient(var(--ink), var(--ink)) center / 1px 100% no-repeat, linear-gradient(var(--ink), var(--ink)) center / 100% 1px no-repeat; }
+
+/* 小图上的人体夜间仍是浅色石膏：点沿用白天的墨点白圈，不然深色描边会让点显得大一圈 */
+html[data-theme="dark"] .bodies figure i { background: #151613; box-shadow: 0 0 0 1.2px rgb(255 255 255 / .85); }
+html[data-theme="dark"] .bodies figure i::before { background: linear-gradient(#151613, #151613) center / 1px 100% no-repeat, linear-gradient(#151613, #151613) center / 100% 1px no-repeat; }
+/* 训练统计入口：和现在的回顾页一样，挂在容量标题右侧 */
+.stats-chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; margin: -6px -5px -6px 0; padding: 0 6px 0 11px; border-radius: 999px; background: var(--chip); color: #f1f2ee;
+  font-size: 12px; font-weight: 600; transition: scale .5s var(--spring-bounce); }
+.stats-chip:active { scale: .93; transition-duration: .12s; }
+.tile-h .stats-chip svg { width: 13px; height: 13px; opacity: .6; color: inherit; }
+html[data-theme="dark"] .stats-chip { box-shadow: inset 0 0 0 1px rgb(255 255 255 / 7%), 0 10px 22px -14px rgb(0 0 0 / 80%); }
+.bars4 { display: inline-flex; align-items: flex-end; gap: 2px; height: 11px; }
+.bars4 i { width: 2.5px; border-radius: 1px; background: var(--lemon); transition: height .35s var(--spring-bounce); }
+.bars4 i:nth-child(1) { height: 4px; } .bars4 i:nth-child(2) { height: 8px; } .bars4 i:nth-child(3) { height: 5px; } .bars4 i:nth-child(4) { height: 11px; }
+.stats-chip:hover .bars4 i:nth-child(1), .to-stats:hover .bars4 i:nth-child(1) { height: 9px; } .stats-chip:hover .bars4 i:nth-child(3), .to-stats:hover .bars4 i:nth-child(3) { height: 11px; }
+
+/* 抽屉底部：到训练统计看完整数据 */
+.to-stats { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 12px 10px 10px; border-radius: 18px; text-align: left;
+  background: rgb(var(--rgb) / .05); box-shadow: inset 0 0 0 1px rgb(var(--rgb) / .07); transition: scale .5s var(--spring-bounce), background-color .2s; }
+.to-stats:active { scale: .97; transition-duration: .12s; }
+.to-stats .ico { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--chip); }
+.to-stats .t { flex: 1; display: grid; gap: 2px; min-width: 0; }
+.to-stats .t b { font-size: 13.5px; }
+.to-stats .t small { font-size: 11px; color: var(--mute); }
+.to-stats > svg { flex: none; width: 16px; height: 16px; color: var(--faint); }
+
+/* 原型里点入口不跳页，用一条毛玻璃提示说明会去哪 */
+.toast { position: absolute; left: 50%; bottom: 112px; z-index: 40; display: grid; justify-items: center; gap: 3px; padding: 10px 16px 11px; border-radius: 16px; white-space: nowrap; pointer-events: none;
+  translate: -50% 14px; opacity: 0; transition: opacity .2s ease, translate .55s var(--spring-bounce);
+  background: rgb(246 246 243 / 62%); -webkit-backdrop-filter: blur(18px) saturate(1.5) brightness(1.06); backdrop-filter: blur(18px) saturate(1.5) brightness(1.06);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 90%), inset 0 0 0 .5px rgb(255 255 255 / 60%), 0 16px 32px -18px rgb(21 22 19 / 45%); }
+.toast.show { opacity: 1; translate: -50% 0; }
+.toast b { font-size: 13px; }
+.toast code { font: 500 10.5px ui-monospace, 'SF Mono', Menlo, monospace; color: var(--mute); }
+html[data-theme="dark"] .toast { background: rgb(30 32 35 / 72%); box-shadow: inset 0 1px 0 rgb(255 255 255 / 12%), 0 16px 32px -18px rgb(0 0 0 / 80%); }
+.emini { display: grid; grid-template-columns: repeat(7, 1fr); gap: 7px; height: 104px; }
+.emini > div { display: flex; flex-direction: column; }
+.emini .up { height: 58px; display: flex; align-items: flex-end; border-bottom: 1px solid rgb(var(--rgb) / .35); }
+.emini .up i { width: 100%; height: var(--h); border-radius: 4px 4px 1px 1px; background: rgb(var(--rgb) / .22); transform-origin: bottom; animation: grow .7s var(--spring) var(--d) both; }
+.emini > div:last-child .up i { background: var(--ink); }
+.emini .dn { display: grid; justify-items: center; gap: 2px; padding-top: 5px; }
+.emini .dn b { width: 4px; height: 4px; border-radius: 50%; background: var(--coral); opacity: .55; }
+.emini > div:last-child .dn b { opacity: 1; }
+
+.proto-foot { display: flex; justify-content: center; padding: 18px 0 4px; }
+.tabbar { position: sticky; bottom: 30px; z-index: 5; margin: 26px auto 30px; width: 248px; height: 54px; border-radius: 999px; background: var(--fill); padding: 5px; display: grid; grid-template-columns: 1fr 1fr 1.4fr; box-shadow: 0 16px 30px -14px rgb(0 0 0 / .45); }
+.tabbar span { display: grid; place-items: center; border-radius: 999px; font-size: 14px; font-weight: 600; color: rgb(241 242 238 / .55); }
+.tabbar span.on { background: var(--on-fill); color: var(--fill); }
+html[data-theme="dark"] .tabbar { background: #1c1e21; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 6%), 0 12px 28px -14px rgb(0 0 0 / 80%); }
+html[data-theme="dark"] .tabbar span { color: #a3a6a0; }
+html[data-theme="dark"] .tabbar span.on { background: linear-gradient(#f1f2ee, #dfe0da); color: #151613; }
+
+/* 抽屉 */
+.scrim { position: absolute; inset: 0; z-index: 10; background: transparent; opacity: 0; pointer-events: none; transition: opacity .45s ease; }
+.phone.open .scrim { opacity: 1; pointer-events: auto; }
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; top: 58px; z-index: 20; display: flex; flex-direction: column; border-radius: 30px 30px 0 0; translate: 0 105%; will-change: translate;
+  background: linear-gradient(180deg, rgb(255 255 255 / 34%) 0, rgb(246 246 243 / 26%) 22%, rgb(240 240 237 / 44%) 60%, rgb(236 236 233 / 66%) 100%);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5) brightness(1.06); backdrop-filter: blur(18px) saturate(1.5) brightness(1.06);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 95%), inset 0 0 0 .5px rgb(255 255 255 / 70%), inset 0 18px 30px -22px rgb(255 255 255 / 90%), 0 -24px 48px -30px rgb(21 22 19 / 30%); }
+html[data-theme="dark"] .sheet { background: linear-gradient(180deg, rgb(30 32 35 / 55%) 0, rgb(22 24 27 / 70%) 40%, rgb(16 17 19 / 86%) 100%); box-shadow: inset 0 1px 0 rgb(255 255 255 / 12%), 0 -24px 48px -30px rgb(0 0 0 / 80%); }
+.sheet.anim { transition: translate .62s var(--spring), top .55s var(--spring), border-radius .55s var(--spring), background-color .35s; }
+.phone.open .sheet, .sheet.closing { translate: 0 0; }
+.sheet.full { top: 0; border-radius: 0; }
+.grab { flex: none; display: grid; place-items: center; height: 22px; cursor: grab; touch-action: none; transition: height .55s var(--spring); }
+.sheet.full .grab { height: 50px; align-items: end; padding-bottom: 6px; }
+.grab i { width: 38px; height: 5px; border-radius: 9px; background: rgb(var(--rgb) / .2); }
+.sheet-head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 2px 20px 12px; touch-action: none; cursor: grab; }
+.sheet-head h2 { font-size: 21px; letter-spacing: -.01em; }
+.sheet-btns { display: flex; gap: 8px; }
+.icon-btn { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: rgb(var(--rgb) / .08); transition: scale .5s var(--spring-bounce), background-color .2s; }
+.icon-btn svg { width: 15px; height: 15px; }
+.icon-btn:active { scale: .9; transition-duration: .12s; }
+:is(.icon-btn, .tile, .circ, .seg button, .pr-row):focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+:is(.icon-btn, .tile, .circ, .seg button, .pr-row):focus:not(:focus-visible) { outline: none; }
+.sheet-body { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 4px 20px 48px; display: flex; flex-direction: column; gap: 20px; scrollbar-width: none; }
+.sheet-body::-webkit-scrollbar { display: none; }
+.sheet.leaving .sheet-body, .sheet.leaving .sheet-head { opacity: 0; transition: opacity .14s ease; }
+
+.sheet.enter .rise { animation: rise .62s var(--spring) both; animation-delay: calc(110ms + var(--i) * 45ms); }
+@keyframes rise { from { opacity: 0; translate: 0 18px; } }
+@keyframes grow { from { scale: 1 0; } }
+@keyframes pop { from { opacity: 0; scale: 0; } }
+@keyframes fade { from { opacity: 0; } }
+
+.range-line { display: flex; align-items: center; justify-content: space-between; }
+.range-line span { font-size: 12px; font-weight: 600; color: var(--mute); font-variant-numeric: tabular-nums; }
+.big-label { font-size: 12.5px; color: var(--mute); min-height: 18px; }
+.big-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
+.big-row .num { font-size: 58px; }
+.big-row .num small { font-size: 18px; }
+
+.chart { position: relative; }
+.plot { position: relative; height: 150px; display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: var(--gap); align-items: end; touch-action: none; cursor: ew-resize; }
+.bar { position: relative; z-index: 1; height: var(--h); min-height: 4px; border-radius: 6px 6px 3px 3px; background: rgb(var(--rgb) / .2); transform-origin: 50% 100%;
+  animation: grow .75s var(--spring) var(--d) both; display: flex; flex-direction: column-reverse; overflow: hidden; transition: background-color .2s, opacity .2s; }
+.bar.zero { background: rgb(var(--rgb) / .08); }
+.bar.ok { background: var(--stripe); }
+.bar.sel { background: var(--sel, var(--ink)); }
+.bar i { display: block; transition: opacity .2s; }
+.band { position: absolute; left: 0; right: 0; z-index: 0; background: rgb(240 99 81 / .13); border-block: 1px dashed rgb(240 99 81 / .6); animation: fade .6s ease .3s both; }
+.band span { position: absolute; right: 4px; top: 3px; font-size: 9.5px; font-weight: 700; color: var(--coral-ink); }
+.xl { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: var(--gap); margin-top: 7px; font-size: 10px; color: var(--mute); text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.xl span { overflow: visible; display: flex; justify-content: center; }
+.xl .sel { color: var(--ink); font-weight: 700; }
+.hint { font-size: 11px; color: var(--faint); margin-top: 6px; display: flex; align-items: center; gap: 6px; }
+.hint::before { content: ''; width: 14px; height: 1px; background: currentColor; }
+
+.svgplot { height: auto; display: block; }
+.svgplot svg { width: 100%; height: auto; display: block; overflow: visible; color: var(--lc, var(--heat)); }
+.svgplot .area { opacity: 0; animation: fade .6s ease .55s forwards; }
+.svgplot .ln { fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linejoin: round; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 1.1s var(--ease-out) .12s forwards; }
+.svgplot .avg { fill: none; stroke: rgb(var(--rgb) / .42); stroke-width: 1.3; stroke-dasharray: .008 .012; }
+.svgplot .pt { fill: currentColor; transform-box: fill-box; transform-origin: center; animation: pop .45s var(--spring-bounce) var(--d) both; }
+.svgplot .pt.mk { fill: var(--lilac); stroke: var(--ink); stroke-width: 1.4; }
+.svgplot .guide { stroke: rgb(var(--rgb) / .35); stroke-width: 1; stroke-dasharray: 3 3; transition: transform .28s var(--ease-out); }
+.svgplot .cur { fill: var(--sheet); stroke: currentColor; stroke-width: 2.6; transition: transform .28s var(--ease-out); }
+.svgplot .grid-l { stroke: rgb(var(--rgb) / .08); stroke-width: 1; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); padding-top: 14px; border-top: 1px solid rgb(var(--rgb) / .12); }
+.stats > div { display: grid; gap: 3px; }
+.stats > div:nth-child(2) { justify-items: center; }
+.stats > div:last-child { justify-items: end; }
+.stats span { font-size: 11px; color: var(--mute); }
+.stats .num { font-size: 20px; }
+.stats .num small { font-size: 11px; }
+.note { padding: 13px 14px; border-radius: 16px; background: rgb(var(--rgb) / .05); }
+.note b { font-size: 12.5px; display: block; margin-bottom: 4px; }
+.note p { font-size: 11.5px; line-height: 1.6; color: var(--ink2); }
+
+/* 热量缺口：消耗与摄入对照 */
+.cmp { display: grid; grid-template-columns: 30px 1fr; gap: 6px 8px; align-items: center; }
+.cmp-l { font-size: 11px; font-weight: 600; color: var(--ink2); }
+.cmp-bar { display: flex; gap: 2px; height: 28px; }
+.cmp-bar i { position: relative; display: flex; align-items: center; min-width: 0; overflow: hidden; white-space: nowrap; border-radius: 7px; font-style: normal; font-size: 11px; font-weight: 600;
+  transition: flex-basis .6s var(--spring), width .6s var(--spring); }
+.cmp-bar i span { padding: 0 8px; }
+.c-base { background: rgb(var(--rgb) / .13); }
+.c-run { background: rgb(240 99 81 / .55); justify-content: center; }
+.c-in { background: var(--fill); color: var(--on-fill); }
+.c-gap { background: rgb(240 99 81 / .14); box-shadow: inset 0 0 0 1.2px var(--coral); color: var(--coral-ink); justify-content: center; }
+
+/* 三大营养 */
+.progs { display: grid; gap: 14px; }
+.prog-top { display: flex; align-items: baseline; gap: 8px; font-size: 12px; margin-bottom: 6px; }
+.prog-top b { font-size: 13px; width: 30px; }
+.prog-top span { flex: 1; color: var(--mute); font-variant-numeric: tabular-nums; }
+.prog-top span em { font-style: normal; font-weight: 700; color: var(--ink); font-size: 15px; }
+.prog-top strong { font-variant-numeric: tabular-nums; font-size: 13px; }
+.prog-top strong.over { color: var(--coral-ink); }
+.track { position: relative; height: 10px; border-radius: 9px; background: rgb(var(--rgb) / .08); }
+.track i { position: absolute; left: 0; top: 0; bottom: 0; width: var(--w); border-radius: 9px; background: var(--c); transform-origin: left; animation: grow-x .9s var(--spring) .2s both; transition: width .55s var(--spring); }
+.track u { position: absolute; left: 80%; top: -3px; bottom: -3px; width: 2px; border-radius: 2px; background: var(--ink); }
+@keyframes grow-x { from { scale: 0 1; } }
+.mx { display: grid; gap: 8px; }
+.mx-row { display: grid; grid-template-columns: 30px 1fr; align-items: center; gap: 8px; }
+.mx-row > span { font-size: 11px; font-weight: 600; color: var(--ink2); }
+.mxp { height: auto; align-items: center; }
+.mxp .col { display: grid; place-items: center; height: var(--cell); }
+.mxp .col b { width: min(var(--cell), 100%); aspect-ratio: 1; border-radius: 50%; animation: pop .45s var(--spring-bounce) var(--d) both; transition: box-shadow .2s, scale .3s var(--spring-bounce); }
+.mxp .ok b { background: var(--c); }
+.mxp .over b { background: var(--c); box-shadow: inset 0 0 0 2px var(--ink); }
+.mxp .under b { box-shadow: inset 0 0 0 1.5px var(--c); opacity: .75; }
+.mxp .col.sel b { scale: 1.18; }
+.mx .xl { margin-left: 38px; }
+.mx-key { display: flex; gap: 14px; font-size: 10.5px; color: var(--mute); margin-left: 38px; }
+.mx-key i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; background: var(--ink2); }
+.mx-key i.o { box-shadow: inset 0 0 0 2px var(--ink); background: var(--carb); }
+.mx-key i.u { background: none; box-shadow: inset 0 0 0 1.5px var(--ink2); }
+
+/* 个人纪录 */
+.dots { height: 112px; align-items: stretch; }
+.dots .col { display: flex; flex-direction: column-reverse; align-items: center; gap: 4px; }
+.dots .col b { width: min(14px, 100%); aspect-ratio: 1; border-radius: 50%; background: var(--lilac); animation: pop .45s var(--spring-bounce) calc(var(--d) + var(--k) * 50ms) both; transition: box-shadow .2s; }
+.dots .col b.none { width: 4px; background: rgb(var(--rgb) / .16); }
+.dots .col.sel b:not(.none) { box-shadow: 0 0 0 1.6px var(--ink); }
+.pr-list { display: grid; gap: 8px; }
+.pr-list h3, .rank h3 { font-size: 13px; margin-bottom: 2px; }
+.pr-item { border-radius: 16px; background: rgb(var(--rgb) / .05); overflow: hidden; }
+.pr-row { width: 100%; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; padding: 11px 12px; text-align: left; transition: scale .5s var(--spring-bounce); }
+.pr-row:active { scale: .98; transition-duration: .12s; }
+.pr-badge { width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center; font-size: 10px; font-weight: 800; background: var(--lilac); color: #151613; }
+.pr-name { font-size: 13.5px; font-weight: 700; }
+.pr-name small { display: block; font-size: 11px; font-weight: 400; color: var(--mute); margin-top: 1px; }
+.pr-val { text-align: right; font-size: 17px; font-weight: 700; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.pr-val small { font-size: 11px; color: var(--mute); margin-left: 2px; font-weight: 600; }
+.pr-val em { display: block; font-style: normal; font-size: 11px; color: var(--coral-ink); letter-spacing: 0; }
+.pr-more { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .5s var(--spring); }
+.pr-more > div { overflow: hidden; }
+.pr-more .inner { padding: 0 12px 12px; }
+.pr-item.open .pr-more { grid-template-rows: 1fr; }
+.pr-item.open .pr-row .chev { rotate: 90deg; }
+.pr-row .chev { width: 12px; height: 12px; color: var(--faint); transition: rotate .45s var(--spring-bounce); margin-left: 6px; vertical-align: -1px; }
+
+/* 排行条 */
+.rank { display: grid; gap: 10px; }
+.rank-row { display: grid; grid-template-columns: 1fr auto; gap: 5px 10px; font-size: 12.5px; }
+.rank-row b { font-variant-numeric: tabular-nums; }
+.rank-row b small { font-size: 10.5px; color: var(--mute); margin-left: 2px; }
+.rank-row i { grid-column: 1 / -1; height: 6px; border-radius: 6px; background: rgb(var(--rgb) / .07); position: relative; overflow: hidden; }
+.rank-row i::after { content: ''; position: absolute; inset: 0 auto 0 0; width: var(--w); border-radius: 6px; background: var(--c); transform-origin: left; animation: grow-x .8s var(--spring) var(--d) both; }
+
+/* 训练分布大图 */
+.cmap { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: -4px -14px 0; padding: 6px 0 2px; }
+.cmap::before { content: ''; position: absolute; inset: 0; pointer-events: none; background-image: radial-gradient(circle at center, var(--cgrid) 0 .8px, transparent 1.05px); background-size: 7px 7px;
+  -webkit-mask-image: linear-gradient(transparent, #000 8%, #000 92%, transparent); mask-image: linear-gradient(transparent, #000 8%, #000 92%, transparent); }
+.cmap figure { position: relative; margin: 0; }
+.cmap .cstage { position: relative; aspect-ratio: .625; }
+.cmap .cstage img { position: absolute; top: 0; width: 70%; height: 100%; object-fit: contain; user-select: none; -webkit-user-drag: none; filter: grayscale(1) contrast(1.04) brightness(1.02); }
+.cmap figure[data-side="f"] img { left: 32%; }
+.cmap figure[data-side="b"] img { left: -2%; }
+.cmap figcaption { text-align: center; font-size: 11.5px; color: var(--mute); margin-top: 2px; }
+.cmap figure[data-side="f"] figcaption { padding-left: 34%; }
+.cmap figure[data-side="b"] figcaption { padding-right: 34%; }
+.cmap svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.cmap svg path { fill: none; stroke: rgb(var(--rgb) / .38); stroke-width: 1; stroke-dasharray: 2 2.5; vector-effect: non-scaling-stroke; transition: stroke .3s; animation: fade .7s var(--ease-out) var(--d) both; }
+.cmap svg path.sel { stroke: var(--coral); stroke-width: 1.6; stroke-dasharray: none; }
+.cpt { position: absolute; width: 30px; height: 30px; margin: -15px 0 0 -15px; padding: 0; border-radius: 50%; }
+.cpt::before { content: ''; position: absolute; left: 50%; top: 50%; width: 15px; height: 15px; transform: translate(-50%, -50%); opacity: .35; transition: opacity .3s, transform .45s var(--spring-bounce);
+  background: linear-gradient(var(--ink), var(--ink)) center / 1px 100% no-repeat, linear-gradient(var(--ink), var(--ink)) center / 100% 1px no-repeat; }
+.cpt::after { content: ''; position: absolute; left: 50%; top: 50%; width: var(--size); height: var(--size); border-radius: 50%; transform: translate(-50%, -50%);
+  background: var(--cdot); box-shadow: 0 0 0 2px var(--cring); transition: background-color .3s, box-shadow .3s; animation: pop .5s var(--spring-bounce) var(--d) both; }
+.cpt.sel::before { opacity: 1; transform: translate(-50%, -50%) scale(1.7) rotate(45deg);
+  background: linear-gradient(var(--coral), var(--coral)) center / 1.5px 100% no-repeat, linear-gradient(var(--coral), var(--coral)) center / 100% 1.5px no-repeat; }
+.cpt.sel::after { background: var(--coral); box-shadow: 0 0 0 2.5px #fff, 0 0 0 6px rgb(240 99 81 / 22%); }
+.clab { position: absolute; display: grid; gap: 1px; padding: 4px 7px 5px; border-radius: 9px; translate: 0 -50%; color: var(--ink); white-space: nowrap;
+  background: var(--clab); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); transition: background-color .3s, color .3s, scale .45s var(--spring-bounce); animation: fade .5s var(--ease-out) var(--d) both; }
+.clab[data-side="f"] { text-align: right; justify-items: end; }
+.clab[data-side="b"] { text-align: left; justify-items: start; }
+.clab span { font-size: 10.5px; font-weight: 600; color: var(--ink2); }
+.clab b { font-size: 13px; font-weight: 700; line-height: 1.1; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+.clab b em { margin-left: 2px; font-style: normal; font-size: 9.5px; font-weight: 600; color: var(--mute); }
+.clab.sel { background: var(--coral); color: #151613; scale: 1.06; box-shadow: 0 8px 18px -10px rgb(160 40 20 / 70%); }
+.clab.sel span, .clab.sel b em { color: rgb(40 10 5 / 75%); }
+.rank-row { transition: opacity .3s; cursor: pointer; }
+.rank.picking .rank-row:not(.sel) { opacity: .45; }
+.rank-row.sel i::after { background: var(--coral); }
+
+/* 能量收支 */
+.eplot { height: 196px; align-items: stretch; }
+.ecol { display: flex; flex-direction: column; }
+.ecol .up { height: 120px; display: flex; align-items: flex-end; border-bottom: 1px solid rgb(var(--rgb) / .35); }
+.ecol .bar { width: 100%; border-radius: 5px 5px 1px 1px; background: none; }
+.ecol:not(.sel) .bar i { opacity: .42; }
+.ecol .burn { display: flex; flex-direction: column; align-items: center; gap: 3px; padding-top: 6px; }
+.ecol .burn b { width: min(6px, 100%); aspect-ratio: 1; border-radius: 50%; background: var(--coral); animation: pop .4s var(--spring-bounce) calc(.35s + var(--d) + var(--k) * 35ms) both; }
+.ecol:not(.sel) .burn b { opacity: .55; }
+.e-key { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 10.5px; color: var(--mute); }
+.e-key i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; vertical-align: -.5px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0s !important; transition-duration: .01ms !important; }
+}
+</style>
+</head>
+<body>
+<main class="stage">
+  <section class="notes" aria-label="原型说明">
+    <h1>回顾 · 数据块墙</h1>
+    <p>交互原型 · 示例数据 · 11 月 22 日（周日）</p>
+    <ol>
+      <li><b>统一的数据块</b>：每块左上标题、右上箭头，中间是大号读数和一张小图，底部一行脚注。</li>
+      <li><b>点开不跳页</b>：按下收缩到 0.97，松手后这块卡片在原位长成毛玻璃抽屉，背后的回顾页缩到 0.93，不压暗、不虚化，透过玻璃能看到柔化的数据块。</li>
+      <li><b>依次入场</b>：抽屉里的内容每项间隔 45 ms 升起，数字从 0 滚到读数，柱子按顺序长出。</li>
+      <li><b>7天 / 30天 / 1年</b>：胶囊带回弹滑到选中项，图和读数一起换，数字从旧值滚到新值。</li>
+      <li><b>在图上拖</b>：读数跟着手指换成那一天；再点一次选中的那根，回到汇总。</li>
+      <li><b>收起</b>：下拉把手或标题栏，按速度或距离判断；点背后的页面或 ×，抽屉缩回原来那块。⤢ 展开到全屏。</li>
+      <li><b>训练统计</b>：入口还在原位，容量标题右侧的墨色胶囊；容量、训练分布、个人纪录三个抽屉底部也能直接跳到统计页对应的一段。训练分布用的是统计页那张解剖图式标注。</li>
+      <li><b>联动</b>：热量缺口里拖到某天，上面的消耗/摄入对照条一起变；三大营养拖到某天，完成度条换成当天；个人纪录点一行，展开这个动作的估算 1RM 曲线。</li>
+    </ol>
+    <div class="row">
+      <button class="ghost-btn" id="themeBtn">切到夜间</button>
+      <button class="ghost-btn" id="replayBtn">重播入场</button>
+    </div>
+  </section>
+
+  <div class="phone" id="phone">
+    <div class="screen" id="screen"><div class="wall" id="wall"></div></div>
+    <div class="scrim" id="scrim"></div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <section class="sheet anim" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" aria-hidden="true">
+      <div class="grab" id="grab"><i></i></div>
+      <header class="sheet-head" id="sheetHead">
+        <h2 id="sheetTitle"></h2>
+        <div class="sheet-btns">
+          <button class="icon-btn" id="expandBtn" aria-label="展开到全屏"></button>
+          <button class="icon-btn" id="closeBtn" aria-label="关闭"></button>
+        </div>
+      </header>
+      <div class="sheet-body" id="sheetBody"></div>
+    </section>
+  </div>
+</main>
+
+<script>
+(() => {
+'use strict';
+const $ = (s) => document.querySelector(s);
+const phone = $('#phone'), screen = $('#screen'), wall = $('#wall'), sheet = $('#sheet'), scrim = $('#scrim'), body = $('#sheetBody');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const SPRING = CSS.supports('transition-timing-function', 'linear(0, 1)')
+  ? 'linear(0, 0.006 1.1%, 0.024 2.2%, 0.094 4.5%, 0.393 11.5%, 0.615 17.4%, 0.77 23.1%, 0.878 29%, 0.947 35.3%, 0.988 42.2%, 1.008 50%, 1.015 59.3%, 1.013 71.3%, 1)'
+  : 'cubic-bezier(.32, 1.25, .4, 1)';
+const IMG = '../../../public/models/sculpture/';
+
+const I = {
+  chev: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>',
+  close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  expand: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/></svg>',
+  shrink: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6M20 10h-6V4M10 14l-6 6M14 10l6-6"/></svg>',
+  export: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>',
+  user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>',
+};
+$('#expandBtn').innerHTML = I.expand;
+$('#closeBtn').innerHTML = I.close;
+
+/* ---------- 工具 ---------- */
+const fmt = (v, dec = 0) => Number(v).toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+const sum = (a) => a.reduce((x, y) => x + y, 0);
+const avg = (a) => (a.length ? sum(a) / a.length : 0);
+const rng = (seed) => () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+function countTo(el, to, dec = 0, dur = 650) {
+  if (!el) return;
+  const from = parseFloat(el.dataset.v || '0');
+  el.dataset.v = to;
+  cancelAnimationFrame(el._raf);
+  if (reduce || from === to) { el.textContent = fmt(to, dec); return; }
+  const t0 = performance.now();
+  const step = (t) => { const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3); el.textContent = fmt(from + (to - from) * e, dec); if (k < 1) el._raf = requestAnimationFrame(step); };
+  el._raf = requestAnimationFrame(step);
+}
+const buzz = () => { try { if (navigator.vibrate && navigator.userActivation && navigator.userActivation.hasBeenActive) navigator.vibrate(6); } catch { /* 不支持 */ } };
+
+/* ---------- 示例数据：11.16（周一）— 11.22（周日），今天 11.22 ---------- */
+const WD = ['一', '二', '三', '四', '五', '六', '日'];
+const L7 = WD.map((w) => '周' + w);
+const P7 = ['11.16', '11.17', '11.18', '11.19', '11.20', '11.21', '11.22'].map((d, i) => `周${WD[i]} · ${d}`);
+const DAY30 = Array.from({ length: 30 }, (_, i) => new Date(2026, 10, 22 - 29 + i));
+const md = (d) => `${d.getMonth() + 1}.${d.getDate()}`;
+const L30 = DAY30.map((d, i) => (i % 5 === 4 ? md(d) : ''));
+const P30 = DAY30.map((d) => `周${WD[(d.getDay() + 6) % 7]} · ${md(d)}`);
+const M12 = ['12月', '1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月'];
+const P12 = M12.map((m, i) => (i === 0 ? '2025 年 ' : '2026 年 ') + m.replace('月', ' 月'));
+const RANGES = ['7天', '30天', '1年'];
+const pickLabels = (r) => (r === '7天' ? P7 : r === '30天' ? P30 : P12);
+const axis = (r) => (r === '7天' ? L7 : r === '30天' ? L30 : M12);
+
+const TDEE = 2250, T_KCAL = 1850, T_P = 144, T_C = 194, T_F = 56;
+const R = rng(11);
+const VOL7 = [0, 2840, 0, 3120, 0, 2410, 3325];
+const VOL30 = DAY30.map((d, i) => { if (i >= 23) return VOL7[i - 23]; const w = (d.getDay() + 6) % 7, r = R(); return [1, 3, 5, 6].includes(w) && r > 0.18 ? Math.round((2150 + r * 1250) / 5) * 5 : 0; });
+const VOL12 = [31200, 28400, 33900, 30100, 35600, 38200, 34800, 39500, 41300, 40100, 43800, sum(VOL30.slice(8))];
+const BURN7 = [0, 310, 0, 355, 0, 290, 354];
+const BURN30 = VOL30.map((v, i) => (i >= 23 ? BURN7[i - 23] : v ? Math.round(260 + R() * 110) : 0));
+const I7 = [2010, 1840, 2120, 1790, 1950, 1880, 1760];
+const PG7 = [140, 124, 138, 142, 118, 136, 128], FG7 = [60, 52, 66, 55, 58, 57, 50];
+const I30 = DAY30.map((_, i) => (i >= 23 ? I7[i - 23] : Math.round((1700 + R() * 460) / 10) * 10));
+const PG30 = I30.map((_, i) => (i >= 23 ? PG7[i - 23] : Math.round(T_P * (0.78 + R() * 0.24))));
+const FG30 = I30.map((_, i) => (i >= 23 ? FG7[i - 23] : Math.round(T_F * (0.86 + R() * 0.28))));
+const CG30 = I30.map((k, i) => Math.round((k - 4 * PG30[i] - 9 * FG30[i]) / 4));
+const W7 = [72.9, 72.8, 72.6, 72.6, 72.4, 72.3, 72.1];
+const W30 = DAY30.map((_, i) => (i >= 23 ? W7[i - 23] : Math.round((73.9 - 1.0 * (i / 22) + (R() - 0.5) * 0.36) * 10) / 10));
+const MA = (a, w = 7) => a.map((_, i) => avg(a.slice(Math.max(0, i - w + 1), i + 1)));
+const W12 = [76.4, 76.1, 75.8, 75.6, 75.1, 74.8, 74.6, 74.1, 73.8, 73.4, 73.0, 72.5];
+const PR30 = Array(30).fill(0); [12, 16, 17, 19, 24, 26, 29].forEach((i) => { PR30[i] = 1; });
+const PR12 = [2, 3, 3, 3, 4, 3, 3, 4, 2, 3, 4, 7];
+
+/* ---------- 图表片段 ---------- */
+let uid = 0;
+const gapFor = (n) => (n > 20 ? 3 : n > 10 ? 6 : 10);
+const delay = (i, n) => Math.round(i * Math.min(42, 320 / n));
+function bars(vals, o = {}) {
+  const tot = vals.map((v) => (Array.isArray(v) ? sum(v) : v));
+  const n = vals.length, M = o.max || Math.max(...tot, 1) * 1.12, sel = o.sel ?? n - 1;
+  let h = `<div class="chart" style="--n:${n};--gap:${gapFor(n)}px;--sel:${o.selColor || 'var(--ink)'}"><div class="plot" data-pick data-n="${n}" data-def="${sel}">`;
+  if (o.band) h += `<div class="band" style="bottom:${(o.band[0] / M) * 100}%;height:${((o.band[1] - o.band[0]) / M) * 100}%"><span>${o.band[2]}</span></div>`;
+  h += vals.map((v, i) => {
+    const t = tot[i], segs = Array.isArray(v) ? v.map((s, k) => `<i style="flex:${s};background:${o.colors[k]}"></i>`).join('') : '';
+    return `<div class="bar ${i === sel ? 'sel' : ''} ${t ? (o.tone ? o.tone(t, i) : '') : 'zero'}" style="--h:${(t / M) * 100}%;--d:${delay(i, n)}ms">${segs}</div>`;
+  }).join('');
+  return h + `</div>${xl(o.labels || [], sel, n)}</div>`;
+}
+const xl = (labels, sel, n) => `<div class="xl" style="--n:${n};--gap:${gapFor(n)}px">${labels.map((l, i) => `<span class="${i === sel ? 'sel' : ''}">${l}</span>`).join('')}</div>`;
+function line(vals, o = {}) {
+  const W = o.W || 350, H = o.H || 150, px = 10, py = 14, n = vals.length, sel = o.sel ?? n - 1;
+  const all = o.avg ? vals.concat(o.avg) : vals;
+  const lo = Math.min(...all), hi = Math.max(...all), pad = (hi - lo) * 0.18 || 1;
+  const X = (i) => px + (i * (W - 2 * px)) / Math.max(1, n - 1);
+  const Y = (v) => H - py - ((v - (lo - pad)) / (hi + pad - (lo - pad))) * (H - 2 * py);
+  const pts = vals.map((v, i) => [+X(i).toFixed(1), +Y(v).toFixed(1)]);
+  const d = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0]} ${p[1]}`).join('');
+  const ad = o.avg ? o.avg.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(v).toFixed(1)}`).join('') : '';
+  const g = 'g' + ++uid, r = n > 20 ? 2.3 : 3.6, marks = o.marks || [];
+  const grid = [0.25, 0.5, 0.75].map((k) => `<line class="grid-l" x1="0" x2="${W}" y1="${(H * k).toFixed(1)}" y2="${(H * k).toFixed(1)}"/>`).join('');
+  const cur = o.pick === false ? '' : `<line class="guide" x1="0" x2="0" y1="0" y2="${H}" style="transform:translate(${pts[sel][0]}px,0)"/><circle class="cur" cx="0" cy="0" r="6" style="transform:translate(${pts[sel][0]}px,${pts[sel][1]}px)"/>`;
+  return `<div class="chart" style="--n:${n};--gap:${gapFor(n)}px;--lc:${o.color || 'var(--heat)'}"><div class="plot svgplot" ${o.pick === false ? '' : 'data-pick'} data-n="${n}" data-def="${sel}" data-pts='${JSON.stringify(pts)}'>
+    <svg viewBox="0 0 ${W} ${H}"><defs><linearGradient id="${g}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="currentColor" stop-opacity=".22"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs>
+    ${grid}<path class="area" d="${d}L${pts[n - 1][0]} ${H}L${pts[0][0]} ${H}Z" fill="url(#${g})"/>
+    ${ad ? `<path class="avg" d="${ad}" pathLength="1"/>` : ''}<path class="ln" d="${d}" pathLength="1"/>
+    ${pts.map((p, i) => `<circle class="pt ${marks.includes(i) ? 'mk' : ''}" cx="${p[0]}" cy="${p[1]}" r="${marks.includes(i) ? r + 1.4 : r}" style="--d:${500 + delay(i, n)}ms"/>`).join('')}${cur}</svg></div>${o.labels ? xl(o.labels, sel, n) : ''}</div>`;
+}
+function dotCols(counts, labels) {
+  const n = counts.length, sel = n - 1, dot = n > 20 ? 9 : 14;
+  const h = Math.max(36, Math.min(7, Math.max(...counts)) * (dot + 4) + 14);
+  return `<div class="chart" style="--n:${n};--gap:${gapFor(n)}px"><div class="plot dots" style="height:${h}px" data-pick data-n="${n}" data-def="${sel}">${counts.map((c, i) => `<div class="col ${i === sel ? 'sel' : ''}">${c ? Array.from({ length: Math.min(c, 7) }, (_, k) => `<b style="--d:${delay(i, n)}ms;--k:${k}"></b>`).join('') : `<b class="none" style="--d:${delay(i, n)}ms;--k:0"></b>`}</div>`).join('')}</div>${xl(labels, sel, n)}</div>`;
+}
+function matrix(rows, labels) {
+  const n = labels.length, sel = n - 1, cell = n > 20 ? 8 : n > 7 ? 18 : 24;
+  const cls = (v) => (v > 1.1 ? 'over' : v >= 0.9 ? 'ok' : 'under');
+  return `<div class="chart mx" style="--n:${n};--gap:${gapFor(n)}px;--cell:${cell}px">${rows.map((r) => `<div class="mx-row"><span>${r.name}</span><div class="plot mxp" data-pick data-n="${n}" data-def="${sel}">${r.vals.map((v, i) => `<div class="col ${cls(v)} ${i === sel ? 'sel' : ''}" style="--c:${r.color};--d:${delay(i, n) + 80}ms"><b></b></div>`).join('')}</div></div>`).join('')}${xl(labels, sel, n)}
+    <div class="mx-key"><span><i></i>达标 90–110%</span><span><i class="o"></i>超出</span><span><i class="u"></i>不足</span></div></div>`;
+}
+function rank(title, rows, unit, color, label = (n) => n) {
+  const M = Math.max(...rows.map((r) => r[1]));
+  return `<div class="rank"><h3>${title}</h3>${rows.map(([n, v], i) => `<div class="rank-row" data-n="${n}" style="--w:${(v / M) * 100}%;--d:${150 + i * 50}ms;--c:${color}"><span>${label(n)}</span><b>${fmt(v)}<small>${unit}</small></b><i></i></div>`).join('')}</div>`;
+}
+const hint = (t) => `<p class="hint">${t}</p>`;
+
+/* 解剖图式标注：坐标取自 components/StatsBodyMap.tsx，布局照搬 StatsBoard 的 callouts() */
+const CM = { 胸: ['f', 43, 24], 股四头: ['f', 42, 61], 三角: ['f', 64, 20], 肱二头: ['f', 64, 31], 腹: ['f', 51, 38], 前臂: ['f', 68, 43],
+  背: ['b', 42, 33], 臀: ['b', 58, 51], 腘绳: ['b', 58, 65], 肱三头: ['b', 65, 32], 小腿: ['b', 56, 80], 斜方: ['b', 46, 19] };
+const FULL = { 胸: '胸', 股四头: '股四头肌', 三角: '三角肌', 肱二头: '肱二头肌', 腹: '腹直肌', 前臂: '前臂', 背: '背阔肌', 臀: '臀部', 腘绳: '腘绳肌', 肱三头: '肱三头肌', 小腿: '小腿', 斜方: '斜方肌' };
+const BODY7 = [['胸', 14], ['股四头', 9], ['背', 8], ['臀', 6], ['三角', 5]];
+function outerX(sd, x) { let ix = ((x - 22) / 56) * 100; if (sd === 'f' ? ix > 50 : ix < 50) ix = 100 - ix; return ix; }
+function mini(sd) {
+  const peak = BODY7[0][1];
+  return BODY7.filter(([n]) => CM[n][0] === sd).map(([n, v], k) => `<i style="left:${outerX(sd, CM[n][1]).toFixed(1)}%;top:${CM[n][2]}%;--s:${(2.6 + Math.sqrt(v / peak) * 3.6).toFixed(1)}px;--d:${320 + k * 60}ms"></i>`).join('');
+}
+function cmap(M) {
+  const peak = Math.max(...M.map((m) => m[1]));
+  const side = (sd) => {
+    const left = sd === 'f' ? 32 : -2, edge = sd === 'f' ? 33 : 67, out = sd === 'f' ? 37 : 63;
+    const pts = M.filter(([n]) => CM[n] && CM[n][0] === sd).map(([n, v]) => {
+      const [, x, y] = CM[n], ix = outerX(sd, x);
+      return { n, v, px: left + (ix * 70) / 100, py: y, ly: y };
+    }).sort((a, b) => a.py - b.py);
+    let prev = -Infinity;
+    for (const q of pts) { q.ly = Math.max(q.py, prev + 13); prev = q.ly; }
+    const over = (pts.length ? pts[pts.length - 1].ly : 0) - 94;
+    if (over > 0) for (const q of pts) q.ly = Math.max(4, q.ly - over);
+    const d = (k) => 220 + k * 55;
+    return `<figure data-side="${sd}"><div class="cstage"><img src="${IMG}stats-${sd === 'f' ? 'front' : 'back'}.png" alt="" draggable="false">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${pts.map((q, k) => `<path data-m="${q.n}" style="--d:${d(k)}ms" d="M${q.px.toFixed(1)} ${q.py} L${out} ${q.ly.toFixed(1)} L${edge} ${q.ly.toFixed(1)}"/>`).join('')}</svg>
+      ${pts.map((q, k) => `<button type="button" class="cpt" data-m="${q.n}" aria-hidden="true" tabindex="-1" style="left:${q.px.toFixed(1)}%;top:${q.py}%;--size:${(5 + Math.sqrt(q.v / peak) * 7).toFixed(1)}px;--d:${d(k)}ms"></button>`).join('')}
+      ${pts.map((q, k) => `<button type="button" class="clab" data-side="${sd}" data-m="${q.n}" aria-label="${FULL[q.n]} ${q.v} 组" style="top:${q.ly.toFixed(1)}%;${sd === 'f' ? `right:${100 - edge}%` : `left:${edge}%`};--d:${d(k) + 80}ms"><span>${FULL[q.n]}</span><b>${fmt(q.v)}<em>组</em></b></button>`).join('')}
+    </div><figcaption>${sd === 'f' ? '正面' : '背面'}</figcaption></figure>`;
+  };
+  return `<div class="cmap">${side('f')}${side('b')}</div>`;
+}
+
+/* 去训练统计：区间和统计页对应，原型里只提示会去哪一段 */
+const STATS_VIEW = { overview: '总览', muscles: '肌群与动作' };
+let toastTimer = 0;
+function goStats(period, view, extra = '') {
+  const t = $('#toast');
+  t.innerHTML = `<b>进入训练统计 · ${STATS_VIEW[view]}${extra}</b><code>/stats?period=${period}&amp;view=${view}</code>`;
+  t.classList.remove('show'); void t.offsetWidth; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1900);
+  buzz();
+}
+
+/* ---------- 每个抽屉 ---------- */
+const SHEETS = {
+  volume: {
+    title: '训练容量',
+    link: { view: 'overview', name: '总览', sub: '容量和运动时间，按周、月、季、年对比' },
+    build(r) {
+      const v = r === '7天' ? VOL7 : r === '30天' ? VOL30 : VOL12, nz = v.filter((x) => x > 0), p = pickLabels(r);
+      const k = r === '7天' ? 1 : r === '30天' ? 3.7 : 44;
+      const days = r === '1年' ? 186 : nz.length;
+      return {
+        big: { label: r === '7天' ? '本周总容量 · 11.16 — 11.22' : r === '30天' ? '近 30 天总容量' : '近一年总容量', value: sum(v), unit: 'kg', pill: r === '7天' ? '↑ 18% 较上周' : r === '30天' ? '↑ 9% 较前 30 天' : '↑ 26% 较去年', tone: 'lemon' },
+        pick: (i) => ({ label: p[i], value: v[i] }),
+        blocks: bars(v, { labels: axis(r), tone: () => 'ok', selColor: 'var(--stripe-lemon)' }) + hint('按住柱子左右拖，看每一天')
+          + rank('容量最高的动作', [['杠铃深蹲', 2880], ['杠铃卧推', 2000], ['杠铃硬拉', 1500], ['高位下拉', 1330], ['上斜哑铃卧推', 845]].map(([n, x]) => [n, Math.round((x * k) / 5) * 5]), 'kg', 'rgb(var(--rgb) / .72)'),
+        stats: r === '1年' ? [['月最低', Math.min(...v), 0, 'kg'], ['月平均', Math.round(avg(v)), 0, 'kg'], ['月最高', Math.max(...v), 0, 'kg']]
+          : [['训练日最低', Math.min(...nz), 0, 'kg'], ['训练日平均', Math.round(avg(nz)), 0, 'kg'], ['最高', Math.max(...nz), 0, 'kg']],
+        note: [`练了 ${days} 天`, '容量 = 每组重量 × 次数，只算实练组。自重动作不计容量，但计入训练天数。'],
+      };
+    },
+  },
+  weight: {
+    title: '晨重',
+    build(r) {
+      const v = r === '7天' ? W7 : r === '30天' ? W30 : W12, p = pickLabels(r);
+      const ma = r === '7天' ? MA(W30).slice(23) : r === '30天' ? MA(W30) : MA(W12, 3);
+      const diff = Math.round((v[v.length - 1] - v[0]) * 10) / 10;
+      return {
+        big: { label: r === '1年' ? '11 月平均晨重' : '今天 · 11.22 晨重', value: v[v.length - 1], dec: 1, unit: 'kg', pill: `${diff <= 0 ? '↓' : '↑'} ${Math.abs(diff).toFixed(1)} 较${r === '7天' ? ' 7 天前' : r === '30天' ? ' 30 天前' : '一年前'}`, tone: 'mist' },
+        pick: (i) => ({ label: p[i], value: v[i], dec: 1 }),
+        blocks: line(v, { labels: axis(r), avg: ma }) + hint('按住曲线左右拖，看每一天'),
+        stats: [['最低', Math.min(...v), 1, 'kg'], ['平均', Math.round(avg(v) * 10) / 10, 1, 'kg'], ['最高', Math.max(...v), 1, 'kg']],
+        note: ['看均线，不看单日', `晨重取每天起床后第一次称重。虚线是 ${r === '1年' ? '3 个月' : '7 日'}均线，饮水和盐分带来的单日起伏会被抹平。`],
+      };
+    },
+  },
+  macro: {
+    title: '三大营养完成度',
+    build(r) {
+      let P, C, F, K;
+      if (r === '1年') {
+        P = [0.84, 0.86, 0.85, 0.88, 0.9, 0.89, 0.91, 0.92, 0.9, 0.93, 0.92, 0.92];
+        C = [1.15, 1.14, 1.12, 1.1, 1.12, 1.08, 1.1, 1.09, 1.11, 1.07, 1.1, 1.13];
+        F = [1.05, 1.02, 1.04, 1.0, 0.98, 1.01, 0.99, 1.0, 1.02, 0.97, 1.0, 1.02];
+        K = [1.06, 1.05, 1.05, 1.03, 1.04, 1.02, 1.03, 1.02, 1.03, 1.01, 1.02, 1.03];
+      } else {
+        const s = r === '7天' ? 23 : 0;
+        P = PG30.slice(s).map((g) => g / T_P); C = CG30.slice(s).map((g) => g / T_C); F = FG30.slice(s).map((g) => g / T_F); K = I30.slice(s).map((k) => k / T_KCAL);
+      }
+      const unitN = r === '1年' ? '个月' : '天', okN = (a) => a.filter((x) => x >= 0.9 && x <= 1.1).length, overC = C.filter((x) => x > 1.1).length;
+      const rows = (pp, cc, ff) => [['蛋白', 'var(--ink)', pp, T_P], ['碳水', 'var(--carb)', cc, T_C], ['脂肪', 'var(--lilac)', ff, T_F]];
+      const progHTML = (rs) => `<div class="progs" id="progs">${rs.map(([n, c, pct, t]) => `<div class="prog" style="--c:${c}"><div class="prog-top"><b>${n}</b><span><em class="count" data-v="${Math.round(pct * t)}">${Math.round(pct * t)}</em> / ${t} g</span><strong class="${pct > 1.1 ? 'over' : ''}">${Math.round(pct * 100)}%</strong></div><div class="track"><i style="--w:${(Math.min(pct, 1.25) / 1.25) * 100}%"></i><u></u></div></div>`).join('')}</div>`;
+      const setProg = (pp, cc, ff) => {
+        const el = document.getElementById('progs'); if (!el) return;
+        rows(pp, cc, ff).forEach(([, , pct, t], k) => {
+          const row = el.children[k];
+          countTo(row.querySelector('em'), Math.round(pct * t), 0, 320);
+          const st = row.querySelector('strong'); st.textContent = Math.round(pct * 100) + '%'; st.classList.toggle('over', pct > 1.1);
+          row.querySelector('.track i').style.setProperty('--w', (Math.min(pct, 1.25) / 1.25) * 100 + '%');
+        });
+      };
+      const p = pickLabels(r);
+      return {
+        big: { label: r === '1年' ? '月均热量完成度' : '日均热量完成度', value: Math.round(avg(K) * 100), unit: '%', pill: `碳水 ${overC} ${unitN}超出`, tone: 'coral' },
+        pick: (i) => { setProg(P[i], C[i], F[i]); return { label: p[i] + ' 热量完成度', value: Math.round(K[i] * 100) }; },
+        reset: () => setProg(avg(P), avg(C), avg(F)),
+        blocks: progHTML(rows(avg(P), avg(C), avg(F))) + matrix([{ name: '蛋白', color: 'var(--ink)', vals: P }, { name: '碳水', color: 'var(--carb)', vals: C }, { name: '脂肪', color: 'var(--lilac)', vals: F }], axis(r).map((l) => l.replace('周', ''))) + hint('点或拖某一列，上面的完成度换成那一天'),
+        stats: [['蛋白达标', okN(P), 0, unitN], ['碳水达标', okN(C), 0, unitN], ['脂肪达标', okN(F), 0, unitN]],
+        note: ['目标从哪来', '「我的 · 营养设置」：减脂 1,850 kcal，蛋白 2.0 g/kg，脂肪约占 27%，其余给碳水。完成度 90%–110% 记为达标，超过 110% 记为超出。'],
+      };
+    },
+  },
+  deficit: {
+    title: '热量缺口',
+    build(r) {
+      let D, B, IN;
+      if (r === '1年') { D = [380, 420, 450, 410, 520, 560, 490, 530, 600, 570, 610, 520]; B = [150, 160, 170, 165, 185, 190, 180, 185, 195, 190, 200, 188]; IN = D.map((d, i) => TDEE + B[i] - d); }
+      else { const s = r === '7天' ? 23 : 0; IN = I30.slice(s); B = BURN30.slice(s); D = IN.map((k, i) => TDEE + B[i] - k); }
+      const p = pickLabels(r), last = D.length - 1, inBand = D.filter((d) => d >= 400 && d <= 1000).length;
+      const cmp = (i) => {
+        const tot = TDEE + B[i];
+        return `<div class="cmp" id="cmp"><span class="cmp-l">消耗</span><div class="cmp-bar"><i class="c-base" style="flex-basis:${(TDEE / tot) * 100}%"><span>维持消耗 ${fmt(TDEE)}</span></i><i class="c-run" style="flex-basis:${(B[i] / tot) * 100}%"><span>${B[i] ? fmt(B[i]) : ''}</span></i></div>
+          <span class="cmp-l">摄入</span><div class="cmp-bar"><i class="c-in" style="flex-basis:${(IN[i] / tot) * 100}%"><span>摄入 ${fmt(IN[i])}</span></i><i class="c-gap" style="flex-basis:${(Math.max(0, tot - IN[i]) / tot) * 100}%"><span>缺口 ${fmt(tot - IN[i])}</span></i></div></div>`;
+      };
+      const setCmp = (i) => { const el = document.getElementById('cmp'); if (el) el.outerHTML = cmp(i); };
+      const tag = (d) => (d < 400 ? '低于建议区' : d > 1000 ? '高于建议区' : '在建议区 400–1000');
+      return {
+        big: { label: r === '1年' ? '11 月日均缺口' : '今天 · 11.22 周日', value: D[last], unit: 'kcal', pill: tag(D[last]), tone: 'coral' },
+        pick: (i) => { setCmp(i); return { label: p[i], value: D[i], pill: tag(D[i]) }; },
+        reset: () => setCmp(last),
+        blocks: cmp(last) + bars(D, { labels: axis(r), band: [400, 1000, '建议区'], tone: (t) => (t >= 400 && t <= 1000 ? 'ok' : ''), selColor: 'var(--coral)', max: Math.max(1200, ...D) * 1.05 }) + hint('拖到某一天，上面的消耗/摄入一起换'),
+        stats: [['最低', Math.min(...D), 0, 'kcal'], ['平均', Math.round(avg(D)), 0, 'kcal'], ['最高', Math.max(...D), 0, 'kcal']],
+        note: [`${inBand} ${r === '1年' ? '个月' : '天'}在建议区`, `缺口 = 维持消耗 + 运动消耗 − 摄入。维持消耗按基础代谢 1,452 × 活动系数 1.55 估算；运动消耗与「能量收支」同一口径。建议区随「我的 · 训练目标」变化，减脂为每天 400–1000 kcal。`],
+      };
+    },
+  },
+  pr: {
+    title: '个人纪录',
+    link: { view: 'muscles', name: '动作表现', sub: 'PR、8–12 RM、12–15 RM 三档数值和曲线' },
+    build(r) {
+      const counts = r === '7天' ? [0, 1, 0, 1, 0, 0, 1] : r === '30天' ? PR30 : PR12, p = pickLabels(r);
+      const bench = { n: '杠铃卧推', hist: [70.0, 71.5, 73.0, 72.5, 74.2, 76.7, 75.9, 79.2], marks: [1, 2, 4, 5, 7] };
+      const all = [
+        { n: '杠铃卧推', v: 79.2, d: '+2.5', meta: '62.5 kg × 8 · 11.22', ...bench },
+        { n: '杠铃深蹲', v: 102.0, d: '+4.0', meta: '85 kg × 6 · 11.19', hist: [90.0, 92.5, 95.0, 94.0, 98.0, 97.5, 102.0], marks: [1, 2, 4, 6] },
+        { n: '高位下拉', v: 68.0, d: '+1.5', meta: '60 kg × 4 · 11.17', hist: [60.0, 62.0, 63.5, 63.0, 66.5, 65.0, 68.0], marks: [1, 2, 4, 6] },
+        { n: '杠铃硬拉', v: 120.0, d: '+5.0', meta: '100 kg × 6 · 11.12', hist: [105.0, 108.0, 110.0, 112.5, 115.0, 120.0], marks: [1, 2, 3, 4, 5] },
+        { n: '杠铃卧推', v: 76.7, d: '+2.5', meta: '57.5 kg × 10 · 11.10', hist: [70.0, 71.5, 73.0, 72.5, 74.2, 76.7], marks: [1, 2, 4, 5] },
+        { n: '哑铃推肩', v: 33.0, d: '+1.0', meta: '27.5 kg × 6 · 11.09', hist: [29.0, 30.0, 31.0, 32.0, 31.5, 33.0], marks: [1, 2, 3, 5] },
+        { n: '杠铃划船', v: 78.0, d: '+2.0', meta: '65 kg × 6 · 11.5', hist: [70.0, 72.0, 73.5, 76.0, 75.0, 78.0], marks: [1, 2, 3, 5] },
+      ];
+      const year = [
+        { n: '杠铃硬拉', v: 120.0, d: '+30.0', meta: '全年 6 次突破 · 最近 11.12', hist: [90, 95, 97.5, 100, 105, 108, 110, 112.5, 115, 120], marks: [1, 2, 3, 4, 5, 6, 7, 8, 9] },
+        { n: '杠铃深蹲', v: 102.0, d: '+27.5', meta: '全年 8 次突破 · 最近 11.19', hist: [74.5, 78, 82, 85, 88, 90, 92.5, 95, 98, 102], marks: [1, 2, 3, 4, 5, 6, 7, 8, 9] },
+        { n: '杠铃卧推', v: 79.2, d: '+16.7', meta: '全年 9 次突破 · 最近 11.22', hist: [62.5, 64, 66, 68, 70, 71.5, 73, 74.2, 76.7, 79.2], marks: [1, 2, 3, 4, 5, 6, 7, 8, 9] },
+        { n: '高位下拉', v: 68.0, d: '+12.0', meta: '全年 7 次突破 · 最近 11.17', hist: [56, 58, 59.5, 61, 62, 63.5, 66.5, 68], marks: [1, 2, 3, 4, 5, 6, 7] },
+        { n: '哑铃推肩', v: 33.0, d: '+7.5', meta: '全年 5 次突破 · 最近 11.9', hist: [25.5, 27, 28.5, 30, 31, 33], marks: [1, 2, 3, 4, 5] },
+      ];
+      const rows = r === '7天' ? all.slice(0, 3) : r === '30天' ? all : year;
+      const list = `<div class="pr-list"><h3>${r === '1年' ? '涨幅最大的动作' : '这段时间的突破'}</h3>${rows.map((x, k) => `<div class="pr-item"><button class="pr-row" aria-expanded="false"><span class="pr-badge">PR</span><span class="pr-name">${x.n}<small>${x.meta}</small></span><span class="pr-val">${x.v.toFixed(1)}<small>kg</small><em>${x.d} kg${I.chev.replace('<svg', '<svg class="chev"')}</em></span></button><div class="pr-more"><div><div class="inner" data-k="${k}"></div></div></div></div>`).join('')}</div>`;
+      return {
+        big: { label: r === '7天' ? '本周 · 11.16 — 11.22' : r === '30天' ? '近 30 天' : '近一年', value: sum(counts), unit: '次突破', pill: r === '7天' ? '较上周 +1' : r === '30天' ? '较前 30 天 +2' : '涉及 9 个动作', tone: 'lilac' },
+        pick: (i) => ({ label: p[i], value: counts[i] }),
+        blocks: dotCols(counts, axis(r)) + list,
+        mount(root) {
+          root.querySelectorAll('.pr-item').forEach((item) => {
+            const btn = item.querySelector('.pr-row'), inner = item.querySelector('.inner'), x = rows[+inner.dataset.k];
+            btn.addEventListener('click', () => {
+              const open = !item.classList.contains('open');
+              if (open && !inner.innerHTML) inner.innerHTML = line(x.hist, { W: 310, H: 76, marks: x.marks, color: 'var(--ink)', pick: false }) + `<p class="hint">估算 1RM · 紫色点是突破</p>`;
+              else if (open) { inner.innerHTML = ''; inner.innerHTML = line(x.hist, { W: 310, H: 76, marks: x.marks, color: 'var(--ink)', pick: false }) + `<p class="hint">估算 1RM · 紫色点是突破</p>`; }
+              item.classList.toggle('open', open); btn.setAttribute('aria-expanded', String(open));
+            });
+          });
+        },
+        stats: r === '1年' ? [['最近一次', '11.22'], ['最大涨幅', 30, 1, 'kg'], ['涉及动作', 9, 0, '个']] : r === '30天' ? [['最近一次', '11.22'], ['最大涨幅', 5, 1, 'kg'], ['涉及动作', 6, 0, '个']] : [['最近一次', '11.22'], ['最大涨幅', 4, 1, 'kg'], ['涉及动作', 3, 0, '个']],
+        note: ['怎么算一次突破', '对 1–15 次的负重组估算 1RM：单次直接取实举重量，其余用 重量 × (1 + 次数 / 30)。超过这个动作此前的最高值就记一次，与统计页「动作表现」同一口径。'],
+      };
+    },
+  },
+  body: {
+    title: '训练分布',
+    link: { view: 'muscles', name: '肌群与动作', sub: '每个肌群的容量、对比和动作表现' },
+    build(r) {
+      const M = r === '7天' ? [['胸', 14], ['股四头', 9], ['背', 8], ['臀', 6], ['三角', 5]]
+        : r === '30天' ? [['胸', 52], ['背', 38], ['股四头', 34], ['臀', 27], ['三角', 22], ['腘绳', 15], ['肱二头', 12], ['肱三头', 10]]
+        : [['胸', 610], ['背', 540], ['股四头', 480], ['臀', 395], ['三角', 330], ['腘绳', 240], ['肱二头', 210], ['肱三头', 190], ['小腿', 120], ['腹', 95], ['前臂', 60], ['斜方', 55]];
+      const total = sum(M.map((m) => m[1]));
+      const word = r === '7天' ? '本周' : r === '30天' ? '近 30 天' : '近一年';
+      return {
+        big: { label: word + '练到', value: M.length, unit: '个肌群', pill: '胸部最多', tone: 'mist' },
+        blocks: cmap(M) + rank('各肌群组数', M, '组', 'var(--heat)', (n) => FULL[n]),
+        mount(root) {
+          let sel = null;
+          const pick = (n) => {
+            sel = sel === n ? null : n;
+            root.querySelectorAll('[data-m]').forEach((el) => el.classList.toggle('sel', el.dataset.m === sel));
+            root.querySelectorAll('.rank-row').forEach((el) => el.classList.toggle('sel', el.dataset.n === sel));
+            root.querySelector('.rank').classList.toggle('picking', Boolean(sel));
+            const pill = $('#bigPill');
+            if (sel) {
+              const v = M.find((m) => m[0] === sel)[1];
+              $('#bigLabel').textContent = `${FULL[sel]} · ${word}`; $('#bigUnit').textContent = '组';
+              countTo($('#bigVal'), v, 0, 320); pill.className = 'pill coral'; pill.textContent = `占 ${Math.round((v / total) * 100)}%`;
+            } else {
+              $('#bigLabel').textContent = word + '练到'; $('#bigUnit').textContent = '个肌群';
+              countTo($('#bigVal'), M.length, 0, 420); pill.className = 'pill mist'; pill.textContent = '胸部最多';
+            }
+            buzz();
+          };
+          root.querySelectorAll('[data-m], .rank-row').forEach((el) => el.addEventListener('click', () => pick(el.dataset.m || el.dataset.n)));
+        },
+        stats: [['最多', FULL[M[0][0]]], ['平均', Math.round((total / M.length) * 10) / 10, 1, '组'], ['总组数', total, 0, '组']],
+        note: ['和统计页同一张图', '标注沿用统计页「肌群与动作」：正面标注收在左侧、背面收在右侧，点越大组数越多。点标注或下面的列表看单个肌群；每组只归入一个主要肌群，口径也和统计页一致。'],
+      };
+    },
+  },
+  energy: {
+    title: '能量收支',
+    build(r) {
+      let st, B, IN;
+      if (r === '1年') {
+        IN = [2080, 2050, 2030, 2010, 1990, 1960, 1980, 1950, 1940, 1920, 1910, 1900]; B = [150, 160, 170, 165, 185, 190, 180, 185, 195, 190, 200, 188];
+        st = IN.map((k) => [Math.round(k * 0.27), Math.round(k * 0.48), Math.round(k * 0.25)]);
+      } else {
+        const s = r === '7天' ? 23 : 0; IN = I30.slice(s); B = BURN30.slice(s);
+        st = IN.map((_, i) => [PG30[s + i] * 4, CG30[s + i] * 4, FG30[s + i] * 9]);
+      }
+      const n = IN.length, M = Math.max(...IN) * 1.08, p = pickLabels(r), colors = ['var(--ink)', 'var(--carb)', 'var(--lilac)'];
+      const chart = `<div class="chart" style="--n:${n};--gap:${gapFor(n)}px"><div class="plot eplot" data-pick data-n="${n}" data-def="${n - 1}">${st.map((s, i) => `<div class="col ecol ${i === n - 1 ? 'sel' : ''}"><div class="up"><div class="bar" style="--h:${(sum(s) / M) * 100}%;--d:${delay(i, n)}ms">${s.map((x, k) => `<i style="flex:${x};background:${colors[k]}"></i>`).join('')}</div></div><div class="burn">${Array.from({ length: Math.round(B[i] / 60) }, (_, k) => `<b style="--d:${delay(i, n)}ms;--k:${k}"></b>`).join('')}</div></div>`).join('')}</div>${xl(axis(r), n - 1, n)}</div>`;
+      const key = `<div class="e-key"><span><i style="background:var(--ink)"></i>蛋白</span><span><i style="background:var(--carb)"></i>碳水</span><span><i style="background:var(--lilac)"></i>脂肪</span><span><i style="background:var(--coral);border-radius:50%"></i>运动消耗 · 每点约 60 kcal</span></div>`;
+      const days = r === '1年' ? 365 : n, burnTotal = r === '1年' ? Math.round(avg(B) * 365) : sum(B);
+      return {
+        big: { label: r === '1年' ? '近一年日均摄入' : `近 ${n} 天日均摄入`, value: Math.round(avg(IN)), unit: 'kcal', pill: `运动消耗 ${fmt(burnTotal)}`, tone: 'coral' },
+        pick: (i) => ({ label: p[i] + ' 摄入', value: IN[i], pill: B[i] ? `运动消耗 ${fmt(B[i])}` : '没有训练' }),
+        blocks: key + chart + hint('按住左右拖，看每一天'),
+        stats: [['日均摄入', Math.round(avg(IN)), 0, 'kcal'], ['运动合计', burnTotal, 0, 'kcal'], ['日均净摄入', Math.round(avg(IN) - burnTotal / days), 0, 'kcal']],
+        note: ['怎么看', '上方按蛋白、碳水、脂肪折成千卡堆叠；基线以下每个珊瑚点约 60 kcal 运动消耗，按 MET 估算，与回顾页同一口径。'],
+      };
+    },
+  },
+};
+
+/* ---------- 回顾页 ---------- */
+const HERO = {
+  日: { title: '今日训练容量', range: '11.22 周日', vals: [2000, 845, 480], labels: ['杠铃卧推', '上斜哑铃', '哑铃飞鸟'], picks: ['杠铃卧推 · 4 组', '上斜哑铃卧推 · 3 组', '哑铃飞鸟 · 3 组'], sel: -1, pill: '3 个动作', reads: [[1, '天', '训练天数'], [11, '组', '完成组数'], [52, '分钟', '训练时长']] },
+  周: { title: '本周训练容量', range: '11.16 — 11.22', vals: VOL7, labels: L7, picks: P7, sel: 6, pill: '↑ 18% 较上周', reads: [[4, '天', '训练天数'], [42, '组', '完成组数'], [3.1, '小时', '训练时长']] },
+  月: { title: '本月训练容量', range: '11 月', vals: VOL30.slice(8), labels: VOL30.slice(8).map((_, i) => ([0, 7, 14, 21].includes(i) ? `11.${i + 1}` : '')), picks: P30.slice(8), sel: 21, pill: '↑ 9% 较上月同期' },
+};
+HERO.月.reads = [[HERO.月.vals.filter((v) => v).length, '天', '训练天数'], [HERO.月.vals.filter((v) => v).length * 10 + 6, '组', '完成组数'], [Math.round(HERO.月.vals.filter((v) => v).length * 7.8) / 10, '小时', '训练时长']];
+let heroMode = '周';
+const heroChart = (d) => {
+  const n = d.vals.length, M = Math.max(...d.vals) || 1, gap = n > 12 ? 4 : n > 5 ? 9 : 14;
+  return `<div class="chart hero-chart"><div class="plot hplot" data-pick data-n="${n}" data-def="${d.sel}" style="--n:${n};--gap:${gap}px">${d.vals.map((v, i) => `<div class="col hcol ${i === d.sel ? 'sel' : ''}"><div class="trk"></div><div class="hb" style="--h:${(v / M) * 100}%;--d:${delay(i, n)}ms"></div></div>`).join('')}</div>
+    <div class="xl" style="--n:${n};--gap:${gap}px">${d.labels.map((l, i) => `<span class="${i === d.sel ? 'sel' : ''}">${l}</span>`).join('')}</div></div>`;
+};
+const tileHead = (t) => `<div class="tile-h"><span>${t}</span>${I.chev}</div>`;
+
+function renderWall() {
+  const d = HERO[heroMode];
+  const wpts = W7.map((w, i) => [5 + i * (137 / 6), 44 - ((w - 72.0) / 1.0) * 38]);
+  const ring = (r, p, c) => `<circle class="tk" cx="35" cy="35" r="${r}" stroke-width="6.5"/><circle class="pg" cx="35" cy="35" r="${r}" stroke-width="6.5" pathLength="100" transform="rotate(-90 35 35)" style="--p:${Math.min(p, 100)};stroke:${c}"/>${p > 100 ? `<circle class="pg" cx="35" cy="35" r="${r}" stroke-width="6.5" pathLength="100" transform="rotate(-90 35 35)" style="--p:${p - 100};stroke:var(--ink)"/>` : ''}`;
+  const gPt = (v, rr) => { const a = ((150 + (240 * v) / 1600) * Math.PI) / 180; return [73.5 + rr * Math.cos(a), 56 + rr * Math.sin(a)]; };
+  const gMark = (v) => { const [x1, y1] = gPt(v, 40), [x2, y2] = gPt(v, 49), [tx, ty] = gPt(v, 58); return `<line class="mark" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/><text x="${tx.toFixed(1)}" y="${(ty + 3).toFixed(1)}" text-anchor="middle">${v}</text>`; };
+  const [gx0, gy0] = gPt(0, 44), [gx1, gy1] = gPt(1600, 44);
+  const arcD = `M${gx0.toFixed(1)} ${gy0.toFixed(1)} A44 44 0 1 1 ${gx1.toFixed(1)} ${gy1.toFixed(1)}`;
+  wall.innerHTML = `
+    <header class="top rise" style="--i:0"><b class="brand">FitCheck</b><div class="top-r"><button class="circ" aria-label="导出">${I.export}</button><button class="circ avatar" aria-label="我的">${I.user}</button></div></header>
+    <div class="title rise" style="--i:1"><h1>回顾</h1><div class="range-row"><button class="range" aria-label="打开训练月历"><span class="range-text" id="rangeText">${d.range}</span><span class="cal">${'<i></i>'.repeat(9)}</span></button>
+      <div class="seg" id="wallSeg"><span class="ind"></span>${['日', '周', '月'].map((m) => `<button class="${m === heroMode ? 'on' : ''}" data-v="${m}">${m}</button>`).join('')}</div></div></div>
+    <article class="tile hero rise" style="--i:2" data-sheet="volume" tabindex="0">
+      <div class="tile-h"><span id="heroTitle">${d.title}</span><button type="button" class="stats-chip" id="statsChip"><span class="bars4" aria-hidden="true"><i></i><i></i><i></i><i></i></span>训练统计${I.chev}</button></div>
+      <div class="tile-b">
+        <div class="hero-row"><span class="num"><b class="count" id="heroVal" data-v="${sum(d.vals)}">${fmt(sum(d.vals))}</b><small>kg</small></span><span class="pill lemon" id="heroPill">${d.pill}</span></div>
+        <div id="heroChart">${heroChart(d)}</div>
+      </div>
+      <div class="hero-reads" id="heroReads">${d.reads.map(([v, u, l]) => `<div><span class="num"><b class="count" data-v="${v}">${v}</b><small>${u}</small></span><p>${l}</p></div>`).join('')}</div>
+    </article>
+    <div class="sec rise" style="--i:3"><i></i><b>身体与饮食</b><span>今天 · 11.22 周日</span></div>
+    <div class="grid">
+      <article class="tile rise" style="--i:4" data-sheet="weight" tabindex="0">${tileHead('晨重')}
+        <div class="tile-b"><div style="display:flex;align-items:center;gap:6px"><span class="num" style="font-size:28px">72.1<small>kg</small></span><span class="pill mist">↓ 0.2</span></div>
+          <svg class="mini" viewBox="0 0 147 50"><line class="avg" x1="0" x2="147" y1="${(44 - 0.53 * 38).toFixed(1)}" y2="${(44 - 0.53 * 38).toFixed(1)}"/><path class="ln" d="${wpts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join('')}"/>${wpts.map((p, i) => `<circle class="pt ${i === 6 ? 'last' : ''}" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${i === 6 ? 4 : 2.3}"/>`).join('')}</svg></div>
+        <div class="tile-f"><span>较昨日</span><span>7日均 72.5</span></div></article>
+      <article class="tile rise" style="--i:5" data-sheet="macro" tabindex="0">${tileHead('三大营养完成度')}
+        <div class="tile-b"><div class="macro-row"><svg class="rings" viewBox="0 0 70 70">${ring(31.5, 103, 'var(--carb)')}${ring(23.5, 89, 'var(--ink)')}${ring(15.5, 89, 'var(--lilac)')}</svg>
+          <div class="legend"><span><i style="background:var(--carb)"></i>碳水 103%<b>200/194 g</b></span><span><i style="background:var(--ink)"></i>蛋白 89%<b>128/144 g</b></span><span><i style="background:var(--lilac)"></i>脂肪 89%<b>50/56 g</b></span></div></div></div>
+        <div class="tile-f"><span>1,760 kcal</span><span>目标 1,850</span></div></article>
+      <article class="tile rise" style="--i:6" data-sheet="deficit" tabindex="0">${tileHead('热量缺口')}
+        <div class="tile-b gauge"><svg viewBox="0 0 147 104"><path class="tk" d="${arcD}" pathLength="100"/><path class="band" d="${arcD}" pathLength="100"/><path class="val" d="${arcD}" pathLength="100" style="--v:${(844 / 1600) * 100}"/>${gMark(400)}${gMark(1000)}${gMark(1600)}</svg>
+          <div class="center"><span class="num">844<small>kcal</small></span><span class="pill coral">在建议区</span></div></div>
+        <div class="tile-f"><span>维持 + 运动 − 摄入</span></div></article>
+      <article class="tile rise" style="--i:7" data-sheet="pr" tabindex="0">${tileHead('个人纪录')}
+        <div class="tile-b"><div><p style="font-size:11px;font-weight:600;color:var(--ink2)">杠铃卧推 · 估算 1RM</p><span class="num" style="font-size:30px;margin:3px 0 2px">79.2<small>kg</small></span><p style="font-size:10.5px;color:var(--mute)">62.5 kg × 8 · 11.22</p></div>
+          <div class="steps">${[0.42, 0.5, 0.5, 0.64, 0.64, 0.82, 1].map((h, i) => `<i class="${i >= 4 ? 'up' : ''}" style="--h:${h * 100}%;--d:${300 + i * 50}ms"></i>`).join('')}</div></div>
+        <div class="tile-f"><span>本周</span><b>3 次突破</b></div></article>
+      <article class="tile rise" style="--i:8" data-sheet="body" tabindex="0">${tileHead('训练分布')}
+        <div class="tile-b"><div class="bodies"><figure><img src="${IMG}stats-front.png" alt="">${mini('f')}</figure><figure><img src="${IMG}stats-back.png" alt="">${mini('b')}</figure></div></div>
+        <div class="tile-f"><span>胸 · 背 · 腿</span><span>5 个肌群</span></div></article>
+      <article class="tile rise" style="--i:9" data-sheet="energy" tabindex="0">${tileHead('能量收支')}
+        <div class="tile-b"><div class="emini">${I7.map((k, i) => `<div><div class="up"><i style="--h:${(k / 2250) * 100}%;--d:${300 + i * 40}ms"></i></div><div class="dn">${'<b></b>'.repeat(Math.round(BURN7[i] / 60))}</div></div>`).join('')}</div></div>
+        <div class="tile-f"><span>日均摄入 1,907</span><span class="c">消耗 1,309</span></div></article>
+    </div>
+    <div class="proto-foot"><button class="ghost-btn" id="themeBtn2">切到夜间</button></div>
+    <nav class="tabbar" aria-label="主导航"><span>训练</span><span>记录</span><span class="on">回顾</span></nav>`;
+  placeInd($('#wallSeg'), false);
+  wirePick(wall);
+  syncThemeLabels();
+}
+
+function setHero(mode) {
+  heroMode = mode; heroPicked = null;
+  const d = HERO[mode];
+  const rt = $('#rangeText'); rt.classList.add('swap');
+  setTimeout(() => { rt.textContent = d.range; rt.classList.remove('swap'); }, 160);
+  $('#heroTitle').textContent = d.title;
+  $('#heroPill').textContent = d.pill;
+  countTo($('#heroVal'), sum(d.vals));
+  $('#heroChart').innerHTML = heroChart(d);
+  const reads = $('#heroReads');
+  reads.innerHTML = d.reads.map(([v, u, l]) => `<div><span class="num"><b class="count" data-v="0">0</b><small>${u}</small></span><p>${l}</p></div>`).join('');
+  reads.querySelectorAll('b').forEach((b, k) => countTo(b, d.reads[k][0], d.reads[k][0] % 1 ? 1 : 0));
+  wirePick($('#heroChart'));
+}
+let heroPicked = null;
+const heroCtl = {
+  get picked() { return heroPicked; }, set picked(v) { heroPicked = v; },
+  pick(i) { const d = HERO[heroMode]; $('#heroTitle').textContent = d.picks[i]; countTo($('#heroVal'), d.vals[i], 0, 320); },
+  reset() { const d = HERO[heroMode]; $('#heroTitle').textContent = d.title; countTo($('#heroVal'), sum(d.vals), 0, 420); },
+};
+
+/* ---------- 分段控件 ---------- */
+function placeInd(seg, animate = true) {
+  if (!seg) return;
+  const on = seg.querySelector('.on'), ind = seg.querySelector('.ind');
+  if (!animate) ind.style.transition = 'none';
+  ind.style.width = on.offsetWidth + 'px';
+  ind.style.translate = on.offsetLeft + 'px 0';
+  if (!animate) { void ind.offsetWidth; ind.style.transition = ''; }
+}
+function segClick(seg, cb) {
+  seg.addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b || b.classList.contains('on')) return;
+    seg.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+    placeInd(seg); buzz(); cb(b.dataset.v);
+  });
+}
+
+/* ---------- 在图上拖动取值 ---------- */
+function marks(chart, i) {
+  chart.querySelectorAll('.plot').forEach((p) => [...p.children].filter((c) => c.matches('.bar, .col')).forEach((c, k) => c.classList.toggle('sel', k === i)));
+  chart.querySelectorAll('.xl span').forEach((s, k) => s.classList.toggle('sel', k === i));
+  const sp = chart.querySelector('.svgplot[data-pts]');
+  if (sp) {
+    const pt = JSON.parse(sp.dataset.pts)[i];
+    sp.querySelector('.guide').style.transform = `translate(${pt[0]}px,0)`;
+    sp.querySelector('.cur').style.transform = `translate(${pt[0]}px,${pt[1]}px)`;
+  }
+}
+function wirePick(root) {
+  root.querySelectorAll('[data-pick]').forEach((pl) => {
+    const n = +pl.dataset.n;
+    const at = (e) => { const r = pl.getBoundingClientRect(); return Math.max(0, Math.min(n - 1, Math.floor(((e.clientX - r.left) / r.width) * n))); };
+    let down = false;
+    pl.addEventListener('pointerdown', (e) => { e.stopPropagation(); down = true; pl.setPointerCapture(e.pointerId); choose(pl, at(e), true); });
+    pl.addEventListener('pointermove', (e) => { if (down) choose(pl, at(e), false); });
+    const up = () => { down = false; };
+    pl.addEventListener('pointerup', up); pl.addEventListener('pointercancel', up);
+    pl.addEventListener('click', (e) => e.stopPropagation());
+  });
+}
+function choose(pl, i, isDown) {
+  const chart = pl.closest('.chart'), host = pl.closest('.tile') ? heroCtl : sheetCtl;
+  if (isDown && host.picked === i) { host.picked = null; marks(chart, +pl.dataset.def); host.reset(); buzz(); return; }
+  if (host.picked === i) return;
+  host.picked = i; marks(chart, i); host.pick(i); buzz();
+}
+
+/* ---------- 抽屉 ---------- */
+let cur = null, out = null, range = '7天', lifted = null, liftRect = null;
+const sheetCtl = {
+  picked: null,
+  pick(i) { const r = out.pick && out.pick(i); if (!r) return; $('#bigLabel').textContent = r.label; countTo($('#bigVal'), r.value, r.dec || out.big.dec || 0, 300); if (r.pill) $('#bigPill').textContent = r.pill; },
+  reset() { $('#bigLabel').textContent = out.big.label; countTo($('#bigVal'), out.big.value, out.big.dec || 0, 420); $('#bigPill').textContent = out.big.pill; out.reset && out.reset(); },
+};
+function renderSheet(first) {
+  out = SHEETS[cur].build(range); sheetCtl.picked = null;
+  if (first) {
+    $('#sheetTitle').textContent = SHEETS[cur].title;
+    body.innerHTML = `
+      <div class="range-line rise" style="--i:0"><div class="seg" id="sheetSeg"><span class="ind"></span>${RANGES.map((x) => `<button class="${x === range ? 'on' : ''}" data-v="${x}">${x}</button>`).join('')}</div><span>截至 11.22</span></div>
+      <div class="big rise" style="--i:1"><p class="big-label" id="bigLabel"></p><div class="big-row"><span class="num"><b class="count" id="bigVal" data-v="0">0</b><small id="bigUnit"></small></span><span class="pill" id="bigPill"></span></div></div>
+      <div class="rise" style="--i:2;display:grid;gap:14px" id="blocks"></div>
+      <div class="stats rise" style="--i:3" id="stats"></div>
+      <div class="note rise" style="--i:4" id="note"></div>
+      ${SHEETS[cur].link ? `<button type="button" class="to-stats rise" style="--i:5" id="toStats"><span class="ico"><span class="bars4"><i></i><i></i><i></i><i></i></span></span><span class="t"><b>在训练统计里看 · ${SHEETS[cur].link.name}</b><small>${SHEETS[cur].link.sub}</small></span>${I.chev}</button>` : ''}`;
+    const ts = $('#toStats');
+    if (ts) ts.addEventListener('click', () => { const l = SHEETS[cur].link; goStats({ '7天': 'week', '30天': 'month', '1年': 'year' }[range], l.view, l.name === '动作表现' ? ' · 动作表现' : ''); });
+    segClick($('#sheetSeg'), (v) => { range = v; renderSheet(false); });
+  }
+  $('#bigLabel').textContent = out.big.label;
+  $('#bigUnit').textContent = out.big.unit;
+  const pill = $('#bigPill'); pill.className = 'pill ' + (out.big.tone || ''); pill.textContent = out.big.pill;
+  countTo($('#bigVal'), out.big.value, out.big.dec || 0, first ? 800 : 600);
+  const blocks = $('#blocks'); blocks.innerHTML = out.blocks; wirePick(blocks); out.mount && out.mount(blocks);
+  $('#stats').innerHTML = out.stats.map(([l, v, dec, u]) => `<div><span>${l}</span><span class="num">${typeof v === 'number' ? `<b class="count" data-v="0">0</b>` : `<b>${v}</b>`}<small>${u || ''}</small></span></div>`).join('');
+  $('#stats').querySelectorAll('.count').forEach((b, k) => { const s = out.stats.filter((x) => typeof x[1] === 'number')[k]; countTo(b, s[1], s[2] || 0, first ? 800 : 500); });
+  $('#note').innerHTML = `<b>${out.note[0]}</b><p>${out.note[1]}</p>`;
+}
+
+function openSheet(tile, byKeyboard = false) {
+  if (cur) return;
+  cur = tile.dataset.sheet; range = '7天';
+  const pr = phone.getBoundingClientRect(), tr = tile.getBoundingClientRect();
+  const sTop = pr.top + 58;
+  liftRect = { t: tr.top - sTop, l: tr.left - pr.left, r: pr.right - tr.right, b: pr.bottom - tr.bottom };
+  sheet.classList.remove('anim', 'full', 'leaving', 'enter');
+  $('#expandBtn').innerHTML = I.expand;
+  sheet.setAttribute('aria-hidden', 'false');
+  renderSheet(true);
+  phone.classList.add('open');
+  void sheet.offsetWidth;
+  sheet.classList.add('enter');
+  placeInd($('#sheetSeg'), false);
+  const canMorph = !reduce && liftRect.t >= 0 && liftRect.b >= 0;
+  if (canMorph) {
+    const { t, l, r, b } = liftRect;
+    sheet.animate([{ clipPath: `inset(${t}px ${r}px ${b}px ${l}px round 22px)` }, { clipPath: 'inset(0px 0px 0px 0px round 30px 30px 0px 0px)' }], { duration: 640, easing: SPRING });
+  } else if (!reduce) {
+    sheet.animate([{ translate: '0 100%' }, { translate: '0 0' }], { duration: 620, easing: SPRING });
+  }
+  tile.classList.add('lifted'); lifted = tile;
+  requestAnimationFrame(() => requestAnimationFrame(() => sheet.classList.add('anim')));
+  if (byKeyboard) setTimeout(() => $('#closeBtn').focus({ preventScroll: true }), 300);
+}
+function finishClose() {
+  sheet.classList.remove('closing', 'leaving', 'enter', 'full');
+  sheet.setAttribute('aria-hidden', 'true');
+  if (lifted) { lifted.classList.remove('lifted'); if (document.activeElement && sheet.contains(document.activeElement)) lifted.focus({ preventScroll: true }); }
+  lifted = null; cur = null;
+}
+function closeSheet(viaDrag) {
+  if (!cur) return;
+  const full = sheet.classList.contains('full');
+  const visible = lifted && liftRect && liftRect.t >= 0 && liftRect.b >= 0;
+  if (!viaDrag && !full && visible && !reduce) {
+    const { t, l, r, b } = liftRect;
+    sheet.classList.remove('anim'); sheet.classList.add('closing', 'leaving');
+    phone.classList.remove('open');
+    const a = sheet.animate([{ clipPath: 'inset(0px 0px 0px 0px round 30px 30px 0px 0px)' }, { clipPath: `inset(${t}px ${r}px ${b}px ${l}px round 22px)` }], { duration: 460, easing: 'cubic-bezier(.3,.7,.1,1)', fill: 'forwards' });
+    a.onfinish = () => { finishClose(); a.cancel(); requestAnimationFrame(() => sheet.classList.add('anim')); };
+    return;
+  }
+  sheet.classList.add('anim');
+  phone.classList.remove('open');
+  setTimeout(finishClose, 420);
+}
+
+/* 下拉关闭：按距离或速度 */
+let drag = null;
+function dragStart(e) {
+  if (!cur || e.target.closest('button')) return;
+  drag = { y0: e.clientY, last: e.clientY, t: performance.now(), v: 0, dy: 0, h: sheet.offsetHeight };
+  sheet.classList.remove('anim'); screen.style.transition = 'none'; scrim.style.transition = 'none';
+  e.currentTarget.setPointerCapture(e.pointerId);
+}
+function dragMove(e) {
+  if (!drag) return;
+  const now = performance.now(), raw = e.clientY - drag.y0;
+  drag.v = (e.clientY - drag.last) / Math.max(1, now - drag.t); drag.last = e.clientY; drag.t = now;
+  drag.dy = raw < 0 ? raw * 0.18 : raw;
+  sheet.style.translate = `0 ${drag.dy}px`;
+  const p = Math.max(0, Math.min(1, drag.dy / drag.h));
+  screen.style.scale = String(0.93 + 0.07 * p); screen.style.translate = `0 ${12 * (1 - p)}px`; screen.style.borderRadius = `${30 * (1 - p)}px`;
+  scrim.style.opacity = String(1 - p);
+}
+function dragEnd() {
+  if (!drag) return;
+  const close = drag.dy > 140 || drag.v > 0.55;
+  sheet.classList.add('anim');
+  ['scale', 'translate', 'borderRadius', 'transition'].forEach((k) => { screen.style[k] = ''; });
+  scrim.style.transition = ''; scrim.style.opacity = '';
+  if (close) { phone.classList.remove('open'); sheet.style.translate = ''; setTimeout(finishClose, 460); }
+  else sheet.style.translate = '';
+  drag = null;
+}
+['grab', 'sheetHead'].forEach((id) => {
+  const el = document.getElementById(id);
+  el.addEventListener('pointerdown', dragStart); el.addEventListener('pointermove', dragMove);
+  el.addEventListener('pointerup', dragEnd); el.addEventListener('pointercancel', dragEnd);
+});
+scrim.addEventListener('click', () => closeSheet(false));
+$('#closeBtn').addEventListener('click', () => closeSheet(false));
+$('#expandBtn').addEventListener('click', () => { const f = sheet.classList.toggle('full'); $('#expandBtn').innerHTML = f ? I.shrink : I.expand; $('#expandBtn').setAttribute('aria-label', f ? '收回' : '展开到全屏'); buzz(); });
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeSheet(false);
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.tile')) { e.preventDefault(); openSheet(e.target, true); }
+});
+wall.addEventListener('click', (e) => { if (e.target.closest('#statsChip')) { e.stopPropagation(); goStats(heroMode === '月' ? 'month' : 'week', 'overview'); return; } const t = e.target.closest('.tile'); if (t && !e.target.closest('[data-pick]')) openSheet(t); });
+
+/* ---------- 白天 / 夜间 ---------- */
+function syncThemeLabels() { const dark = document.documentElement.dataset.theme === 'dark'; document.querySelectorAll('#themeBtn, #themeBtn2').forEach((b) => { b.textContent = dark ? '切到白天' : '切到夜间'; }); }
+function toggleTheme() { const h = document.documentElement; h.dataset.theme = h.dataset.theme === 'dark' ? 'light' : 'dark'; syncThemeLabels(); }
+document.addEventListener('click', (e) => { if (e.target.closest('#themeBtn, #themeBtn2')) { e.stopPropagation(); toggleTheme(); } });
+const params = new URLSearchParams(location.search);
+if (params.get('theme') === 'dark') document.documentElement.dataset.theme = 'dark';
+
+function entrance() {
+  wall.classList.remove('enter-wall'); void wall.offsetWidth; wall.classList.add('enter-wall');
+}
+$('#replayBtn').addEventListener('click', () => { closeSheet(false); setTimeout(() => { renderWall(); segClick($('#wallSeg'), setHero); entrance(); }, cur ? 480 : 0); });
+
+const st = document.createElement('style');
+st.textContent = '.enter-wall .rise { animation: rise .7s var(--spring) both; animation-delay: calc(var(--i) * 55ms); }';
+document.head.appendChild(st);
+renderWall(); segClick($('#wallSeg'), setHero); entrance();
+if (params.get('open')) { const t = wall.querySelector(`[data-sheet="${params.get('open')}"]`); if (t) setTimeout(() => { openSheet(t); if (params.get('range')) { const b = [...document.querySelectorAll('#sheetSeg button')].find((x) => x.dataset.v === params.get('range')); b && b.click(); } }, 700); }
+})();
+</script>
+</body>
+</html>
