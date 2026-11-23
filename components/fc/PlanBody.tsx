@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import ExerciseSheet from './ExerciseSheet';
-import SculptureBody, { type SculptureAnchor } from './SculptureBody';
+import SculptureBody, { preloadSculpture, type SculptureAnchor } from './SculptureBody';
 import PlanDetail from './PlanDetail';
 import PlanModelSwitch from './PlanModelSwitch';
 import PlanMusclePicker from './PlanMusclePicker';
@@ -75,7 +75,6 @@ export default function PlanBody({ variant = 'male', profileModel, modelChoice =
     haptic(6);
     document.cookie = `${BODY_MODEL_COOKIE}=${next ?? ''}; Path=/; SameSite=Lax; Max-Age=${next ? 31536000 : 0}`;
     setLocalChoice(next);
-    router.refresh();
   }
 
   function openLibrary(which: 'all' | 'liked') {
@@ -92,6 +91,25 @@ export default function PlanBody({ variant = 'male', profileModel, modelChoice =
 
   useEffect(() => () => window.clearTimeout(openTimer.current), []);
 
+  // Preload the opposite body variant in idle time so switching male/female is instantaneous.
+  useEffect(() => {
+    const other: SculptureVariant = model === 'male' ? 'female' : 'male';
+    const timer = window.setTimeout(() => preloadSculpture(other), 800);
+    return () => window.clearTimeout(timer);
+  }, [model]);
+
+  const preloadedPoses = useRef(new Set<string>());
+  const focus = picked ?? hovered;
+  useEffect(() => {
+    if (!focus) return;
+    const poseKey = planPoseFor(focus);
+    const src = `/plan-poses/${model === 'female' ? 'female/' : ''}${poseKey}.jpg`;
+    if (preloadedPoses.current.has(src)) return;
+    preloadedPoses.current.add(src);
+    const img = new window.Image();
+    img.src = src;
+  }, [focus, model]);
+
   function onPick(id: MuscleId) {
     const muscle = canonicalMuscle(id) ?? id;
     haptic();
@@ -99,7 +117,7 @@ export default function PlanBody({ variant = 'male', profileModel, modelChoice =
     setSelected(new Set());
     setError('');
     window.clearTimeout(openTimer.current);
-    // 先让锚点落到肌肉上，再推近进入姿势详情
+    // Wait 1-2 frames so .sculpture-anchor positions itself for the zoom origin, then open immediately.
     openTimer.current = window.setTimeout(() => {
       const dot = stage.current?.querySelector('.sculpture-anchor');
       const box = stage.current?.getBoundingClientRect();
@@ -109,7 +127,7 @@ export default function PlanBody({ variant = 'male', profileModel, modelChoice =
       }
       history.pushState({ planDetail: muscle }, '');
       setDetail('open');
-    }, 340);
+    }, 40);
   }
 
   function dismiss() {
@@ -162,7 +180,6 @@ export default function PlanBody({ variant = 'male', profileModel, modelChoice =
   const pose = picked ? planPoseFor(picked) : null;
   const anchor: SculptureAnchor = picked && group ? { muscle: picked, label: group.label } : null;
   // 大标题就是读数：空闲时是「点选肌群」，手指压住或鼠标停在哪块肌肉，就换成那块的名字
-  const focus = picked ?? hovered;
   const focusGroup = focus ? sculptureGroup(focus) : null;
   const focusRegion = focus ? PLAN_POSES[planPoseFor(focus)].label : null;
 

@@ -28,12 +28,17 @@ type VibratingNavigator = Navigator & { vibrate?: (pattern: number | number[]) =
 export default function RecordTab({
   active,
   onAudioRecorded,
+  onTapStart,
 }: {
   active?: boolean;
   /** 录完之后拿到音频；没接转写接口时先落成一句提示 */
   onAudioRecorded?: (blob: Blob, ms: number) => void;
+  onTapStart?: () => void;
 }) {
   const router = useRouter();
+  useEffect(() => {
+    router.prefetch('/log');
+  }, [router]);
   const [phase, setPhaseState] = useState<Phase>('idle');
   const [ms, setMs] = useState(0);
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
@@ -281,6 +286,7 @@ export default function RecordTab({
     window.clearTimeout(pressTimer.current);
     if (!longPress.current) {
       // 短按：保持原来的行为，去记录页
+      onTapStart?.();
       router.push('/log');
       return;
     }
@@ -334,7 +340,10 @@ export default function RecordTab({
           // 短按已经手动 push 过；这里拦掉 <a> 的默认跳转，避免重复导航。
           // 键盘 Enter / Space 的 click 没有指针事件，detail 是 0，补一次。
           event.preventDefault();
-          if (event.detail === 0) router.push('/log');
+          if (event.detail === 0) {
+            onTapStart?.();
+            router.push('/log');
+          }
         }}
       >
         <MicIcon />

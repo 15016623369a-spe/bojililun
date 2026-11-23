@@ -26,7 +26,7 @@ export default async function BodyPage({ searchParams }: { searchParams: Promise
   return (
     <JournalShell active="plan" title="点选肌群" today={today} className="is-plan" navigation={<TabBar active="body" />}
       hero={<></>} headerAction={<PlanPill total={plan.length} done={plan.filter((item) => item.done === 1).length} live={Boolean(active)} />}>
-      <PlanBody key={today + variant + (initialMuscle ?? '')} variant={variant} profileModel={profileModel} modelChoice={forced ?? preference} initialMuscle={initialMuscle} activeSession={active?.id ?? null} activeMeta={live ? `${live.next.name} · 剩 ${live.next.setsLeft} 组` : undefined}
+      <PlanBody key={today + (initialMuscle ?? '')} variant={variant} profileModel={profileModel} modelChoice={forced ?? preference} initialMuscle={initialMuscle} activeSession={active?.id ?? null} activeMeta={live ? `${live.next.name} · 剩 ${live.next.setsLeft} 组` : undefined}
         todayPlan={{ date: today, exerciseIds: plan.map((item) => item.exercise_id), allDone: plan.length > 0 && plan.every((item) => item.done === 1) }} />
     </JournalShell>
   );

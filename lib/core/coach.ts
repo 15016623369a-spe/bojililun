@@ -138,12 +138,15 @@ function strengthContext(today: string, question: string, notes: string[], previ
   );
   const first = comparisons[0];
   const difference = first ? first.after.reps - first.before.reps : 0;
-  const reply = first
-    ? `${first.after.exerciseName}在同样 ${first.after.weight} kg 下，从 ${first.before.reps} 次到 ${first.after.reps} 次${difference > 0 ? `，多了 ${difference} 次` : ''}。${notes.length ? '已按你提到的器械变更分开比较。' : '这是同动作名、同重量的记录，手账没有确认器械是否一致。'}`
-    : relevant.length && notes.length
-      ? '我记下了器械变更，会把变更前后的记录分开。现有数据还不够做同一器械的跨日对比。'
-      : '近 30 天还没有两个不同训练日的同动作、同重量记录可直接比较。';
   const trainingDays = days.filter(day => day.entries.some(card => card.entry_type === 'workout')).length;
+  const latestSet = recentSets.at(-1);
+  const reply = first
+    ? `近 30 天共训练 ${trainingDays} 天。${first.after.exerciseName}在同样 ${first.after.weight} kg 下，从 ${first.before.reps} 次做到 ${first.after.reps} 次${difference > 0 ? `，多了 ${difference} 次` : ''}。${notes.length ? '已按你提到的器械变更分开比较。' : '如果期间换过器械，随时告诉我分开记录。'}`
+    : relevant.length && notes.length
+      ? '我记下了器械变更，会把变更前后的记录分开。目前同一器械的跨日记录还不够，多练一两次后就能对比进步。'
+      : latestSet
+        ? `近 30 天共训练 ${trainingDays} 天，最近记录的${latestSet.exerciseName}为 ${latestSet.weight} kg × ${latestSet.reps} 次（${latestSet.date}）。目前还没有同动作同重量的跨日对比，继续记录后我会帮你追踪变化。`
+        : '近 30 天还没有可对比的力量训练记录，先记录一次训练后我就能帮你分析进步。';
   return { evidence, facts: { days: days.length, trainingDays, comparisons, equipmentNotes: notes, recentSets }, reply, plan: null };
 }
 
@@ -154,13 +157,14 @@ function mealContext(today: string, question: string) {
   const evidence = meals.map(card => ({ date: today, cardId: card.id, label: card.summary_title }));
   const options = getDb().prepare('SELECT food_name AS name FROM meal_items JOIN entries ON entry_id = entries.id WHERE user_id = ? AND is_deleted = 0 AND date BETWEEN ? AND ? GROUP BY food_name ORDER BY COUNT(*) DESC LIMIT 8')
     .all('local', dayOffset(today, -6), today);
+  const workouts = current.entries.filter(card => card.entry_type === 'workout');
   const reply = meals.length
-    ? `今天记了 ${meals.length} 餐，包括${meals.map(card => card.summary_title).join('、')}。本轮只能汇总这部分手账，暂时无法比较菜单。`
-    : '今天还没有饮食记录。本轮只能汇总手账，暂时无法比较菜单。';
+    ? `今天已记录 ${meals.length} 餐（${meals.map(card => card.summary_title).join('、')}）${workouts.length ? '，且完成了训练' : ''}。下一餐建议优先补足优质蛋白与蔬菜、减少重油；如果有几个备选，直接发给我帮你挑。`
+    : `今天还没有饮食记录${workouts.length ? '，但已有训练记录' : ''}。建议先安排一顿包含优质蛋白与适量碳水的正餐，有想吃的选项可以直接发给我帮你选。`;
   return {
     evidence, reply, plan: null,
     facts: { meals: meals.map(card => card.items.map(item => item.food_name)),
-      training: current.entries.filter(card => card.entry_type === 'workout').map(card => card.summary_title),
+      training: workouts.map(card => card.summary_title),
       ...(/热量|卡路里|千卡|蛋白(?:质)?(?:多少|够不够)|多少(?:克|蛋白)|摄入量|宏量|碳水|脂肪/.test(question)
         ? { knownIntake: current.daily_summary.intake } : {}),
       recentFoods: options },
@@ -201,7 +205,7 @@ function planContext(today: string, notes: string[]) {
   const plan = exercises.length ? { date, exercises } : null;
   const evidence = recent ? exercises.map(item => ({ date: recent.date, cardId: recent.id, label: item.name })) : [];
   const reply = plan
-    ? `按最近一次实练拟了 ${date} 的草案。你可以核对后再加入训练单。${pendingChanges.length ? '尚不能核对新器械的动作已先跳过。' : ''}`
+    ? `已按最近一次实练拟好 ${date} 的训练草案（共 ${exercises.length} 个动作），核对无误后可直接加入训练单。${pendingChanges.length ? '尚不能核对新器械的动作已先跳过。' : ''}`
     : '暂时没有能复用、且尚未加入目标日期的训练动作。可以先记录一节训练，或去训练页手动选动作。';
   return { evidence, reply, plan, facts: { plan } };
 }
