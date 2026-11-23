@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import JournalShell from '@/components/JournalShell';
 import LedgerDeck, { type DeckItem } from '@/components/LedgerDeck';
 import LogScreen from '@/components/fc/LogScreen';
+import CoachPreview from '@/components/fc/CoachPreview';
 import BigDate from '@/components/ui/BigDate';
 import { getDb } from '@/lib/db';
 import { exportJournal } from '@/lib/export';
@@ -84,6 +85,7 @@ export default async function LogPage({ searchParams }: { searchParams: Promise<
       {!past && <div className="fc ledger-dock-scope">
         <LogScreen ledgerHasRecords />
       </div>}
+      {!past && <CoachPreview />}
     </JournalShell>
   );
 }
