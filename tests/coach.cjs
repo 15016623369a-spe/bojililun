@@ -68,11 +68,20 @@ test('教练只展示正文，工具标记不进入新回复或历史对话', as
   assert.deepEqual(restored.plan, draft.plan);
   assert.deepEqual(restored.evidence, draft.evidence);
 
+  finalText = '选豆腐饭吧，口味清淡，也避开了你不喜欢的鸡蛋。';
+  const directChoice = '豆腐饭还是番茄炒蛋？';
+  const directState = await askCoach(randomUUID(), directChoice);
+  assert.equal(directState.turns.at(-1).topic, 'meal', '上一轮是训练时，直接发菜名也能问饮食');
+  assert.equal(directState.turns.at(-1).reply, finalText);
+  await askCoach(randomUUID(), '下次练什么？');
+  requests.length = 0;
+
   for (const malformed of [RAW_TOOL_TEXT, '可以先看晚餐搭配。\n<tool_call>{"name":"read_records"}</tool_call>']) {
     finalText = malformed;
     const id = randomUUID();
-    const state = await askCoach(id, '晚饭怎么选？', 'meal');
+    const state = await askCoach(id, '今晚吃啥？');
     const meal = state.turns.at(-1);
+    assert.equal(meal.topic, 'meal', '从训练话题切换到随口问晚饭，无需提示词');
     assert.match(meal.reply, /牛肉面/);
     assert.doesNotMatch(meal.reply, /DSML|read_records|tool_call/i);
     assert.equal(getDb().prepare('SELECT reply FROM coach_turn WHERE id = ?').get(id).reply, meal.reply);
@@ -82,7 +91,20 @@ test('教练只展示正文，工具标记不进入新回复或历史对话', as
   assert.ok(requests.every(body => body.messages.filter(message => message.role === 'assistant')
     .every(message => !/DSML|tool_call/i.test(message.content || ''))));
 
-  finalText = '结合今天的午餐记录，可以考虑清淡豆腐盖饭。';
-  const state = await askCoach(randomUUID(), '晚饭怎么选？', 'meal');
+  finalText = '选豆腐饭吧，口味清淡，也避开了你不喜欢的鸡蛋。';
+  const followup = '那就豆腐饭？';
+  const state = await askCoach(randomUUID(), followup);
   assert.equal(state.turns.at(-1).reply, finalText);
+  assert.equal(state.turns.at(-1).topic, 'meal');
+  const messages = requests.at(-1).messages;
+  assert.ok(messages.some(message => message.role === 'user' && message.content === '今晚吃啥？'));
+  assert.ok(messages.some(message => message.role === 'user' && message.content === followup));
+  const context = JSON.parse(messages.find(message => message.role === 'tool').content);
+  assert.deepEqual(context.records.meals, [['牛肉面']]);
+  assert.equal(context.records.knownIntake, undefined);
+  assert.equal(context.goal, 'muscle');
+  assert.ok(context.memories.some(memory => memory.content.includes('不喜欢鸡蛋')));
+  await askCoach(randomUUID(), '我午饭吃了多少蛋白？');
+  const nutrition = JSON.parse(requests.at(-1).messages.find(message => message.role === 'tool').content);
+  assert.equal(nutrition.records.knownIntake.protein_g, 29);
 });
