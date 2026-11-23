@@ -4,16 +4,15 @@ import dictionary from '../data/exercises-seed.json';
 import { saveBatch, type Draft } from './ledger';
 import type { FoodItem } from './types';
 import type { Movement } from './calculations';
-import { MUSCLES, muscleMatchesExercise } from './muscles';
 import { idsForTarget } from './energy';
-import { mentionedMuscles } from './journal';
+import { primaryMuscle } from './training-log';
 
 type SeedExercise = (typeof dictionary)[number];
 
 /**
- * 旧训练表的动作 → 主要 / 次要肌群。判定与统计页的 primaryMuscleActivity 一致：
- * 词典有肌群就用词典；否则按动作库的 target / body_part 匹配，再退到动作名里提到的部位。
- * 手账的 calcMuscleHeatmap 只认这两个字段，缺了回顾热图就是空的。
+ * 旧训练表的动作 → 主要 / 次要肌群，存进手账给 calcMuscleHeatmap 用：
+ * 词典有肌群就用词典；否则用统计页的 primaryMuscle 判定（动作库的 target / body_part，再退到动作名里提到的部位）。
+ * 统计和回顾不读这里存的肌群，而是按 library_id 现查动作库，见 lib/training-log.ts。
  */
 function legacyMuscles(
   db: DatabaseSync,
@@ -30,13 +29,7 @@ function legacyMuscles(
     target: String(meta?.target || row.target || ''),
     body_part: String(meta?.body_part || row.body_part || ''),
   };
-  const matches = MUSCLES.filter((muscle) => muscleMatchesExercise(muscle, ex));
-  const candidates = idsForTarget(ex.target);
-  const primary =
-    matches.find((muscle) => muscle.include)?.id ??
-    matches[0]?.id ??
-    (candidates.includes('delt_side') ? 'delt_side' : candidates[0]) ??
-    mentionedMuscles(row.exercise_name)[0];
+  const primary = primaryMuscle(ex, row.exercise_name);
   let secondary: string[] = [];
   try {
     const listed = JSON.parse(String(meta?.secondary_muscles ?? '[]'));
@@ -76,6 +69,13 @@ export function installBridge(db: DatabaseSync) {
         `INSERT OR IGNORE INTO ledger_dirty SELECT '${kind}',substr(request_key,16,length(request_key)-17) FROM entries WHERE user_id='local' AND entry_type='workout' AND request_key LIKE 'legacy/${kind}/%/0' AND actions LIKE '%"primary_muscles":[]%'`,
       );
     db.exec("INSERT INTO ledger_backfill VALUES('legacy-workout-muscles')");
+  }
+  // 一次性补齐：训练页的训练重新同步一次，给每个动作带上训练页动作库的 id（library_id），统计按它判定肌群、找图片
+  if (!db.prepare("SELECT 1 FROM ledger_backfill WHERE name='legacy-workout-library-ids'").get()) {
+    db.exec(
+      "INSERT OR IGNORE INTO ledger_dirty SELECT 'workout',substr(request_key,16,length(request_key)-17) FROM entries WHERE user_id='local' AND entry_type='workout' AND request_key LIKE 'legacy/workout/%/0'",
+    );
+    db.exec("INSERT INTO ledger_backfill VALUES('legacy-workout-library-ids')");
   }
 }
 export function flushLegacy(db: DatabaseSync) {
@@ -131,6 +131,7 @@ export function flushLegacy(db: DatabaseSync) {
             const muscles = moves.has(name) ? null : legacyMuscles(db, { ...row, exercise_name: name }, dict);
             const m = moves.get(name) ?? {
               exercise_id: dict?.id ?? null,
+              library_id: String(row.exercise_id),
               exercise_name: name,
               primary_muscles: muscles?.primary ?? [],
               secondary_muscles: muscles?.secondary ?? [],

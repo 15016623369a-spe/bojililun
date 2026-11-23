@@ -2,7 +2,8 @@ import type { DatabaseSync } from 'node:sqlite';
 import { exportJournal } from './export';
 import { addDays } from './period';
 import { ACTIVITY, GOAL, bmr as mifflin, suggestedMacros, type ActivityKey, type GoalKey } from './nutrition';
-import { daySessions, primaryMuscleActivity, trainingTimeByDate } from './core/workout';
+import { daySessions } from './core/workout';
+import { muscleActivity, trainingLog, trainingTimeByDay, type LoggedWorkout } from './training-log';
 import { getProfileRow } from './core/meals';
 import { dayExerciseBurn } from './exercise-burn';
 import type { MuscleId } from './muscles';
@@ -10,8 +11,9 @@ import type { MuscleId } from './muscles';
 /**
  * 回顾页「数据块墙」的数据。区间都截止到今天：7 天、30 天，以及最近 12 个自然月（「1 年」）。
  * 口径：
- * - 容量、组数、摄入、晨重沿用手账（exportJournal），和原来的回顾页一致；
- * - 训练时长、肌群分布、个人纪录沿用统计页的训练表口径（trainingTimeByDate、primaryMuscleActivity、估算 1RM）；
+ * - 训练（容量、组数、训练天数、时长、肌群分布、个人纪录、容量最高的动作）和训练统计共用 lib/training-log.ts，
+ *   只读手账：训练页的训练和语音、文字记的训练都算，每节只算一次；
+ * - 摄入、晨重沿用手账（exportJournal），和原来的回顾页一致；
  * - 基础代谢用 Mifflin-St Jeor，体重取当天或之前最近一次称重；每日总代谢 = 基础代谢 × 活动系数，
  *   和「我的」算目标热量是同一个数（用户 11 月 23 日确认）；热量缺口 = 每日总代谢 − 当天摄入。
  *   运动消耗只在「能量收支」里作参考，不再叠加进总代谢，避免和活动系数重复计算。
@@ -118,21 +120,17 @@ function readProfile(): WallProfile | null {
 }
 
 /** 个人纪录突破：同一动作每节训练取最高估算 1RM，超过此前所有训练的最高值记一次；第一次练只记基线 */
-function prTimeline(db: DatabaseSync, from: string, today: string) {
-  const rows = db.prepare(`
-    SELECT s.exercise_id AS id, s.exercise_name AS name, s.weight, s.reps, se.date, se.id AS sessionId
-    FROM session_set s JOIN session se ON se.id = s.session_id
-    WHERE se.date <= ? AND s.weight > 0 AND s.reps BETWEEN 1 AND 15
-    ORDER BY se.date, se.started_at, se.id, s.id
-  `).all(today) as { id: string; name: string; weight: number; reps: number; date: string; sessionId: number }[];
+function prTimeline(all: LoggedWorkout[], from: string) {
   const sessions = new Map<string, { id: string; name: string; date: string; value: number; weight: number; reps: number }>();
   const order: string[] = [];
-  for (const r of rows) {
-    const key = `${r.id}:${r.sessionId}`;
-    const value = e1rm(r.weight, r.reps);
+  const ordered = [...all].sort((a, b) => a.date.localeCompare(b.date) || a.startedAt.localeCompare(b.startedAt) || a.id - b.id);
+  for (const w of ordered) for (const m of w.moves) for (const { weight, reps } of m.sets) {
+    if (!(weight > 0) || reps < 1 || reps > 15) continue;
+    const key = `${m.key}:${w.id}`;
+    const value = e1rm(weight, reps);
     const cur = sessions.get(key);
-    if (!cur) { sessions.set(key, { id: r.id, name: r.name, date: r.date, value, weight: r.weight, reps: r.reps }); order.push(key); }
-    else if (value > cur.value) Object.assign(cur, { value, weight: r.weight, reps: r.reps });
+    if (!cur) { sessions.set(key, { id: m.key, name: m.name, date: w.date, value, weight, reps }); order.push(key); }
+    else if (value > cur.value) Object.assign(cur, { value, weight, reps });
   }
   const best = new Map<string, number>();
   const events: PrEvent[] = [];
@@ -155,9 +153,9 @@ function prTimeline(db: DatabaseSync, from: string, today: string) {
   return { events, history };
 }
 
-function muscleSets(start: string, end: string): MuscleSets[] {
+function muscleSets(workouts: LoggedWorkout[]): MuscleSets[] {
   const out = new Map<MuscleId, MuscleSets>();
-  for (const row of primaryMuscleActivity(start, end)) {
+  for (const row of muscleActivity(workouts)) {
     const cur = out.get(row.id) ?? { id: row.id, sets: 0, volume: 0 };
     cur.sets += row.sets;
     cur.volume += row.volume || 0;
@@ -230,9 +228,17 @@ export function buildReviewWall(db: DatabaseSync, today: string, period: HeroPer
   // 每天的体重：当天或之前最近一次称重，用来算当天的基础代谢
   const weighIns = db.prepare('SELECT date, weight_kg FROM body_metrics WHERE user_id = ? AND date <= ? ORDER BY date, logged_at, id')
     .all('local', today) as { date: string; weight_kg: number }[];
-  const sessionDates = new Set((db.prepare(`SELECT DISTINCT se.date FROM session se WHERE se.date BETWEEN ? AND ?
-    AND EXISTS (SELECT 1 FROM session_set WHERE session_id = se.id)`).all(start, today) as { date: string }[]).map((r) => r.date));
-  const minutes = new Map(trainingTimeByDate(start, today).map((r) => [r.date, r.seconds / 60]));
+  // 训练和统计页同一来源；个人纪录要和此前所有训练比，所以从头读
+  const history = trainingLog(db, '0000-01-01', today);
+  const log = history.filter((w) => w.date >= start);
+  const training = new Map<string, { volume: number; sets: number; sessions: Set<number> }>();
+  for (const w of log) {
+    const day = training.get(w.date) ?? { volume: 0, sets: 0, sessions: new Set<number>() };
+    for (const m of w.moves) for (const s of m.sets) { day.volume += s.weight * s.reps; day.sets += 1; }
+    if (w.sessionId !== null) day.sessions.add(w.sessionId);
+    training.set(w.date, day);
+  }
+  const minutes = new Map(trainingTimeByDay(log).map((r) => [r.date, r.seconds / 60]));
   const burnWeight = profile?.weight ?? 70;
 
   let wi = 0;
@@ -240,19 +246,20 @@ export function buildReviewWall(db: DatabaseSync, today: string, period: HeroPer
   const days: WallDay[] = book.days.map((d) => {
     while (wi < weighIns.length && weighIns[wi].date <= d.date) lastWeight = weighIns[wi++].weight_kg;
     const meals = d.entries.filter((e) => e.entry_type === 'meal');
-    const workouts = d.entries.filter((e) => e.entry_type === 'workout');
+    const trained = training.get(d.date);
     const intake = d.daily_summary.intake;
     const morning = [...d.body_metrics].sort((a, b) => Date.parse(a.logged_at) - Date.parse(b.logged_at))[0];
     const bodyWeight = profile ? lastWeight ?? profile.weight : null;
     const base = profile && bodyWeight ? mifflin({ sex: profile.sex, age: profile.age, height_cm: profile.height, weight_kg: bodyWeight }) : null;
-    const burn = workouts.length || sessionDates.has(d.date)
-      ? dayExerciseBurn(daySessions(d.date).filter((x) => x.sets.length > 0).map((x) => x.session), d.entries, burnWeight).kcal
+    // 运动消耗只估算这两页算进来的训练：「记录」里移除的训练页训练不再计入
+    const burn = trained
+      ? dayExerciseBurn(daySessions(d.date).filter((x) => x.sets.length > 0 && trained.sessions.has(x.session.id)).map((x) => x.session), d.entries, burnWeight).kcal
       : 0;
     return {
       date: d.date,
-      volume: Math.round(d.daily_summary.totalVolumeKg),
-      sets: d.daily_summary.totalSets,
-      trained: workouts.length > 0,
+      volume: Math.round(trained?.volume ?? 0),
+      sets: trained?.sets ?? 0,
+      trained: Boolean(trained),
       minutes: Math.round(minutes.get(d.date) ?? 0),
       kcal: meals.length && intake.kcal !== null ? Math.round(intake.kcal) : null,
       protein: meals.length && intake.protein_g !== null ? round1(intake.protein_g) : null,
@@ -266,35 +273,32 @@ export function buildReviewWall(db: DatabaseSync, today: string, period: HeroPer
     };
   });
 
-  // 容量最高的动作：手账里实练组「重量 × 次数」累计
+  // 容量最高的动作：实练组「重量 × 次数」累计
   const top = (from: string): TopExercise[] => {
-    const sums = new Map<string, number>();
-    for (const d of book.days) {
-      if (d.date < from) continue;
-      for (const e of d.entries) {
-        if (e.entry_type !== 'workout') continue;
-        for (const m of e.exercises) {
-          const v = m.sets.reduce((s, x) => s + (x.weight_kg ?? 0) * (x.reps ?? 0), 0);
-          if (v > 0) sums.set(m.exercise_name, (sums.get(m.exercise_name) ?? 0) + v);
-        }
+    const sums = new Map<string, { name: string; volume: number }>();
+    for (const w of log) {
+      if (w.date < from) continue;
+      for (const m of w.moves) {
+        const v = m.sets.reduce((s, x) => s + x.weight * x.reps, 0);
+        if (v > 0) sums.set(m.key, { name: sums.get(m.key)?.name ?? m.name, volume: (sums.get(m.key)?.volume ?? 0) + v });
       }
     }
-    return [...sums].map(([name, volume]) => ({ name, volume: Math.round(volume) })).sort((a, b) => b.volume - a.volume).slice(0, 5);
+    return [...sums.values()].map(({ name, volume }) => ({ name, volume: Math.round(volume) })).sort((a, b) => b.volume - a.volume).slice(0, 5);
   };
 
   const d7 = addDays(today, -6), d30 = addDays(today, -29);
-  const { events, history } = prTimeline(db, start, today);
+  const prs = prTimeline(history, start);
 
   // 日视图的柱子：今天每个动作一根
   const moves = new Map<string, { name: string; sets: number; volume: number }>();
-  for (const e of book.days.at(-1)?.entries ?? []) {
-    if (e.entry_type !== 'workout') continue;
-    for (const m of e.exercises) {
+  for (const w of log) {
+    if (w.date !== today) continue;
+    for (const m of w.moves) {
       if (!m.sets.length) continue;
-      const cur = moves.get(m.exercise_name) ?? { name: m.exercise_name, sets: 0, volume: 0 };
+      const cur = moves.get(m.key) ?? { name: m.name, sets: 0, volume: 0 };
       cur.sets += m.sets.length;
-      cur.volume += Math.round(m.sets.reduce((s, x) => s + (x.weight_kg ?? 0) * (x.reps ?? 0), 0));
-      moves.set(m.exercise_name, cur);
+      cur.volume += Math.round(m.sets.reduce((s, x) => s + x.weight * x.reps, 0));
+      moves.set(m.key, cur);
     }
   }
   const hero = buildHero(period, today, days, [...moves.values()]);
@@ -302,9 +306,9 @@ export function buildReviewWall(db: DatabaseSync, today: string, period: HeroPer
   return { hero, wall: {
     today,
     days,
-    prs: events,
-    prHistory: history,
-    muscles: { d7: muscleSets(d7, today), d30: muscleSets(d30, today), y1: muscleSets(start, today) },
+    prs: prs.events,
+    prHistory: prs.history,
+    muscles: { d7: muscleSets(log.filter((w) => w.date >= d7)), d30: muscleSets(log.filter((w) => w.date >= d30)), y1: muscleSets(log) },
     topExercises: { d7: top(d7), d30: top(d30), y1: top(start) },
     profile,
     band: BAND[profile?.goal ?? 'maintain'],
