@@ -12,6 +12,7 @@ import {
 import { editNutrition, type NutritionEdit } from '@/lib/ledger-nutrition';
 import type { Item } from '@/lib/calculations';
 import { parseInput } from '@/lib/ledger-parse';
+import { planFromSpeech } from '@/lib/core/chat';
 const user = 'local';
 export async function GET(req: Request) {
   try {
@@ -50,6 +51,12 @@ export async function POST(req: Request) {
       return Response.json({ ok: true });
     if (b.photo && (typeof b.photo !== 'string' || b.photo.length > 6_000_000)) throw Error('照片过大，请重新选择');
     if (b.photo && !/^data:image\/(jpeg|png|webp);base64,/.test(b.photo)) throw Error('照片格式无效');
+    // 「今天练胸，给我排四个动作」「再加一个飞鸟」：加进今日计划，不进手账
+    const plan = b.source !== 'scale' && !b.photo && typeof b.text === 'string' ? planFromSpeech(b.text) : null;
+    if (plan) {
+      db.prepare('INSERT OR IGNORE INTO ledger_requests VALUES(?,?)').run(user, b.request_id);
+      return Response.json({ route: 'plan', message: plan.message });
+    }
     const parsed =
       b.source === 'scale'
         ? {

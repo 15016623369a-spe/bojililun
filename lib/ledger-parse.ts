@@ -3,8 +3,73 @@ import { parseSchema, validateParse } from './ledger-contract';
 import foods from '../data/food-reference.json';
 import dictionary from '../data/exercises-seed.json';
 import { detectIntent } from './intent';
+import { mentionedMuscles } from './journal';
 import type { Draft, Parsed, Source } from './ledger';
-import type { Item } from './calculations';
+import type { Item, Movement } from './calculations';
+
+type Hit<T> = { start: number; end: number; value: T };
+
+/** 一句话里所有名字出现的位置：长名优先、互不重叠，所以「哑铃卧推」不会再拆出「卧推」 */
+function findNames<T>(text: string, entries: { names: string[]; value: T }[]): Hit<T>[] {
+  const hits: Hit<T>[] = [];
+  for (const { names, value } of entries)
+    for (const name of names)
+      for (let i = name ? text.indexOf(name) : -1; i >= 0; i = text.indexOf(name, i + 1))
+        hits.push({ start: i, end: i + name.length, value });
+  hits.sort((a, b) => b.end - b.start - (a.end - a.start) || a.start - b.start);
+  const taken: Hit<T>[] = [];
+  for (const h of hits) if (!taken.some((t) => h.start < t.end && t.start < h.end)) taken.push(h);
+  return taken.sort((a, b) => a.start - b.start);
+}
+
+const HAN = /\p{Script=Han}/u;
+/** 动作名到这里就断开：连接词、虚词、动词、数字、单位和量词 */
+const NAME_STOP = /[和跟与及或、还没再又就也然后先是在了着过吃喝记做练各每共都到用一二两三四五六七八九十百千半几公斤组次个]/;
+/** 动作名前后常带的说法，不算进动作名 */
+const LEAD_FILLER = /^(?:今天|今早|今晚|昨天|昨晚|刚才|刚刚|早上|早晨|上午|中午|下午|晚上|然后|接着|之后|最后|还有|还|再|又|先|也|就|我|去|在|了)+/;
+const TAIL_FILLER = /(?:了|完|一下)+$/;
+
+/**
+ * 把命中的词典名往两边扩到整个词。词典名前后还连着别的字（「哈克深蹲」里的「深蹲」、「哑铃划船」里的「划船」），
+ * 说明用户说的是词典外的另一个动作：按原话记下名字，不套用词典里的动作。
+ */
+function spokenName(part: string, hit: { start: number; end: number }, from: number, to: number) {
+  let l = hit.start, r = hit.end;
+  while (l > from && HAN.test(part[l - 1]) && !NAME_STOP.test(part[l - 1])) l--;
+  while (r < to && HAN.test(part[r]) && !NAME_STOP.test(part[r])) r++;
+  const before = part.slice(l, hit.start).replace(LEAD_FILLER, '');
+  const after = part.slice(hit.end, r).replace(TAIL_FILLER, '');
+  return before || after ? before + part.slice(hit.start, hit.end) + after : null;
+}
+
+type SeedExercise = (typeof dictionary)[number];
+
+/**
+ * 一句话里提到的动作，按出现顺序：命中词典的给出词典条目；词典名前后连着别的字时 dict 为 null，name 是原话。
+ * 记录解析和「再加一个飞鸟」排计划都用它。
+ */
+export function mentionedExercises(part: string): { dict: SeedExercise | null; name: string }[] {
+  const hits = findNames(part, dictionary.map((e) => ({ names: [e.name_zh, ...e.aliases], value: e })));
+  const out: { dict: SeedExercise | null; name: string }[] = [];
+  hits.forEach((hit, i) => {
+    const said = spokenName(part, hit, hits[i - 1]?.end ?? 0, hits[i + 1]?.start ?? part.length);
+    const found = said ? { dict: null, name: said } : { dict: hit.value, name: hit.value.name_zh };
+    if (!out.some((m) => m.name === found.name)) out.push(found);
+  });
+  return out;
+}
+
+/** 词典外的动作：名字照原话，肌群按名字里提到的部位 */
+const unlisted = (name: string): Movement & { exercise_id: null } => ({
+  exercise_id: null,
+  exercise_name: name,
+  primary_muscles: mentionedMuscles(name).slice(0, 1),
+  secondary_muscles: [],
+  sets: [],
+});
+
+const AMOUNT = /(\d+(?:\.\d+)?|[一二两三四五六七八九十半])\s*(克|g|杯|碗|份|个|根|片|勺)/gi;
+
 function explicitScaleWeight(text: string): number | null {
   // Only apply to single-item records and explicit statements about how the weight was measured.
   if (!/下锅前|烹调前|带骨重量|帶骨重量|生重|熟重|净重|淨重/.test(text)) return null;
@@ -116,7 +181,8 @@ export async function parseInput(text: string, photo: string | undefined, source
     );
   for (const part of text.split(/[，,。；;\n]/).filter(Boolean)) {
     if (/^(?:我|然后|就|我就)*(?:没|没有|没再)(?:吃|喝)/.test(part.trim())) continue;
-    const weight = part.match(/(?:体重|称了?|重)\s*(\d+(?:\.\d+)?)\s*(kg|公斤|千克|斤)?/i);
+    // 「负重 20 公斤」「加重 5 公斤」说的是训练重量，不是体重
+    const weight = part.match(/(?:体重|称了?|(?<![负加])重)\s*(\d+(?:\.\d+)?)\s*(kg|公斤|千克|斤)?/i);
     if (weight)
       records.push({
         ...base,
@@ -125,20 +191,27 @@ export async function parseInput(text: string, photo: string | undefined, source
         weight_kg: Number(weight[1]) / (weight[2] === '斤' ? 2 : 1),
         confidence: 'exact',
       });
-    const moves = dictionary.filter((e) => [e.name_zh, ...e.aliases].some((n) => part.includes(n)));
+    const count = part.match(/(\d+|[一二两三四五六七八九十])\s*组/);
+    const moves: Movement[] = mentionedExercises(part).map(({ dict, name }) =>
+      dict ? { ...dict, exercise_id: dict.id, exercise_name: dict.name_zh, sets: [] } : unlisted(name),
+    );
+    // 词典里一个动作都没有、但说了组数：按句首的动作名照原话记下（「器械推胸 40 公斤 12 次 3 组」）
+    if (!moves.length && count) {
+      const name = (part.slice(0, part.search(/[\d\s]/) < 0 ? part.length : part.search(/[\d\s]/)).match(/\p{Script=Han}+/u)?.[0] ?? '')
+        .replace(LEAD_FILLER, '')
+        .replace(TAIL_FILLER, '');
+      if (name && !foods.some((f) => name.includes(f.food_name))) moves.push(unlisted(name));
+    }
     if (moves.length) {
-      const count = part.match(/(\d+|[一二两三四五六七八九十])\s*组/),
-        kg = part.match(/(\d+(?:\.\d+)?)\s*(kg|公斤)/i),
+      const kg = part.match(/(\d+(?:\.\d+)?)\s*(kg|公斤)/i),
         reps = part.match(/(\d+)\s*次/);
       if (count && number(count[1]) > 300) throw Error('组数过多');
       records.push({
         ...base,
         entry_type: /想练|计划/.test(part) ? 'plan_draft' : 'workout',
-        summary_title: moves.map((m) => m.name_zh).join('、'),
+        summary_title: moves.map((m) => m.exercise_name).join('、'),
         exercises: moves.map((m) => ({
           ...m,
-          exercise_id: m.id,
-          exercise_name: m.name_zh,
           sets: Array.from({ length: count ? number(count[1]) : 0 }, () => ({
             weight_kg: kg ? Number(kg[1]) : null,
             reps: reps ? Number(reps[1]) : null,
@@ -147,14 +220,22 @@ export async function parseInput(text: string, photo: string | undefined, source
         })),
       });
     }
-    const candidates = foods.filter((f) => part.includes(f.food_name));
-    const items = candidates
-      .filter((f) => !candidates.some((other) => other !== f && other.food_name.includes(f.food_name)))
-      .map((f) => {
-        const before = part.slice(0, part.indexOf(f.food_name));
-        const amount = before.match(
-          /(\d+(?:\.\d+)?|[一二两三四五六七八九十半])\s*(克|g|杯|碗|份|个|根|片|勺)\s*$/i,
-        );
+    // 份量跟着食物走：句子先说份量（「200 克米饭」）就归后面的食物，先说食物（「米饭 200 克」）就归前面的食物
+    const foodHits = findNames(part, foods.map((f) => ({ names: [f.food_name], value: f }))).filter(
+      (h, i, all) => all.findIndex((o) => o.value === h.value) === i,
+    );
+    const amounts = [...part.matchAll(AMOUNT)].filter(
+      (a) => !foodHits.some((h) => a.index! < h.end && h.start < a.index! + a[0].length),
+    );
+    const leading = amounts.length > 0 && foodHits.length > 0 && amounts[0].index! < foodHits[0].start;
+    // 份量要紧挨着食物，中间只能有空格或「的、约」之类，不跨过别的词（「500 克鸡肉做的牛肉饭」里的 500 克不归牛肉）
+    const adjacent = (gap: string) => /^[\s的约大概左右:：]*$/.test(gap);
+    const items = foodHits
+      .map((hit) => {
+        const f = hit.value;
+        const amount = leading
+          ? amounts.filter((a) => a.index! + a[0].length <= hit.start && adjacent(part.slice(a.index! + a[0].length, hit.start))).at(-1)
+          : amounts.find((a) => a.index! >= hit.end && adjacent(part.slice(hit.end, a.index!)));
         const quantity = amount ? (amount[1] === '半' ? 0.5 : number(amount[1])) : 1;
         const factor = amount && /克|g/i.test(amount[2]) ? quantity / f.estimated_grams : quantity;
         const scaled = (n: number) => Math.round(n * factor * 1000) / 1000;

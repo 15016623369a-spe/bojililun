@@ -4,7 +4,9 @@ import StatsBoard, { type Bucket, type MuscleRow } from '@/components/StatsBoard
 import Icon from '@/components/ui/Icon';
 import { muscleDistribution } from '@/lib/muscle-distribution';
 import { PERIOD_LABEL, addDays, periodRange, type Period } from '@/lib/period';
-import { exercisePerformance, exercisePrimaryMuscles, primaryMuscleActivity, todayStr, trainingTimeByDate, trendStats, volumeStats } from '@/lib/core/workout';
+import { todayStr } from '@/lib/core/workout';
+import { getDb } from '@/lib/db';
+import { dailyVolume, exerciseMuscles, exercisePerformance, muscleActivity, trainingLog, trainingTimeByDay, trainingTotals } from '@/lib/training-log';
 import type { MuscleId } from '@/lib/muscles';
 import { getBodyModelSettings } from '@/lib/core/body-model';
 
@@ -44,9 +46,12 @@ export default async function StatsPage({ searchParams }: { searchParams: SP }) 
   const today = todayStr();
   const r = periodRange(period, today);
 
-  const cur = volumeStats(r.start, r.end);
-  const prev = volumeStats(r.prevStart, r.prevEnd);
-  const activity = primaryMuscleActivity(r.start, r.end);
+  // 和回顾页同一来源：手账里的训练，训练页和语音、文字记的都算（lib/training-log.ts）
+  const db = getDb();
+  const log = trainingLog(db, r.start, r.end);
+  const cur = trainingTotals(log);
+  const prev = trainingTotals(trainingLog(db, r.prevStart, r.prevEnd));
+  const activity = muscleActivity(log);
   const perMuscle = new Map<MuscleId, MuscleRow & { sessionIds: Set<number> }>();
   for (const row of activity) {
     const current = perMuscle.get(row.id) ?? { id: row.id, volume: 0, sets: 0, sessions: 0, seconds: 0, sessionIds: new Set<number>() };
@@ -57,8 +62,8 @@ export default async function StatsPage({ searchParams }: { searchParams: SP }) 
     perMuscle.set(row.id, current);
   }
   const muscles: MuscleRow[] = [...perMuscle.values()].map(({ sessionIds, ...rest }) => ({ ...rest, sessions: sessionIds.size }));
-  const trend = trendStats(r.start, r.end);
-  const trainingTime = trainingTimeByDate(r.start, r.end);
+  const trend = dailyVolume(log);
+  const trainingTime = trainingTimeByDay(log);
   const short = (date: string) => `${date.slice(5, 7)}.${date.slice(8)}`;
   const rangeLabel = period === 'week' ? `${short(r.start)} — ${short(r.end)}`
     : period === 'month' ? `${short(r.start)} — ${short(r.end)}` : r.label;
@@ -83,7 +88,7 @@ export default async function StatsPage({ searchParams }: { searchParams: SP }) 
         totalSeconds={trainingTime.reduce((total, { seconds }) => total + seconds, 0)}
         timedSessions={trainingTime.reduce((total, { sessions }) => total + sessions, 0)}
         muscles={muscles} groups={muscleDistribution(activity, period, r.start, r.end)}
-        exercises={exercisePerformance(r.start, r.end)} exerciseMuscles={exercisePrimaryMuscles(r.start, r.end)} variant={(await getBodyModelSettings()).model} />
+        exercises={exercisePerformance(log)} exerciseMuscles={exerciseMuscles(log)} variant={(await getBodyModelSettings()).model} />
     </JournalShell>
   );
 }

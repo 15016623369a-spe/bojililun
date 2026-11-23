@@ -12,7 +12,6 @@ import type {
   PlanItem,
   SessionRow,
   SetRow,
-  TrendPoint,
   VolumeStats,
 } from '../types';
 
@@ -552,53 +551,6 @@ export function muscleStats(start: string, end: string): MuscleStat[] {
   return [...merged.values()].sort((a, b) => b.volume - a.volume || b.records - a.records);
 }
 
-/** 每个动作的容量只计入一个主要目标肌群。 */
-export function primaryMuscleActivity(start: string, end: string) {
-  const rows = getDb().prepare(`
-    SELECT se.date, se.id AS sessionId, COALESCE(NULLIF(e.name, ''), s.exercise_name) AS name,
-      COALESCE(NULLIF(e.target, ''), s.target) AS target,
-      COALESCE(NULLIF(e.body_part, ''), s.body_part) AS body_part,
-      SUM(s.weight * s.reps) AS volume, COUNT(*) AS sets, SUM(s.duration_sec) AS seconds
-    FROM session_set s JOIN session se ON se.id = s.session_id
-    LEFT JOIN exercise e ON e.id = s.exercise_id
-    WHERE se.date BETWEEN ? AND ?
-    GROUP BY 1, 2, 3, 4, 5
-  `).all(start, end) as { date: string; sessionId: number; name: string; target: string; body_part: string; volume: number; sets: number; seconds: number }[];
-  const activity: { id: MuscleId; date: string; sessionId: number; volume: number; sets: number; seconds: number }[] = [];
-  for (const row of rows) {
-    const matches = MUSCLES.filter((muscle) => muscleMatchesExercise(muscle, row));
-    const candidates = idsForTarget(row.target);
-    const id = matches.find((muscle) => muscle.include)?.id ?? matches[0]?.id
-      ?? (candidates.includes('delt_side') ? 'delt_side' : candidates[0])
-      ?? mentionedMuscles(row.name)[0];
-    if (!id) continue;
-    activity.push({ id, date: row.date, sessionId: row.sessionId, volume: row.volume, sets: row.sets, seconds: row.seconds });
-  }
-  return activity;
-}
-
-/** 本期每个动作（按动作 id）归入的主要肌群，判定与 primaryMuscleActivity 相同；统计页用它把动作表现挂到肌群下。 */
-export function exercisePrimaryMuscles(start: string, end: string): Record<string, MuscleId> {
-  const rows = getDb().prepare(`
-    SELECT DISTINCT s.exercise_id AS id, COALESCE(NULLIF(e.name, ''), s.exercise_name) AS name,
-      COALESCE(NULLIF(e.target, ''), s.target) AS target,
-      COALESCE(NULLIF(e.body_part, ''), s.body_part) AS body_part, s.exercise_name AS zh
-    FROM session_set s JOIN session se ON se.id = s.session_id
-    LEFT JOIN exercise e ON e.id = s.exercise_id
-    WHERE se.date BETWEEN ? AND ?
-  `).all(start, end) as { id: string; name: string; target: string; body_part: string; zh: string }[];
-  const out: Record<string, MuscleId> = {};
-  for (const row of rows) {
-    const matches = MUSCLES.filter((muscle) => muscleMatchesExercise(muscle, row));
-    const candidates = idsForTarget(row.target);
-    const id = matches.find((muscle) => muscle.include)?.id ?? matches[0]?.id
-      ?? (candidates.includes('delt_side') ? 'delt_side' : candidates[0])
-      ?? mentionedMuscles(row.zh)[0];
-    if (id && !out[row.id]) out[row.id] = id;
-  }
-  return out;
-}
-
 /** Same session/date scope as muscleStats, including zero-weight recorded sets. */
 export function recordedMuscles(start: string, end: string): MuscleId[] {
   const rows = getDb().prepare(`SELECT DISTINCT COALESCE(e.name, s.exercise_name) AS name,
@@ -669,30 +621,6 @@ export function exercisePerformance(start: string, end: string): ExercisePerform
     }
   }
   return [...exercises.values()];
-}
-
-export function trendStats(start: string, end: string): TrendPoint[] {
-  return getDb()
-    .prepare(
-      `SELECT se.date AS date,
-              COALESCE(SUM(s.weight * s.reps), 0) AS volume,
-              COUNT(*) AS sets
-       FROM session_set s JOIN session se ON se.id = s.session_id
-       WHERE se.date BETWEEN ? AND ?
-       GROUP BY se.date ORDER BY se.date ASC`,
-    )
-    .all(start, end) as unknown as TrendPoint[];
-}
-
-export function trainingTimeByDate(start: string, end: string) {
-  return getDb().prepare(`
-    SELECT s.date, COUNT(*) AS sessions,
-      SUM(ROUND((julianday(s.ended_at) - julianday(s.started_at)) * 86400)) AS seconds
-    FROM session s
-    WHERE s.date BETWEEN ? AND ? AND julianday(s.ended_at) > julianday(s.started_at)
-      AND EXISTS (SELECT 1 FROM session_set WHERE session_id = s.id)
-    GROUP BY s.date ORDER BY s.date
-  `).all(start, end) as { date: string; sessions: number; seconds: number }[];
 }
 
 /* ------------------------------ 历史 ------------------------------ */

@@ -96,7 +96,10 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
     try {
       const result = await sendRecordDraft(draft);
       if (result.route === 'qa' && result.question) setAsk(result.question);
-      else {
+      else if (result.route === 'plan') {
+        setToast(result.message || '已加进今日训练');
+        router.push('/train');
+      } else {
         router.refresh();
         setToast(draft.source === 'photo' ? '已记入手账 · 估算' : '已记入手账');
       }

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import { TRAINING_GOALS, type TrainingGoal } from '@/lib/training-goals';
+import { ACTIVITY, type ActivityKey, type GoalKey } from '@/lib/nutrition';
 import { imageUrl } from '@/lib/exercise-label';
 import { MODEL_IMAGES } from './TrainingProfileForm';
 import JournalIcon from './JournalIcon';
@@ -26,13 +27,18 @@ const PARTS = [
   { key: 'arms', label: '手臂', values: ['upper arms'] },
   { key: 'waist', label: '腹', values: ['waist'] },
 ];
-const STEPS = ['model', 'goal', 'weight', 'restriction', 'favorites'] as const;
+const STEPS = ['model', 'goal', 'weight', 'body', 'activity', 'restriction', 'favorites'] as const;
+/** 训练目标 → 营养目标（「我的」里的营养设置用同一套） */
+const NUTRITION_GOAL: Record<TrainingGoal, GoalKey> = { muscle: 'bulk', weight: 'cut', strength: 'maintain', habit: 'maintain', record: 'maintain' };
 type Step = typeof STEPS[number];
 type Item = { id: string; name: string; zh_name: string; image: string; equipment: string };
 
 const haptic = (ms = 5) => { try { navigator.vibrate?.(ms); } catch { /* iOS 网页无振动 */ } };
 
-/** 新用户建档：一屏一问。目标必选，其余可跳过；最后一步可以先挑几个常练动作放进「我的动作库」。 */
+/**
+ * 新用户建档：一屏一问。目标必选，其余可跳过；最后一步可以先挑几个常练动作放进「我的动作库」。
+ * 性别、体重、身高、年龄都填了，就顺手建好「我的」里的营养资料，热量目标和代谢不用再去补；活动量没选按「轻度」。
+ */
 export default function SetupFlow() {
   const router = useRouter();
   const [index, setIndex] = useState(0);
@@ -40,6 +46,9 @@ export default function SetupFlow() {
   const [sex, setSex] = useState<'male' | 'female' | null>(null);
   const [goal, setGoal] = useState<TrainingGoal | null>(null);
   const [weight, setWeight] = useState<number | null>(null);
+  const [height, setHeight] = useState<number | null>(null);
+  const [age, setAge] = useState<number | null>(null);
+  const [activity, setActivity] = useState<ActivityKey | null>(null);
   const [hasRestriction, setHasRestriction] = useState(false);
   const [restriction, setRestriction] = useState('');
   const [part, setPart] = useState('chest');
@@ -72,6 +81,8 @@ export default function SetupFlow() {
   function skip() {
     if (step === 'model') setSex(null);
     if (step === 'weight') setWeight(null);
+    if (step === 'body') { setHeight(null); setAge(null); }
+    if (step === 'activity') setActivity(null);
     if (step === 'restriction') { setHasRestriction(false); setRestriction(''); }
     if (step === 'favorites') { void finish(new Set()); return; }
     move(1);
@@ -92,6 +103,13 @@ export default function SetupFlow() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || '保存失败，请重试');
+      if (sex && weight && height && age) {
+        const nutrition = await fetch('/api/profile', {
+          method: 'PUT', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ sex, weight_kg: weight, height_cm: height, age, activity: activity ?? 'light', goal: NUTRITION_GOAL[goal] }),
+        });
+        if (!nutrition.ok) throw new Error('营养资料没保存上，请重试');
+      }
       await Promise.all([...favorites].map((exerciseId) => fetch('/api/exercise-preferences', {
         method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ exerciseId, preference: 'liked' }),
       })));
@@ -104,18 +122,28 @@ export default function SetupFlow() {
     }
   }
 
-  const canNext = step !== 'goal' || goal !== null;
+  // 身高和年龄要么都填、要么都不填：只填一个时，另一个的默认值不能当成填过
+  const missing = step === 'body' && (height === null) !== (age === null) ? (height === null ? '身高' : '年龄') : null;
+  const canNext = (step !== 'goal' || goal !== null) && !missing;
+  // 体重、身高年龄、活动量没动过就是跳过：按钮写「暂不填写」，不让默认值看起来像已经填好
+  const unset = (step === 'weight' && weight === null) || (step === 'body' && height === null && age === null) || (step === 'activity' && activity === null);
   const title: Record<Step, React.ReactNode> = {
     model: <>先选一个<br />默认的人体模型</>,
     goal: <>这阵子，<br />你想练成什么样？</>,
     weight: <>现在的体重<br />大概是多少？</>,
+    body: <>身高和年龄<br />大概是多少？</>,
+    activity: <>平时的<br />活动量怎么样？</>,
     restriction: <>有没有需要<br />避开的动作？</>,
     favorites: <>挑几个<br />你常练的动作</>,
   };
   const note: Record<Step, string> = {
     model: '计划页和回顾页会用它来显示人体，可以随时在「我的」里换。',
     goal: '目标会影响推荐的组次和营养目标，随时可在「我的」修改。',
-    weight: '保存为第一条体重记录，之后可以在「我的」里看到变化。',
+    weight: weight === null ? '不填就跳过，不会保存。填了会存为第一条体重记录，之后可以在「我的」里看到变化。' : '保存为第一条体重记录，之后可以在「我的」里看到变化。',
+    body: sex && weight
+      ? '和性别、体重一起算基础代谢和每天的热量目标；不填就跳过，之后可在「我的」补。'
+      : '用来算基础代谢和热量目标，还需要前面的性别和体重；不填就跳过，之后可在「我的」补。',
+    activity: '决定每天的总代谢（基础代谢 × 活动系数），训练也算在里面。没选就按「轻度」。',
     restriction: '比如旧伤或医生建议避开的动作，排计划时会提醒你。',
     favorites: '选中的动作会进「我的动作库」，排计划时排在前面。',
   };
@@ -151,10 +179,28 @@ export default function SetupFlow() {
         </button>)}
       </div>}
 
-      {step === 'weight' && <div className="setup-weight">
+      {step === 'weight' && <div className="setup-weight" data-unset={weight === null || undefined}>
         <Stepper readout label="体重" value={weight ?? 70} unit="kg" step={0.1} min={20} max={400} onChange={setWeight} />
         <TickRuler value={weight ?? 70} min={20} max={400} step={0.1} major={10} label="体重刻度尺" unit="kg" onChange={setWeight} />
         {weight === null && <p className="setup-hint">按加减、滑动刻度或点数字输入，也可以跳过。</p>}
+      </div>}
+
+      {step === 'body' && <div className="setup-body">
+        <div data-unset={height === null || undefined}>
+          <Stepper label="身高" value={height ?? (sex === 'female' ? 160 : 172)} unit="cm" step={1} min={120} max={230} onChange={setHeight} />
+        </div>
+        <div data-unset={age === null || undefined}>
+          <Stepper label="年龄" value={age ?? 30} unit="岁" step={1} min={12} max={90} onChange={setAge} />
+        </div>
+        {height === null && age === null && <p className="setup-hint">按加减或点数字输入，也可以跳过。</p>}
+      </div>}
+
+      {step === 'activity' && <div className="setup-options">
+        {(Object.keys(ACTIVITY) as ActivityKey[]).map((key) => <button key={key} type="button" aria-pressed={activity === key}
+          onClick={() => { haptic(); setActivity(activity === key ? null : key); }}>
+          <span><b>{ACTIVITY[key].label}</b><small>{ACTIVITY[key].desc}</small></span>
+          <i className="setup-radio" aria-hidden="true">{activity === key && <Icon name="check" size={14} stroke={2.8} />}</i>
+        </button>)}
       </div>}
 
       {step === 'restriction' && <div className="setup-options">
@@ -199,7 +245,7 @@ export default function SetupFlow() {
     <footer className="setup-foot">
       {error && <p className="form-err" role="alert">{error}</p>}
       <button type="button" className="ink-btn" disabled={!canNext || saving} onClick={() => { if (last) void finish(); else move(1); }}>
-        <span>{saving ? '正在保存…' : last ? (liked.size ? `完成 · 加入 ${liked.size} 个动作` : '完成，开始使用') : '下一步'}</span>
+        <span>{saving ? '正在保存…' : last ? (liked.size ? `完成 · 加入 ${liked.size} 个动作` : '完成，开始使用') : missing ? `再填一下${missing}` : unset ? '暂不填写' : '下一步'}</span>
         <span className="ink-btn-meta">{step === 'goal' && !goal ? '选一项' : null}<Icon name={last ? 'check' : 'arrow-right'} size={20} stroke={2} /></span>
       </button>
     </footer>
