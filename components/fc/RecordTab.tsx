@@ -50,7 +50,11 @@ export default function RecordTab({
     try {
       const result = await sendRecordDraft(createRecordDraft('voice', text));
       if (result.route === 'qa' && result.question) setQuestion(result.question);
-      else {
+      else if (result.route === 'plan') {
+        router.push('/train');
+        router.refresh();
+        showToast(result.message || '已加进今日训练');
+      } else {
         router.push('/log');
         router.refresh();
         showToast('已记入手账');

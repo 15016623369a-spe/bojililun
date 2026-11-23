@@ -129,6 +129,9 @@ html:has(.setup) body { background: var(--canvas); }
 
 .setup-weight { margin-top: 4px; }
 .setup-weight .tick-ruler { margin-top: 14px; }
+/* 没填过的值是默认起点，淡一些，免得看起来像已经填好 */
+.setup-weight[data-unset] .stepper-readout .stepper-number, .setup-body [data-unset] .stepper-number { opacity: .38; }
+.setup-body { display: grid; gap: 14px; margin-top: 4px; }
 
 .setup-favorites .vseg { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
 .setup-ex { list-style: none; margin: 12px 0 0; padding: 0; border-top: 1px solid var(--hairline); }
