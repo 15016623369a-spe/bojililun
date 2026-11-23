@@ -4,10 +4,8 @@ import { getDb } from "@/lib/db";
 import { EXERCISE_ALIASES } from "@/lib/exercise-words";
 import { MUSCLES, muscleById, muscleMatchesExercise } from "@/lib/muscles";
 import { sculptureGroup, sculptureGroupMatches } from "@/lib/sculpture-groups";
-import {
-  getExercisePreferences,
-  type ExercisePreference,
-} from "@/lib/core/exercise-preferences";
+import { getExercisePreferences } from "@/lib/core/exercise-preferences";
+import { sortForPlan } from "@/lib/exercise";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,40 +28,6 @@ interface Row {
   zh_steps?: string;
   gif_url?: string;
 }
-
-const equipmentRank: Record<string, number> = {
-  barbell: 0,
-  "olympic barbell": 0,
-  "ez barbell": 1,
-  dumbbell: 2,
-  kettlebell: 3,
-  cable: 4,
-  "smith machine": 5,
-  "leverage machine": 6,
-  "sled machine": 6,
-  "body weight": 7,
-  band: 8,
-};
-const classicNames = [
-  "高位下拉",
-  "引体",
-  "划船",
-  "硬拉",
-  "深蹲",
-  "卧推",
-  "推举",
-  "飞鸟",
-  "侧平举",
-  "弯举",
-  "腿举",
-  "下拉",
-];
-const classicRank = (name: string) => {
-  const rank = classicNames.findIndex((keyword) => name.includes(keyword));
-  return rank < 0 ? classicNames.length : rank;
-};
-const preferenceRank = (preference?: ExercisePreference) =>
-  preference === "liked" ? 0 : preference === "disliked" ? 2 : 1;
 
 export async function GET(req: Request) {
   const sp = new URL(req.url).searchParams;
@@ -143,17 +107,8 @@ export async function GET(req: Request) {
       continue;
     matches.push(r);
   }
-  if (planOrder) {
-    matches.sort(
-      (a, b) =>
-        preferenceRank(preferences?.get(a.id)) -
-          preferenceRank(preferences?.get(b.id)) ||
-        classicRank(a.zh_name) - classicRank(b.zh_name) ||
-        (equipmentRank[a.equipment] ?? 9) - (equipmentRank[b.equipment] ?? 9) ||
-        (a.zh_name || a.name).localeCompare(b.zh_name || b.name, "zh-CN"),
-    );
-  }
-  const items = matches.slice(offset, offset + limit);
+  const ordered = planOrder ? sortForPlan(matches, preferences) : matches;
+  const items = ordered.slice(offset, offset + limit);
 
   return NextResponse.json({
     counts,
@@ -161,7 +116,7 @@ export async function GET(req: Request) {
     label: group?.label ?? region?.label ?? def?.label ?? null,
     total: matches.length,
     nextOffset:
-      offset + items.length < matches.length ? offset + items.length : null,
+      offset + items.length < ordered.length ? offset + items.length : null,
     items: items.map((x) => {
       let steps: string[] = [];
       if (withSteps) {

@@ -391,6 +391,50 @@ test('本地解析：长名优先，词典外动作照原话记，份量跟着�
   assert.deepEqual([card.exercises[0].exercise_name, card.exercises[0].sets.length], ['哈克深蹲', 4]);
   db.close();
 });
+test('按住「记录」说话排今日计划：按部位、点名动作，吃的和记录不误排', () => {
+  delete require.cache[require.resolve('../lib/db.ts')];
+  delete globalThis.__fitDb;
+  delete globalThis.__fitDbSchema;
+  const tmp = fs.mkdtempSync(require('node:os').tmpdir() + '/fit-plan-');
+  process.env.FITCHECK_DB_PATH = path.join(tmp, 'plan.db');
+  const { getDb } = require('../lib/db.ts');
+  const { planFromSpeech } = require('../lib/core/chat.ts');
+  const { getPlan } = require('../lib/core/workout.ts');
+  const { sortForPlan } = require('../lib/exercise.ts');
+  const db = getDb();
+  // 常见动作排在同部位的变体前面，「双杠臂屈伸（臂屈伸引体向上架）」不再因为括号里的「引体」排第一
+  const chest = sortForPlan(db.prepare("SELECT id,name,zh_name,equipment FROM exercise WHERE body_part='chest'").all());
+  assert.deepEqual(chest.slice(0, 3).map((e) => e.id), ['0025', '0047', '0289']);
+
+  const chestDay = planFromSpeech('今天练胸，给我排四个动作');
+  assert.equal(chestDay.added.length, 4);
+  assert.equal(chestDay.added[0], '杠铃卧推');
+  assert.equal(getPlan().length, 4);
+  const fly = planFromSpeech('再加一个飞鸟');
+  assert.deepEqual(fly.added, ['哑铃飞鸟']);
+  assert.match(planFromSpeech('再加一个飞鸟').message, /已经在今日计划里/);
+  assert.equal(planFromSpeech('再加两个背的动作').added.length, 2);
+  assert.equal(getPlan().length, 7);
+  // 这些都不是排计划：照常进手账
+  for (const text of ['再加一个鸡腿', '午饭吃了排骨', '卧推 60公斤 10次 3组', '明天给我排个练腿的计划', '今天练了胸'])
+    assert.equal(planFromSpeech(text), null, text);
+  assert.equal(getPlan().length, 7);
+  db.close();
+  fs.rmSync(tmp, { recursive: true });
+});
+test('热量目标有下限，未成年不按减脂扣热量', () => {
+  const { calcTargets } = require('../lib/nutrition.ts');
+  const person = { name: '我', sex: 'female', age: 45, height_cm: 155, weight_kg: 50, activity: 'sedentary', goal: 'cut', protein_per_kg: 2 };
+  assert.equal(calcTargets(person).target_kcal, 1200);
+  // 每日总代谢本来就低于 1200：不再往下扣，也不会高于总代谢
+  const small = calcTargets({ ...person, age: 60, height_cm: 150, weight_kg: 45 });
+  assert.equal(small.target_kcal, Math.round(small.tdee / 10) * 10);
+  const teen = calcTargets({ ...person, age: 16, sex: 'male', height_cm: 170, weight_kg: 60, activity: 'moderate' });
+  assert.equal(teen.target_kcal, Math.round(teen.tdee / 10) * 10);
+  // 常见情况不受影响
+  const man = calcTargets({ ...person, sex: 'male', age: 30, height_cm: 178, weight_kg: 80, activity: 'moderate' });
+  assert.equal(man.target_kcal, Math.round((man.tdee - 400) / 10) * 10);
+});
 test('回顾与统计共用手账训练：训练页和语音同一天，不重复计，移除后两页都不算', () => {
   // 上面的迁移测试已缓存并关掉了它的库，这里换一个新库重新加载
   delete require.cache[require.resolve('../lib/db.ts')];

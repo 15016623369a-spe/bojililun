@@ -6,7 +6,10 @@ import { getProvider } from '../ai';
 import { enrichItems } from './enrich';
 import { currentMealType, MEAL_LABEL, type MealType } from '../date';
 import { buildMemoryBlock, extractMemoryCandidates, getAlwaysOnMemories, listMemories, searchMemories } from '../memory';
-import { findExercises, type ExerciseRow } from '../exercise';
+import { findExercises, getExercise, sortForPlan, type ExerciseRow } from '../exercise';
+import { getExercisePreferences } from './exercise-preferences';
+import { mentionedExercises } from '../ledger-parse';
+import foods from '../../data/food-reference.json';
 import { EQUIPMENT_LABEL, TARGET_LABEL } from '../exercise-label';
 import { addPlanItem, getPlan } from './workout';
 import { getTrainingProfile } from './training-profile';
@@ -212,18 +215,27 @@ function equipmentText(words: string): string {
 
 const PLAN_WRITE_RE = /(安排|排一?下|排个|加(到|进|入)|放进|写进|计划)/;
 
+/**
+ * 按部位挑动作进今日计划的候选：常练和常见动作在前（与动作库同一排序），
+ * 跳过不喜欢的、已在今日计划里的，以及伤病限制要避开的动作；记过器械条件时只用这些器械。
+ */
+function planCandidates(bodyPart: string, want: number) {
+  const mems = listMemories();
+  const equipments = equipmentsFromMemory(mems);
+  const rules = constraintRulesFor(mems);
+  const preferences = getExercisePreferences();
+  const existing = new Set(getPlan().map((p) => p.exercise_id));
+  const pool = findExercises({ bodyPart, equipments: equipments.length ? equipments : undefined, limit: 5000 })
+    .filter((e) => preferences.get(e.id) !== 'disliked' && !existing.has(e.id));
+  return { exs: filterByConstraints(sortForPlan(pool, preferences), rules).slice(0, want), equipments, rules, mems };
+}
+
 function tryPlanWrite(text: string): string | null {
   if (!PLAN_WRITE_RE.test(text)) return null;
   const hit = BODY_PART.find(([re]) => re.test(text));
   if (!hit) return null;
 
-  const mems = listMemories();
-  const equipments = equipmentsFromMemory(mems);
-  const rules = constraintRulesFor(mems);
-  const existing = new Set(getPlan().map((p) => p.exercise_id));
-  const exs = pickSafeExercises(hit[1], equipments, rules, 8)
-    .filter((e) => !existing.has(e.id))
-    .slice(0, 4);
+  const { exs, equipments, rules, mems } = planCandidates(hit[1], 4);
 
   if (!exs.length) {
     return rules.length && getPlan().length === 0
@@ -247,6 +259,60 @@ function tryPlanWrite(text: string): string | null {
     tips.push(`⚠️ 记得你的限制：${constraints.map((c) => c.content).join('；')}`);
   }
   return tips.join('\n');
+}
+
+/* ------------------------- 按住「记录」说话排今日计划 ------------------------- */
+
+const OTHER_DAY = /明天|后天|下次|下周|周[一二三四五六日天]|星期|礼拜/;
+/** 「给我排四个动作」「安排一下」；「排了」是在说已经做过的事，「排骨」「鸡腿排」是吃的 */
+const ARRANGE = /安排(?!了)|(?:给我|帮我|再)排|排(?:一下|[0-9一二两三四五六几]*个)/;
+/** 「再加一个飞鸟」「加两个胸的动作」「把卧推加到计划里」 */
+const ADD = /(?:再加|加)(?!了|重|餐)(?:[0-9一二两三四五六几]*个|到|进|入)/;
+/** 说了组数、次数或重量，是在记录已经练完的训练，不是排计划 */
+const RECORDED = /[0-9一二两三四五六七八九十]+\s*(?:组|次)|\d+(?:\.\d+)?\s*(?:kg|公斤)/i;
+const COUNT: Record<string, number> = { 一: 1, 两: 2, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 几: 4 };
+
+export type SpeechPlan = { message: string; added: string[] };
+
+/**
+ * 记录页和底部「记录」长按说的话里，排今日计划的那几种说法。不需要 AI：
+ * - 点名动作：「再加一个飞鸟」「给我排个卧推」→ 把这个动作加进今日计划；
+ * - 按部位：「今天练胸，给我排四个动作」「再加两个背的动作」→ 按常练、常见动作挑几个加进去。
+ * 不是排计划的话返回 null，照常进手账记录。
+ */
+export function planFromSpeech(text: string): SpeechPlan | null {
+  const t = text.trim();
+  if (!t || OTHER_DAY.test(t) || RECORDED.test(t)) return null;
+  // 说的是吃的（「再加一个鸡腿」里也有「腿」），照常记饮食
+  if (/吃|喝|饭|餐/.test(t) || foods.some((f) => t.includes(f.food_name))) return null;
+  const verb = t.match(ADD) ?? t.match(ARRANGE);
+  if (!verb) return null;
+
+  const named = mentionedExercises(t)[0];
+  if (named) {
+    const row = named.dict?.legacy_id
+      ? getExercise(named.dict.legacy_id)
+      : (getDb().prepare('SELECT * FROM exercise WHERE zh_name = ? LIMIT 1').get(named.name) as unknown as ExerciseRow | undefined) ?? null;
+    if (!row) return { message: `动作库里没找到「${named.name}」，可以在训练页从动作库添加`, added: [] };
+    const name = named.dict?.name_zh ?? row.zh_name ?? row.name;
+    if (getPlan().some((p) => p.exercise_id === row.id)) return { message: `${name}已经在今日计划里了`, added: [] };
+    const item = addPlanItem({ ...row, zh_name: name }, { sets: 4, reps: 10, restSec: 90 });
+    return { message: `已加进今日训练：${item.name} · ${item.sets} 组 × ${item.reps} 次`, added: [item.name] };
+  }
+
+  const hit = BODY_PART.find(([re]) => re.test(t));
+  if (!hit) return null;
+  const n = verb[0].match(/([0-9]+|[一二两三四五六几])个/)?.[1];
+  const want = Math.min(6, Math.max(1, n ? Number(n) || COUNT[n] || 4 : 4));
+  const { exs, rules } = planCandidates(hit[1], want);
+  if (!exs.length) {
+    return {
+      message: rules.length ? `按你的伤病限制筛完，${hit[2]}没有能安全加进计划的动作了` : `今天已经排过${hit[2]}的这些动作了`,
+      added: [],
+    };
+  }
+  const added = exs.map((e) => addPlanItem(e, { sets: 4, reps: 10, restSec: 90 }).name);
+  return { message: `已加进今日训练（${hit[2]}）：${added.join('、')}`, added };
 }
 
 function tryLocalIntent(text: string): AssistantReply | null {

@@ -42,6 +42,23 @@ function spokenName(part: string, hit: { start: number; end: number }, from: num
   return before || after ? before + part.slice(hit.start, hit.end) + after : null;
 }
 
+type SeedExercise = (typeof dictionary)[number];
+
+/**
+ * 一句话里提到的动作，按出现顺序：命中词典的给出词典条目；词典名前后连着别的字时 dict 为 null，name 是原话。
+ * 记录解析和「再加一个飞鸟」排计划都用它。
+ */
+export function mentionedExercises(part: string): { dict: SeedExercise | null; name: string }[] {
+  const hits = findNames(part, dictionary.map((e) => ({ names: [e.name_zh, ...e.aliases], value: e })));
+  const out: { dict: SeedExercise | null; name: string }[] = [];
+  hits.forEach((hit, i) => {
+    const said = spokenName(part, hit, hits[i - 1]?.end ?? 0, hits[i + 1]?.start ?? part.length);
+    const found = said ? { dict: null, name: said } : { dict: hit.value, name: hit.value.name_zh };
+    if (!out.some((m) => m.name === found.name)) out.push(found);
+  });
+  return out;
+}
+
 /** 词典外的动作：名字照原话，肌群按名字里提到的部位 */
 const unlisted = (name: string): Movement & { exercise_id: null } => ({
   exercise_id: null,
@@ -175,18 +192,9 @@ export async function parseInput(text: string, photo: string | undefined, source
         confidence: 'exact',
       });
     const count = part.match(/(\d+|[一二两三四五六七八九十])\s*组/);
-    const exerciseHits = findNames(
-      part,
-      dictionary.map((e) => ({ names: [e.name_zh, ...e.aliases], value: e })),
+    const moves: Movement[] = mentionedExercises(part).map(({ dict, name }) =>
+      dict ? { ...dict, exercise_id: dict.id, exercise_name: dict.name_zh, sets: [] } : unlisted(name),
     );
-    const moves: Movement[] = [];
-    exerciseHits.forEach((hit, i) => {
-      const said = spokenName(part, hit, exerciseHits[i - 1]?.end ?? 0, exerciseHits[i + 1]?.start ?? part.length);
-      const move = said
-        ? unlisted(said)
-        : { ...hit.value, exercise_id: hit.value.id, exercise_name: hit.value.name_zh, sets: [] };
-      if (!moves.some((m) => m.exercise_name === move.exercise_name)) moves.push(move);
-    });
     // 词典里一个动作都没有、但说了组数：按句首的动作名照原话记下（「器械推胸 40 公斤 12 次 3 组」）
     if (!moves.length && count) {
       const name = (part.slice(0, part.search(/[\d\s]/) < 0 ? part.length : part.search(/[\d\s]/)).match(/\p{Script=Han}+/u)?.[0] ?? '')
