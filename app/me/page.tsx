@@ -9,6 +9,8 @@ import { todayStr } from '@/lib/core/workout';
 import { listMemories } from '@/lib/memory';
 import { cookies } from 'next/headers';
 import ThemeSwitch from '@/components/ThemeSwitch';
+import BackdropSettings from '@/components/BackdropSettings';
+import { readBackdropSettings } from '@/lib/core/backdrop';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,6 +18,7 @@ export const metadata = { title: '我的 · FitCheck' };
 
 export default async function MePage() {
   const theme = (await cookies()).get('fc-theme')?.value === 'dark' ? 'dark' : 'light';
+  const backdrop = await readBackdropSettings();
   const profile = getTrainingProfile();
   if (profile.needsSetup) redirect('/setup');
   const nutrition = getProfileRow();
@@ -32,5 +35,6 @@ export default async function MePage() {
       nutrition={nutrition ? { ...nutrition } : null} today={todayStr()}
       preferences={{ liked: prefs.filter((p) => p === 'liked').length, disliked: prefs.filter((p) => p === 'disliked').length }} />
     <ThemeSwitch initial={theme} />
+    <BackdropSettings initialUrl={backdrop.url} initialGlass={backdrop.glass} />
   </JournalShell>;
 }

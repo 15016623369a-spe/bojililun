@@ -4,10 +4,10 @@ import { useEffect, useId, useRef, useState } from 'react';
 import Link from 'next/link';
 import type { CSSProperties } from 'react';
 import { imageUrl } from '@/lib/exercise-label';
-import { muscleById, type MuscleId } from '@/lib/muscles';
+import type { MuscleId } from '@/lib/muscles';
 import type { ExercisePerformance as Exercise } from '@/lib/types';
 import type { SculptureVariant } from '@/lib/sculpture-groups';
-import { LABELS, VIEWS } from './StatsBodyMap';
+import { IMG_W, STAGE, VIEWS, callouts, muscleLabel } from './StatsBodyMap';
 import Icon from './ui/Icon';
 import SplitNumber from './ui/SplitNumber';
 
@@ -23,7 +23,6 @@ const ORDER: View[] = ['overview', 'muscles'];
 const haptic = (ms = 5) => { try { navigator.vibrate?.(ms); } catch { /* iOS 网页无振动 */ } };
 const fmt = (n: number, digits = 1) => n.toLocaleString('en-US', { maximumFractionDigits: digits });
 const minutesOf = (seconds: number) => Math.round(seconds / 60);
-const muscleLabel = (id: MuscleId) => LABELS[id] ?? muscleById(id)?.label ?? id;
 
 function delta(a: number, b: number) {
   if (b <= 0) return '上期无可比数据';
@@ -153,24 +152,6 @@ const COMPARE = {
   sessions: { label: '次数', unit: '次', of: (p: GroupCard['points'][number]) => p.sessions },
   seconds: { label: '时长', unit: '分钟', of: (p: GroupCard['points'][number]) => p.seconds / 60 },
 } as const;
-
-/** 两张身体图各占半边：正面图靠右、标注收在左侧；背面图靠左、标注收在右侧，肌肉两侧对称，标注点都换到靠外的那一侧 */
-const STAGE = { front: { left: 32, labelEdge: 33 }, back: { left: -2, labelEdge: 67 } } as const;
-const IMG_W = 70;
-function callouts(side: 'front' | 'back', markers: (typeof VIEWS)[number]['markers'], trained: ReadonlyMap<MuscleId, MuscleRow>) {
-  const { left } = STAGE[side];
-  const points = markers.filter(([id]) => trained.has(id)).map(([id, , , x, y]) => {
-    let ix = (x - 22) / 56 * 100;
-    if (side === 'front' ? ix > 50 : ix < 50) ix = 100 - ix;
-    return { id, px: left + ix * IMG_W / 100, py: y, ly: y };
-  }).sort((a, b) => a.py - b.py);
-  // 标注至少隔开 13%，超出底部就整体上移
-  let prev = -Infinity;
-  for (const p of points) { p.ly = Math.max(p.py, prev + 13); prev = p.ly; }
-  const overflow = (points.at(-1)?.ly ?? 0) - 94;
-  if (overflow > 0) for (const p of points) p.ly = Math.max(4, p.ly - overflow);
-  return points;
-}
 
 function Muscles({ period, periodLabel, muscles, groups, variant, selected, onSelect }: Parameters<typeof StatsBoard>[0] & {
   selected: MuscleId | null;

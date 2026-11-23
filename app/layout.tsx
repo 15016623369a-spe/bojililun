@@ -9,6 +9,8 @@ import './plan-visual.css';
 import './v-train.css';
 import './v-record.css';
 import './v-review.css';
+import './v-review-wall.css';
+import './v-backdrop.css';
 import './v-stats.css';
 import './v-me.css';
 import './v-extras.css';
