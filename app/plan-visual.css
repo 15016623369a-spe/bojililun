@@ -247,6 +247,9 @@
 
 /* ---------- 点选后的姿势详情 ---------- */
 
+/* 姿势详情盖住整页、抽屉里有自己的主按钮：打开时收起底部导航，免得它压住「开始训练」和动作库的「完成」 */
+.journal-shell:has(.plan-detail) .journal-footer { display: none; }
+
 .plan-detail {
   --fig-w: min(100vw, 560px);
   --fig-h: calc(var(--fig-w) * 548 / 550);

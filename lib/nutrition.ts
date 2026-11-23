@@ -64,15 +64,20 @@ export interface Targets {
   target_protein: number;
 }
 
+/** 减脂时热量目标的下限：不低于基础代谢，也不低于女性 1200 / 男性 1500 kcal（但不高于每日总代谢） */
+const KCAL_FLOOR = { female: 1200, male: 1500 } as const;
+
 export function calcTargets(p: ProfileInput): Targets {
   const b = bmr(p);
   const t = Math.round(b * ACTIVITY[p.activity].factor);
-  const delta = GOAL[p.goal].delta;
+  // 未满 18 岁不按减脂扣热量
+  const delta = p.age < 18 && GOAL[p.goal].delta < 0 ? 0 : GOAL[p.goal].delta;
+  const floor = Math.min(t, Math.max(b, p.sex === 'female' ? KCAL_FLOOR.female : KCAL_FLOOR.male));
   return {
     bmr: b,
     tdee: t,
     // 目标热量向下取整到 10，避免出现 2237 这种假精确
-    target_kcal: Math.round((t + delta) / 10) * 10,
+    target_kcal: Math.round((delta < 0 ? Math.max(t + delta, floor) : t + delta) / 10) * 10,
     target_protein: Math.round(p.weight_kg * (p.protein_per_kg || GOAL[p.goal].protein)),
   };
 }

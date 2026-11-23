@@ -141,7 +141,7 @@ export default function TodayPlan({
       {allDone && !showDone ? null : items.length === 0 ? (
         <div className="empty-plan">
           <b>还没有安排动作</b>
-          <p>回到人体上点一块肌肉挑几个动作，或者直接说「今天练胸，给我排四个动作」。</p>
+          <p>回到人体上点一块肌肉挑几个动作，或者按住底部「记录」说「今天练胸，给我排四个动作」。</p>
           <Link className="ghost-pill" href="/body" prefetch={true}>去点选肌群</Link>
         </div>
       ) : (
@@ -157,7 +157,7 @@ export default function TodayPlan({
                   </span>
                   <span className="plan-item-main">
                     <b>{it.supplemental ? <SupplementalMark /> : null}{it.name}{it.done === 1 && <em className="tag">已练</em>}</b>
-                    <small>{it.sets} × {it.reps} · {it.weight ? `${it.weight} kg` : '自重'}<span className="sep">·</span>{TARGET_LABEL[it.target] ?? it.target}</small>
+                    <small>{it.sets} × {it.reps} · {it.weight ? `${it.weight} kg` : it.equipment === 'body weight' ? '自重' : '重量待定'}<span className="sep">·</span>{TARGET_LABEL[it.target] ?? it.target}</small>
                   </span>
                   <span className="set-dots" aria-label={`${it.sets} 组`}>
                     {Array.from({ length: Math.min(it.sets, 8) }, (_, i) => <i key={i} data-on={it.done === 1 || undefined} />)}
@@ -190,7 +190,7 @@ export default function TodayPlan({
       )}
 
       {!allDone && <Link href="/body" prefetch={true} className="add-row">
-        <span className="add-row-icon" aria-hidden="true"><Icon name="plus" size={18} /></span>从动作库添加 · 也可以说「再加一个飞鸟」
+        <span className="add-row-icon" aria-hidden="true"><Icon name="plus" size={18} /></span>从动作库添加 · 也可以按住「记录」说「再加一个飞鸟」
       </Link>}
 
       {items.length > 0 && (

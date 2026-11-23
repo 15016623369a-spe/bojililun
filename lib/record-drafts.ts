@@ -45,7 +45,10 @@ export async function removeRecordDraft(id: string) {
   window.dispatchEvent(new Event('fitcheck-record-drafts'));
 }
 
-const sending = new Map<string, Promise<{ route?: string; question?: string }>>();
+/** route: qa 是提问；plan 是排进了今日计划（message 说加了什么）；其余是记进手账 */
+export type RecordResult = { route?: string; question?: string; message?: string };
+
+const sending = new Map<string, Promise<RecordResult>>();
 
 export function sendRecordDraft(draft: RecordDraft) {
   const existing = sending.get(draft.request_id);
@@ -58,7 +61,7 @@ export function sendRecordDraft(draft: RecordDraft) {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(draft),
     });
-    const result = await res.json() as { route?: string; question?: string; error?: string };
+    const result = await res.json() as RecordResult & { error?: string };
     if (!res.ok) throw Error(result.error || '记录失败，请重试');
     await removeRecordDraft(draft.request_id);
     return result;

@@ -153,7 +153,7 @@ html:has(.v-runner) body { background: var(--canvas); }
 .rest-grid i { width: 7px; height: 7px; border-radius: 50%; background: rgb(var(--dk-fg-rgb, 21 22 19) / 16%); transition: background .3s; }
 .rest-grid i[data-state="done"] { background: var(--ink-0); }
 .rest-grid i[data-state="now"] { background: var(--lemon); box-shadow: 0 0 0 2px rgb(21 22 19 / 80%), 0 0 10px 3px rgb(242 237 33 / 60%); }
-.rest-foot { grid-auto-flow: column; justify-content: space-between; align-items: center; }
+.rest-foot { justify-content: space-between; align-items: center; }
 .rest-total { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--gray-1); }
 .rest-total b { font: 600 13px var(--font-num); color: var(--ink-0); }
 
@@ -376,7 +376,8 @@ html:has(.v-runner) body { background: var(--canvas); }
 .v-runner[data-mode="set"] .runner-action-toggle { color: var(--ink-0); }
 .v-runner[data-mode="set"] .runner-action-chooser li button { border-top-color: rgb(var(--dk-fg-rgb, 21 22 19) / 14%); color: var(--ink-0); }
 .v-runner[data-mode="set"] .runner-foot .finish-inline { background: rgb(var(--dk-surface-rgb, 236 237 232) / 92%); }
-.rest-foot { grid-template-columns: 1fr auto; align-items: center; }
+/* 休息页底栏：一行「总休息 + 跳过休息」，结束训练和确认框各占整行（按列排会把确认文字挤成一字一行） */
+.rest-foot { grid-template-columns: 1fr auto; grid-auto-flow: row dense; align-items: center; }
 .rest-foot .runner-quiet { grid-column: 1 / -1; }
 .rest-foot .finish-inline { grid-column: 1 / -1; }
 html[data-theme="dark"] .finish-inline { background: #1a1c1f; border-color: #2a2d31; }
