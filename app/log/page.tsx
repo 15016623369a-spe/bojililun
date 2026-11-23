@@ -36,7 +36,7 @@ function workoutLine(c: Card) {
 }
 
 /** 记录：数据、计算与录入沿用手账（exportJournal / LedgerCards / LogScreen），版式用新版的大号日期、时间刻度和横向卡片。 */
-export default async function LogPage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
+export default async function LogPage({ searchParams }: { searchParams: Promise<{ date?: string; card?: string }> }) {
   const sp = await searchParams;
   const now = todayStr();
   // 月历点进来的某一天：同样的版式，只读那天的手账；没有录入栏
@@ -44,6 +44,7 @@ export default async function LogPage({ searchParams }: { searchParams: Promise<
   const today = past ?? now;
   const db = getDb();
   const day = exportJournal(db, 'local', today, today).days[0];
+  const selectedCard = day.entries.find(card => String(card.id) === sp.card)?.id;
   const picks = Object.fromEntries(day.entries.map((c) => [c.id, readCardPick(db, 'local', c.id)]));
 
   const items: DeckItem[] = [
@@ -80,7 +81,8 @@ export default async function LogPage({ searchParams }: { searchParams: Promise<
         </BigDate>
       </>}>
       <div id="record-recovery-slot" />
-      <LedgerDeck items={items} cards={day.entries} picks={picks} nowMinutes={past ? null : minutesOf(new Date().toISOString())} past={Boolean(past)} />
+      <LedgerDeck key={`${today}:${selectedCard ?? ''}`} items={items} cards={day.entries} picks={picks}
+        nowMinutes={past ? null : minutesOf(new Date().toISOString())} past={Boolean(past)} selectedCard={selectedCard} />
       {/* 录入、长按录音和底部导航沿用手账的 LogScreen；空状态由上面的卡片承担。回看某一天时不显示录入栏 */}
       {!past && <div className="fc ledger-dock-scope">
         <LogScreen ledgerHasRecords />

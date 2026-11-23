@@ -12,9 +12,20 @@ const DB_PATH = path.resolve(
 export const UPLOAD_DIR = path.join(DATA_DIR, "uploads");
 
 // Increment when the schema or column migrations change. Next.js keeps globalThis across hot reloads.
-const SCHEMA_REVISION = 12;
+const SCHEMA_REVISION = 13;
 
 const SCHEMA = `
+CREATE TABLE IF NOT EXISTS coach_turn (
+  id TEXT PRIMARY KEY,
+  question TEXT NOT NULL,
+  topic TEXT NOT NULL,
+  reply TEXT NOT NULL,
+  evidence TEXT NOT NULL,
+  equipment_note TEXT,
+  plan TEXT,
+  confirmed_at TEXT
+);
+
 CREATE TABLE IF NOT EXISTS profile (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   name TEXT NOT NULL DEFAULT '我',
