@@ -31,12 +31,25 @@ function journal(today: string, days: number) {
   return exportJournal(getDb(), 'local', dayOffset(today, 1 - days), today).days;
 }
 
+function publicReply(text: string, fallback: string) {
+  const reply = text.trim();
+  const normalized = reply.normalize('NFKC');
+  const protocol = /\b(?:dsml|read_records|tool_calls?)\b|<\s*\/?\s*(?:\||think\b|analysis\b|invoke\b|function_calls?\b|parameter\b)|^\s*(?:\{|\[\s*\{)/i;
+  return !reply || protocol.test(normalized) ? fallback : reply;
+}
+
 function readTurns(): CoachTurn[] {
   const rows = getDb().prepare('SELECT * FROM coach_turn ORDER BY rowid DESC LIMIT 50').all() as TurnRow[];
-  return rows.reverse().map(row => ({
-    id: row.id, question: row.question, topic: row.topic, reply: row.reply,
-    evidence: JSON.parse(row.evidence), plan: row.plan ? JSON.parse(row.plan) : null, confirmed: Boolean(row.confirmed_at),
-  }));
+  return rows.reverse().map(row => {
+    const plan: CoachPlan | null = row.plan ? JSON.parse(row.plan) : null;
+    const fallback = plan
+      ? row.confirmed_at ? '这份计划已加入训练单。' : '这份训练草案可在下方查看和确认。'
+      : '这条回复未能正常生成，请再问一次。';
+    return {
+      id: row.id, question: row.question, topic: row.topic, reply: publicReply(row.reply, fallback),
+      evidence: JSON.parse(row.evidence), plan, confirmed: Boolean(row.confirmed_at),
+    };
+  });
 }
 
 export function getCoachState(): CoachState {
@@ -227,7 +240,7 @@ async function coachReply(
       abortSignal: AbortSignal.timeout(20_000),
     });
     return result.steps.some(step => step.toolResults.some(output => output.toolName === 'read_records'))
-      ? result.text.trim() || context.reply
+      ? publicReply(result.text, context.reply)
       : context.reply;
   } catch (error) {
     console.warn('[coach] 模型调用失败，返回本地记录分析', error instanceof Error ? error.name : '');
@@ -247,7 +260,9 @@ export async function askCoach(id: string, question: string, hint?: CoachTopic):
   const context = topic === 'meal' ? mealContext(today)
     : topic === 'plan' ? planContext(today, notes)
     : strengthContext(today, question, notes, history.filter(turn => turn.topic === 'strength').slice(-6).reverse().map(turn => turn.question));
-  const reply = topic === 'strength' && notes.length ? context.reply : await coachReply(context, topic, history, question, notes);
+  const reply = topic === 'plan' || (topic === 'strength' && notes.length)
+    ? context.reply
+    : await coachReply(context, topic, history, question, notes);
   const evidence = [...new Map(context.evidence.map(item => [`${item.cardId}:${item.label}`, item])).values()];
   db.prepare('INSERT OR IGNORE INTO coach_turn (id, question, topic, reply, evidence, equipment_note, plan) VALUES (?, ?, ?, ?, ?, ?, ?)')
     .run(id, question, topic, reply, JSON.stringify(evidence), equipmentNote, context.plan ? JSON.stringify(context.plan) : null);
