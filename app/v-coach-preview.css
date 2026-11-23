@@ -105,6 +105,7 @@
 .coach-preview-result b > small { font-size: 14px; color: var(--coach-muted); }
 .coach-preview-latest { margin: 13px 0 0; color: var(--coach-muted); font-size: 13px; }
 .coach-preview-latest a { color: inherit; text-decoration: underline; }
+.coach-preview-insight { margin: 0 0 5px; color: var(--coach-accent); }
 .coach-preview details { color: var(--coach-muted); font-size: 13px; }
 .coach-preview summary { width: fit-content; padding: 8px 0; cursor: pointer; }
 .coach-preview details ul, .coach-preview-plan ul { margin: 5px 0 8px; padding-inline-start: 20px; }

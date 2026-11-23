@@ -54,8 +54,12 @@ function readTurns(): CoachTurn[] {
 }
 
 export function getCoachState(): CoachState {
-  const days = journal(todayStr(), 7);
+  const today = todayStr();
+  const days = journal(today, 7);
   const latest = days.flatMap(day => day.entries).findLast(card => card.entry_type === 'workout');
+  const progress = latest && strengthContext(today, '', readEquipmentNotes(), []).facts.comparisons.find(
+    ({ before, after }) => after.date >= days[0].date && after.reps > before.reps,
+  );
   return {
     turns: readTurns(),
     overview: {
@@ -63,6 +67,11 @@ export function getCoachState(): CoachState {
       trainingDays: days.filter(day => day.entries.some(entry => entry.entry_type === 'workout')).length,
       mealDays: days.filter(day => day.entries.some(entry => entry.entry_type === 'meal')).length,
       latestWorkout: latest ? { date: latest.date, cardId: latest.id, label: latest.summary_title } : null,
+      insight: progress ? {
+        title: `${progress.after.exerciseName}多做了 ${progress.after.reps - progress.before.reps} 次`,
+        detail: `同样是 ${progress.after.weight} kg，从 ${progress.before.reps} 次做到 ${progress.after.reps} 次。`,
+        evidence: [progress.before, progress.after].map(({ date, cardId, label }) => ({ date, cardId, label })),
+      } : null,
     },
   };
 }
@@ -71,7 +80,7 @@ function chooseTopic(question: string, hint?: CoachTopic, previous?: CoachTopic)
   if (hint) return hint;
   if (/晚[饭餐]|午[饭餐]|早[饭餐]|夜宵|外卖|菜单|点餐|吃(?:什么|啥|点啥|点什么)|怎么吃|想吃|不吃|不能吃|能吃吗|饮食/.test(question)) return 'meal';
   if (/安排|训练计划|下次.{0,6}练/.test(question)) return 'plan';
-  if (/卧推|深蹲|硬拉|器械|力量|复盘|进步|练得|练了几(?:天|次)|训练.{0,4}(?:怎样|怎么样|咋样)/.test(question)) return 'strength';
+  if (/卧推|深蹲|硬拉|器械|力量|复盘|进步|练得|练了几(?:天|次)|加不加|加(?:点|多少)?重量|加重吗|加重不|训练.{0,4}(?:怎样|怎么样|咋样)/.test(question)) return 'strength';
   if (/还是|哪个好|可以吗|行吗|怎么样/.test(question)
     && FOODS.some(food => [food.name, ...food.aliases.split(',')].some(name => name && question.includes(name)))) return 'meal';
   return previous ?? 'strength';

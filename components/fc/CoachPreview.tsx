@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PointerEvent } from 'react';
 import Icon from '@/components/ui/Icon';
-import { COACH_TOPICS, type CoachState, type CoachTopic } from '@/lib/coach-types';
+import { COACH_TOPICS, type CoachEvidence, type CoachState, type CoachTopic } from '@/lib/coach-types';
 
 function CoachMark() {
   return (
@@ -13,6 +13,16 @@ function CoachMark() {
       <circle cx="13" cy="19.6" r="1.3" fill="currentColor" />
     </svg>
   );
+}
+
+function RecordEvidence({ evidence }: { evidence: CoachEvidence[] }) {
+  if (!evidence.length) return null;
+  return <details>
+    <summary>查看记录依据</summary>
+    <ul>{evidence.map(item => <li key={`${item.cardId}:${item.label}`}>
+      <a href={`/log?date=${item.date}&card=${item.cardId}`}>{item.date} · {item.label}</a>
+    </li>)}</ul>
+  </details>;
 }
 
 export default function CoachPreview() {
@@ -138,13 +148,18 @@ export default function CoachPreview() {
 
         <div className="coach-preview-body">
           <section className="coach-preview-summary" aria-labelledby="coach-preview-summary-title">
-            <div className="coach-preview-kicker"><span /> 最近 {state?.overview.days ?? 7} 天</div>
-            <h3 id="coach-preview-summary-title">聊聊你的<br /><span>训练与饮食</span></h3>
-            {state && <div className="coach-preview-result">
+            <div className="coach-preview-kicker"><span /> 最近 {state?.overview.insight ? 30 : state?.overview.days ?? 7} 天</div>
+            <h3 id="coach-preview-summary-title">
+              {state?.overview.insight?.title ?? <>聊聊你的<br /><span>训练与饮食</span></>}
+            </h3>
+            {state?.overview.insight ? <>
+              <p className="coach-preview-insight">{state.overview.insight.detail}</p>
+              <RecordEvidence evidence={state.overview.insight.evidence} />
+            </> : state && <div className="coach-preview-result">
               <div><span>有训练记录</span><b>{state.overview.trainingDays} <small>天</small></b></div>
               <div><span>有饮食记录</span><b>{state.overview.mealDays} <small>天</small></b></div>
             </div>}
-            {state?.overview.latestWorkout && <p className="coach-preview-latest">
+            {state?.overview.latestWorkout && !state.overview.insight && <p className="coach-preview-latest">
               上次训练 · <a href={`/log?date=${state.overview.latestWorkout.date}&card=${state.overview.latestWorkout.cardId}`}>
                 {state.overview.latestWorkout.label}
               </a>
@@ -157,12 +172,7 @@ export default function CoachPreview() {
                 <p className="coach-preview-question">{question}</p>
                 <div className="coach-preview-reply">
                   <p>{reply}</p>
-                  {evidence.length > 0 && <details>
-                    <summary>查看记录依据</summary>
-                    <ul>{evidence.map(item => <li key={`${item.cardId}:${item.label}`}>
-                      <a href={`/log?date=${item.date}&card=${item.cardId}`}>{item.date} · {item.label}</a>
-                    </li>)}</ul>
-                  </details>}
+                  <RecordEvidence evidence={evidence} />
                   {plan && <div className="coach-preview-plan">
                     <b>{plan.date} 训练草案</b>
                     <ul>{plan.exercises.map(item => <li key={item.id}>

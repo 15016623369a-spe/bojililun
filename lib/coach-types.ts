@@ -21,5 +21,11 @@ export type CoachTurn = {
 };
 export type CoachState = {
   turns: CoachTurn[];
-  overview: { days: number; trainingDays: number; mealDays: number; latestWorkout: CoachEvidence | null };
+  overview: {
+    days: number;
+    trainingDays: number;
+    mealDays: number;
+    latestWorkout: CoachEvidence | null;
+    insight: { title: string; detail: string; evidence: CoachEvidence[] } | null;
+  };
 };

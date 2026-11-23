@@ -54,6 +54,12 @@ test('教练只展示正文，工具标记不进入新回复或历史对话', as
   process.env.AI_BASE_URL = `http://127.0.0.1:${provider.address().port}/v1`;
   process.env.AI_MODEL = 'test';
 
+  const initial = getCoachState();
+  assert.equal(initial.turns.length, 0);
+  assert.match(initial.overview.insight.title, /卧推多做了 2 次/);
+  assert.equal(initial.overview.insight.evidence.length, 2);
+  assert.equal(requests.length, 0, '打开教练不会替用户提交问题或发模型请求');
+
   const { turns } = await askCoach(PLAN_ID, '安排下次训练', 'plan');
   const draft = turns.at(-1);
   assert.equal(requests.length, 0, '训练草案正文来自服务端');
@@ -134,4 +140,7 @@ test('教练只展示正文，工具标记不进入新回复或历史对话', as
   await askCoach(randomUUID(), '卧推呢？');
   const restriction = (await askCoach(randomUUID(), '那番茄炒蛋不能吃吗？')).turns.at(-1);
   assert.equal(restriction.topic, 'meal');
+  const progression = (await askCoach(randomUUID(), '那下次加不加？')).turns.at(-1);
+  assert.equal(progression.topic, 'strength');
+  assert.ok(progression.evidence.some(item => item.label.includes('50 kg × 8')));
 });
