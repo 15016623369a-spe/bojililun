@@ -352,3 +352,74 @@ test('训练每张卡最多一个快选，收起后不再追问另一动作', ()
   assert.equal(store.readCardPick(db, user, id), null);
   db.close();
 });
+test('回顾与统计共用手账训练：训练页和语音同一天，不重复计，移除后两页都不算', () => {
+  // 上面的迁移测试已缓存并关掉了它的库，这里换一个新库重新加载
+  delete require.cache[require.resolve('../lib/db.ts')];
+  delete globalThis.__fitDb;
+  delete globalThis.__fitDbSchema;
+  const tmp = fs.mkdtempSync(require('node:os').tmpdir() + '/fit-log-');
+  process.env.FITCHECK_DB_PATH = path.join(tmp, 'log.db');
+  const { getDb } = require('../lib/db.ts'),
+    { installBridge, flushLegacy } = require('../lib/ledger-legacy.ts'),
+    log = require('../lib/training-log.ts');
+  const db = getDb();
+  const lib = (id) => db.prepare('SELECT id, zh_name, body_part, target FROM exercise WHERE id=?').get(id);
+  const session = (start, end, sets) => {
+    const id = Number(
+      db.prepare('INSERT INTO session(date,started_at,ended_at) VALUES(?,?,?)').run(day, start, end).lastInsertRowid,
+    );
+    sets.forEach(([exId, weight, reps], i) => {
+      const e = lib(exId);
+      db.prepare(
+        'INSERT INTO session_set(session_id,exercise_id,exercise_name,body_part,target,set_index,weight,reps,created_at) VALUES(?,?,?,?,?,?,?,?,?)',
+      ).run(id, e.id, e.zh_name, e.body_part, e.target, i + 1, weight, reps, start);
+    });
+    return id;
+  };
+  // 训练页：卧推 60×10×3、杠铃深蹲 100×5×2，40 分钟；另有一节一组没练就结束的空训练
+  const sid = session('2026-11-21T02:00:00.000Z', '2026-11-21T02:40:00.000Z', [
+    ['0025', 60, 10], ['0025', 60, 10], ['0025', 60, 10], ['0043', 100, 5], ['0043', 100, 5],
+  ]);
+  session('2026-11-21T09:00:00.000Z', '2026-11-21T09:01:00.000Z', []);
+  // 语音：深蹲 100×5×3（一句话拆成两张卡：深蹲 + 只说了动作没说组数的卷腹）
+  store.saveBatch(db, user, 'voice-1', 'voice', [
+    { ...base, logged_at: '2026-11-21T04:30:00Z', entry_type: 'workout', summary_title: '深蹲',
+      exercises: [{ exercise_name: '深蹲', sets: Array(3).fill({ weight_kg: 100, reps: 5, duration_sec: null }) }] },
+    { ...base, logged_at: '2026-11-21T04:30:00Z', entry_type: 'workout', summary_title: '卷腹',
+      exercises: [{ exercise_name: '卷腹', sets: [] }] },
+  ]);
+  flushLegacy(db);
+  const synced = db.prepare('SELECT id, actions FROM entries WHERE request_key=?').get(`legacy/workout/${sid}/0`);
+  assert.deepEqual(JSON.parse(synced.actions).map((m) => m.library_id), ['0025', '0043']);
+
+  let all = log.trainingLog(db, day, day);
+  assert.equal(all.length, 2, '训练页那一节只算一份，空训练不算，一次语音提交算一次');
+  assert.deepEqual(log.trainingTotals(all), { sets: 8, volume: 1800 + 1000 + 1500, sessions: 2, quickSessions: 0, days: 1, durationMin: 40 });
+  assert.deepEqual(log.trainingTimeByDay(all), [{ date: day, sessions: 1, seconds: 2400 }]);
+  assert.deepEqual(log.dailyVolume(all), [{ date: day, volume: 4300, sets: 8 }]);
+  // 语音的深蹲和训练页的深蹲按动作库同一条判定：同一个肌群、同一条动作表现
+  const squat = log.exercisePerformance(all).find((e) => e.id === '0043');
+  assert.equal(squat.sessions.length, 2);
+  assert.equal(log.exerciseMuscles(all)['0043'], log.primaryMuscle(db.prepare('SELECT name,target,body_part FROM exercise WHERE id=?').get('0043')));
+  const bySets = Object.fromEntries(log.muscleActivity(all).map((r) => [`${r.id}:${r.sessionId}`, r.sets]));
+  assert.equal(Object.values(bySets).reduce((a, b) => a + b, 0), 8);
+
+  // 「记录」里移除训练页那一节：两页都不再算它，时长也一起去掉
+  db.prepare('UPDATE entries SET is_deleted=1 WHERE id=?').run(synced.id);
+  all = log.trainingLog(db, day, day);
+  assert.deepEqual(log.trainingTotals(all), { sets: 3, volume: 1500, sessions: 1, quickSessions: 0, days: 1, durationMin: 0 });
+
+  // 早先同步、还没有 library_id 的训练：一次性重新同步补上，卡片 id 和移除状态不变
+  db.prepare('UPDATE entries SET actions=? WHERE id=?').run(
+    JSON.stringify(JSON.parse(synced.actions).map(({ library_id, ...m }) => m)),
+    synced.id,
+  );
+  db.prepare("DELETE FROM ledger_backfill WHERE name='legacy-workout-library-ids'").run();
+  installBridge(db);
+  flushLegacy(db);
+  const again = db.prepare('SELECT id, is_deleted, actions FROM entries WHERE request_key=?').get(`legacy/workout/${sid}/0`);
+  assert.deepEqual([again.id, again.is_deleted], [synced.id, 1]);
+  assert.deepEqual(JSON.parse(again.actions).map((m) => m.library_id), ['0025', '0043']);
+  db.close();
+  fs.rmSync(tmp, { recursive: true });
+});

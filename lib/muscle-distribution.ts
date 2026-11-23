@@ -1,5 +1,5 @@
 import type { MuscleId } from './muscles';
-import type { primaryMuscleActivity } from './core/workout';
+import type { MuscleActivity } from './training-log';
 import { addDays, type Period } from './period';
 
 const groups: { label: string; muscles: MuscleId[] }[] = [
@@ -16,7 +16,7 @@ const groups: { label: string; muscles: MuscleId[] }[] = [
   { label: '颈部', muscles: ['neck'] },
 ];
 
-export function muscleDistribution(activity: ReturnType<typeof primaryMuscleActivity>, period: Period, start: string, end: string) {
+export function muscleDistribution(activity: MuscleActivity[], period: Period, start: string, end: string) {
   const daily = period === 'week' || period === 'month';
   const points: { key: string; label: string }[] = [];
   for (let date = start; date <= end; date = addDays(date, 1)) {
