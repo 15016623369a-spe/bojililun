@@ -352,3 +352,42 @@ test('训练每张卡最多一个快选，收起后不再追问另一动作', ()
   assert.equal(store.readCardPick(db, user, id), null);
   db.close();
 });
+test('本地解析：长名优先，词典外动作照原话记，份量跟着食物走', async (t) => {
+  const keys = { DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY, AI_API_KEY: process.env.AI_API_KEY };
+  delete process.env.DEEPSEEK_API_KEY;
+  delete process.env.AI_API_KEY;
+  t.after(() => {
+    for (const [k, v] of Object.entries(keys)) if (v) process.env[k] = v;
+  });
+  const parse = async (text) => (await parseInput(text, undefined, 'manual')).records;
+  const moves = async (text) =>
+    (await parse(text)).flatMap((r) => r.exercises ?? []).map((m) => [m.exercise_name, m.exercise_id, m.sets.length]);
+  // 「哑铃卧推」「上斜卧推」里的「卧推」不再多记一个杠铃卧推
+  assert.deepEqual(await moves('哑铃卧推 30公斤 10次 3组'), [['哑铃卧推', 'dumbbell-bench-press', 3]]);
+  assert.deepEqual(await moves('上斜卧推 50公斤 8次 3组'), [['上斜卧推', 'barbell-incline-bench-press', 3]]);
+  // 词典外的动作不套用词典里的近似动作，按原话记下
+  assert.deepEqual(await moves('哈克深蹲 80公斤 10次 4组'), [['哈克深蹲', null, 4]]);
+  assert.deepEqual(await moves('哑铃划船 25公斤 12次 3组'), [['哑铃划船', null, 3]]);
+  assert.deepEqual(await moves('器械推胸 40公斤 12次 3组'), [['器械推胸', null, 3]]);
+  // 前后的口头说法不影响词典动作
+  assert.deepEqual(await moves('早上做了深蹲 100公斤 5次 5组'), [['杠铃深蹲', 'barbell-full-squat', 5]]);
+  assert.deepEqual(await moves('深蹲卧推各3组'), [['杠铃深蹲', 'barbell-full-squat', 3], ['杠铃卧推', 'barbell-bench-press', 3]]);
+  // 负重不是体重
+  const pull = await parse('负重20公斤引体向上 5次 3组');
+  assert.deepEqual(pull.map((r) => r.entry_type), ['workout']);
+  assert.equal(pull[0].exercises[0].exercise_name, '引体向上');
+  assert.equal((await parse('体重 72.5'))[0].weight_kg, 72.5);
+  // 份量写在食物前或后都归到对应的食物
+  const grams = async (text) => (await parse(text)).flatMap((r) => r.items ?? []).map((i) => [i.food_name, i.estimated_grams]);
+  assert.deepEqual(await grams('午饭吃了米饭 200克 鸡胸肉 150克'), [['米饭', 200], ['鸡胸肉', 150]]);
+  assert.deepEqual(await grams('午饭吃了200克米饭和150克鸡胸肉'), [['米饭', 200], ['鸡胸肉', 150]]);
+  assert.deepEqual(await grams('鸡胸肉 150g 米饭 100g'), [['鸡胸肉', 150], ['米饭', 100]]);
+  // 词典外的动作存进手账后名字不变
+  const db = setup();
+  const records = await parse('哈克深蹲 80公斤 10次 4组');
+  records.forEach((r) => (r.logged_at = time));
+  store.saveBatch(db, user, 'hack', 'manual', records);
+  const card = ex.exportJournal(db, user, day, day).days[0].entries[0];
+  assert.deepEqual([card.exercises[0].exercise_name, card.exercises[0].sets.length], ['哈克深蹲', 4]);
+  db.close();
+});
