@@ -107,4 +107,31 @@ test('教练只展示正文，工具标记不进入新回复或历史对话', as
   await askCoach(randomUUID(), '我午饭吃了多少蛋白？');
   const nutrition = JSON.parse(requests.at(-1).messages.find(message => message.role === 'tool').content);
   assert.equal(nutrition.records.knownIntake.protein_g, 29);
+
+  finalText = '近 30 天有 3 天训练记录，卧推同样 50 kg，从 6 次做到 8 次。';
+  const training = (await askCoach(randomUUID(), '最近练得咋样？')).turns.at(-1);
+  assert.equal(training.topic, 'strength', '刚聊完饮食时，随口问训练也查力量记录');
+  assert.ok(training.evidence.some(item => item.label.includes('50 kg × 6')));
+  assert.ok(training.evidence.some(item => item.label.includes('50 kg × 8')));
+  const trainingContext = JSON.parse(requests.at(-1).messages.find(message => message.role === 'tool').content);
+  assert.equal(trainingContext.records.trainingDays, 3);
+
+  const bench = (await askCoach(randomUUID(), '卧推呢？')).turns.at(-1);
+  assert.equal(bench.topic, 'strength');
+  assert.ok(bench.evidence.every(item => item.label.includes('卧推')));
+  const draftFollowup = (await askCoach(randomUUID(), '那我下次练啥？')).turns.at(-1);
+  assert.ok(draftFollowup.plan?.exercises.some(exercise => exercise.name === '杠铃卧推'));
+  assert.equal(draftFollowup.confirmed, false);
+
+  finalText = '练完可以点份清淡的豆腐盖饭。';
+  const afterTraining = (await askCoach(randomUUID(), '练完吃点啥？')).turns.at(-1);
+  assert.equal(afterTraining.topic, 'meal');
+  assert.equal(afterTraining.reply, finalText);
+  const afterTrainingContext = JSON.parse(requests.at(-1).messages.find(message => message.role === 'tool').content);
+  assert.deepEqual(afterTrainingContext.records.training, ['杠铃卧推与高位下拉']);
+  assert.deepEqual(afterTrainingContext.records.meals, [['牛肉面']]);
+
+  await askCoach(randomUUID(), '卧推呢？');
+  const restriction = (await askCoach(randomUUID(), '那番茄炒蛋不能吃吗？')).turns.at(-1);
+  assert.equal(restriction.topic, 'meal');
 });

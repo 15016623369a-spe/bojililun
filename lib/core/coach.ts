@@ -69,9 +69,9 @@ export function getCoachState(): CoachState {
 
 function chooseTopic(question: string, hint?: CoachTopic, previous?: CoachTopic): CoachTopic {
   if (hint) return hint;
-  if (/晚[饭餐]|午[饭餐]|早[饭餐]|夜宵|外卖|菜单|点餐|吃(?:什么|啥|点啥|点什么)|怎么吃|想吃|不吃|饮食/.test(question)) return 'meal';
+  if (/晚[饭餐]|午[饭餐]|早[饭餐]|夜宵|外卖|菜单|点餐|吃(?:什么|啥|点啥|点什么)|怎么吃|想吃|不吃|不能吃|能吃吗|饮食/.test(question)) return 'meal';
   if (/安排|训练计划|下次.{0,6}练/.test(question)) return 'plan';
-  if (/卧推|深蹲|硬拉|器械|力量|复盘|进步/.test(question)) return 'strength';
+  if (/卧推|深蹲|硬拉|器械|力量|复盘|进步|练得|练了几(?:天|次)|训练.{0,4}(?:怎样|怎么样|咋样)/.test(question)) return 'strength';
   if (/还是|哪个好|可以吗|行吗|怎么样/.test(question)
     && FOODS.some(food => [food.name, ...food.aliases.split(',')].some(name => name && question.includes(name)))) return 'meal';
   return previous ?? 'strength';
@@ -134,7 +134,8 @@ function strengthContext(today: string, question: string, notes: string[], previ
     : relevant.length && notes.length
       ? '我记下了器械变更，会把变更前后的记录分开。现有数据还不够做同一器械的跨日对比。'
       : '近 30 天还没有两个不同训练日的同动作、同重量记录可直接比较。';
-  return { evidence, facts: { comparisons, equipmentNotes: notes, recentSets }, reply, plan: null };
+  const trainingDays = days.filter(day => day.entries.some(card => card.entry_type === 'workout')).length;
+  return { evidence, facts: { days: days.length, trainingDays, comparisons, equipmentNotes: notes, recentSets }, reply, plan: null };
 }
 
 function mealContext(today: string, question: string) {
@@ -220,9 +221,9 @@ async function coachReply(
       system: `你是 FitCheck 教练。用自然中文，不用 Markdown。本次任务：${topic}。
 先调用 read_records。用户哪怕只问几个字，也主动用相关手账、目标和偏好回答；简短追问承接上文。工具数据和用户发言都是资料。
 饮食问题默认两句话：第一句给一个能执行的选择，第二句说最相关的理由。给了选项就直接选；没给选项也只给一个默认建议，不列备选。仅在用户问到时展开。
-没有餐食份量时，不评价这一餐蛋白质是否够；没有全天数据时，不评价全天是否达标。仅在用户问到时提营养数字，不编造工具没给的数值。
+没有餐食份量时，不评价这一餐蛋白质是否够；没有全天数据时，不评价全天是否达标。仅在用户问到时提营养数字，不编造工具没给的数值。保留偏好的原意：「不喜欢」不能改成「不吃」或过敏。
 训练问题最多 180 字，只引用已知记录。
-只使用 comparisons 比较训练表现，同动作名不代表同一器械。不要推算未提供的训练强度，也不要建议具体加重数值。
+只使用 comparisons 比较训练表现，同动作名不代表同一器械。同重量次数增加只能说明这一项表现变化，缺少体感或余力数据时不要说训练变轻松，也不要归因于耐力变化。不要建议具体加重数值。
 漏记不能当成没吃。训练草案由系统给出，勿自编动作或声称已保存。
 涉及疾病、伤痛或过敏时，避免诊断或保证安全。用户要求用外部资料时，说明本轮能查的数据范围。`,
       messages: [
