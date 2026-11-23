@@ -25,6 +25,8 @@ export interface SetDetail {
 }
 export interface Movement {
   exercise_id: string | null;
+  /** 训练页动作库（exercise 表）的 id，只有训练页同步来的动作有 */
+  library_id?: string | null;
   exercise_name: string;
   sets: SetDetail[];
   primary_muscles: string[];
