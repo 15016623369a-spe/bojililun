@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import Icon from '@/components/ui/Icon';
 import { COACH_STARTERS, type CoachEvidence, type CoachState, type CoachTopic } from '@/lib/coach-types';
 import CoachCharts from './CoachCharts';
+import { MicIcon } from './icons';
+import { useHoldToSpeak } from './useHoldToSpeak';
 
 function CoachMark({ size = 24 }: { size?: number }) {
   return (
@@ -59,6 +61,7 @@ export default function CoachPreview() {
   const closing = useRef(false);
 
   const [draft, setDraft] = useState('');
+  const [voiceNote, setVoiceNote] = useState('');
   const [state, setState] = useState<CoachState | null>(null);
   const [loadingInit, setLoadingInit] = useState(false);
   const [optimistic, setOptimistic] = useState<{ id: string; question: string; topic?: CoachTopic } | null>(null);
@@ -66,6 +69,19 @@ export default function CoachPreview() {
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [insightOpen, setInsightOpen] = useState(false);
   const [reveal, setReveal] = useState<{ id: string; count: number } | null>(null);
+
+  // 输入框为空时右边是麦克风：按住说话，松开就把识别出的话发给教练，上滑取消
+  const voice = useHoldToSpeak({
+    onText: text => void ask(text),
+    onNotice: setVoiceNote,
+  });
+  const listening = voice.phase !== 'idle';
+
+  useEffect(() => {
+    if (!voiceNote) return;
+    const timer = setTimeout(() => setVoiceNote(''), 2800);
+    return () => clearTimeout(timer);
+  }, [voiceNote]);
 
   const turns = state?.turns ?? [];
   const hasConversation = turns.length > 0 || Boolean(optimistic) || Boolean(failedAsk);
@@ -497,7 +513,20 @@ export default function CoachPreview() {
           </div>
 
           <div className="coach-preview-dock">
-            {hasConversation && (
+            {listening && (
+              <div className={`coach-listen${voice.phase === 'canceling' ? ' is-cancel' : ''}`} role="status">
+                <div className="coach-listen-head">
+                  <span className="coach-listen-wave" aria-hidden="true">
+                    <i /><i /><i /><i /><i /><i /><i />
+                  </span>
+                  <b>{voice.phase === 'canceling' ? '松开取消' : voice.phase === 'finishing' ? '正在识别…' : '在听…'}</b>
+                  {voice.phase === 'listening' && <span>松开发送，上滑取消</span>}
+                </div>
+                <p className={voice.heard ? undefined : 'is-placeholder'}>{voice.heard || '说出你的问题，比如「我最近的基础代谢是多少」'}</p>
+              </div>
+            )}
+            {!listening && voiceNote && <p className="coach-voice-note" role="status">{voiceNote}</p>}
+            {hasConversation && !listening && (
               <div className="coach-preview-topics" aria-label="快捷话题">
                 {COACH_STARTERS.map(({ topic, question, label }) => (
                   <button
@@ -523,15 +552,29 @@ export default function CoachPreview() {
                 placeholder="问代谢、三大营养、训练或饮食…"
                 value={draft}
                 maxLength={1500}
+                disabled={listening}
                 onChange={event => setDraft(event.target.value)}
               />
-              <button
-                type="submit"
-                aria-label="发送"
-                disabled={isSending || !draft.trim()}
-              >
-                <Icon name="arrow-up" size={18} />
-              </button>
+              {draft.trim() ? (
+                <button
+                  type="submit"
+                  aria-label="发送"
+                  disabled={isSending}
+                >
+                  <Icon name="arrow-up" size={18} />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className={`coach-mic${listening ? ' is-on' : ''}${voice.phase === 'canceling' ? ' is-cancel' : ''}`}
+                  aria-label="按住说话，松开发送"
+                  title="按住说话"
+                  disabled={isSending}
+                  {...voice.bind}
+                >
+                  <MicIcon />
+                </button>
+              )}
             </form>
           </div>
         </div>
