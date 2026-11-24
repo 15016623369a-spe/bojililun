@@ -381,3 +381,17 @@ html:has(.v-runner) body { background: var(--canvas); }
 .rest-foot .runner-quiet { grid-column: 1 / -1; }
 .rest-foot .finish-inline { grid-column: 1 / -1; }
 html[data-theme="dark"] .finish-inline { background: #1a1c1f; border-color: #2a2d31; }
+
+/* ---------- 11 月 24 日：今日已练单独一段，标灰，不和待练的动作排在一起 ---------- */
+.done-section { margin-top: 26px; }
+.done-section .v-section-title { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+.done-section .v-section-title small { font: 500 12.5px var(--font-num); letter-spacing: 0; color: var(--gray-1); }
+.done-rows .plan-item { border-bottom-color: rgb(var(--dk-fg-rgb, 21 22 19) / 6%); }
+.done-rows .plan-item-head { padding: 9px 0; }
+.done-rows .thumb { width: 40px; height: 40px; border-radius: 12px; opacity: .55; }
+.done-rows .plan-item-main { gap: 3px; }
+.done-rows .plan-item-main b { font-size: 14.5px; font-weight: 500; color: var(--gray-1); }
+.done-rows .plan-item-main small { font-size: 12px; color: var(--gray-2); }
+.done-check { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; color: var(--gray-1); background: rgb(var(--dk-fg-rgb, 21 22 19) / 7%); }
+.done-section .v-rows { margin-top: 0; }
+.done-section .v-row b { font-size: 14.5px; font-weight: 500; color: var(--gray-1); }

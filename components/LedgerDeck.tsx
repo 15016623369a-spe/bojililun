@@ -116,7 +116,7 @@ export default function LedgerDeck({ items, cards, picks, nowMinutes, past = fal
         <span className="deck-kind"><Icon name="mic" size={17} />开始记录</span>
         <b className="big-num">--:--</b>
         <strong>{past ? '这天没有记录' : '今天还没有记录'}</strong>
-        <small>{past ? '点左上角「月历」可查看其他日期。' : '按住下方说话，也可以打字或者拍下这一餐。'}</small>
+        <small>{past ? '点左上角「月历」可查看其他日期。' : '按住右下角的话筒说话，轻点它可以打字或拍照。'}</small>
       </div>}
       {items.map((item, i) => <article key={item.key} className={`deck-card ${item.kind === 'workout' ? 'training' : item.kind === 'meal' ? 'meal' : item.kind === 'body_metrics' ? 'weight' : 'note'}`}
         data-active={i === active || undefined}>

@@ -4,8 +4,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import AskSheet from './AskSheet';
-import { CameraIcon, MicIcon } from './icons';
-import { RECORD_EVENT, type RecordIntent } from './RecordHeadActions';
+import { CameraIcon, MicFillIcon } from './icons';
+import { RECORD_EVENT, type RecordIntent } from './record-intent';
+import RecordTab from './RecordTab';
 import TabBar from './TabBar';
 import Timeline from './Timeline';
 import { createRecordDraft, keepRecordDraft, recordDrafts, removeRecordDraft, sendRecordDraft, type RecordDraft } from '@/lib/record-drafts';
@@ -48,7 +49,7 @@ function compressImage(file: File): Promise<string> {
   });
 }
 
-export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: boolean }) {
+export default function LogScreen({ ledgerHasRecords, empty = false }: { ledgerHasRecords: boolean; /** 今天还没有记录：话筒放大放在页面中间 */ empty?: boolean }) {
   const router = useRouter();
 
   const [phase, setPhase] = useState<'idle' | 'busy'>('idle');
@@ -56,6 +57,19 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
   const [ask, setAsk] = useState<string | null>(null);
 
   const [sheet, setSheet] = useState<'compose' | 'edit' | null>(null);
+  // 收起时先播完下滑动画再卸载，面板不会一下子消失
+  const [sheetClosing, setSheetClosing] = useState(false);
+  const closeTimer = useRef(0);
+  const closeSheet = useCallback(() => {
+    window.clearTimeout(closeTimer.current);
+    setSheetClosing(true);
+    closeTimer.current = window.setTimeout(() => { setSheet(null); setSheetClosing(false); }, 280);
+  }, []);
+  const showSheet = useCallback(() => {
+    window.clearTimeout(closeTimer.current);
+    setSheetClosing(false);
+    setSheet('compose');
+  }, []);
   const [text, setText] = useState('');
   const [drafts, setDrafts] = useState<RecordDraft[]>([]);
   const [recordError, setRecordError] = useState('');
@@ -90,7 +104,7 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
     setRecordError('');
     setActiveRequest(draft.request_id);
     setPhase('busy');
-    setSheet(null);
+    closeSheet();
     try {
       const result = await sendRecordDraft(draft);
       if (result.route === 'qa' && result.question) setAsk(result.question);
@@ -108,7 +122,7 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
       setActiveRequest('');
       busyRef.current = false;
     }
-  }, [router]);
+  }, [router, closeSheet]);
 
   const stopRec = useCallback(() => {
     abortRef.current = false;
@@ -138,9 +152,7 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
 
   const photoInput = useRef<HTMLInputElement>(null);
 
-  const openComposer = useCallback(() => {
-    setSheet('compose');
-  }, []);
+  const openComposer = showSheet;
 
   /** 面板里「按住说话」：边说边把识别的字填进输入框，松手后由用户确认再记下来 */
   const startRec = useCallback(() => {
@@ -207,7 +219,16 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
     };
   }, [abortRec, stopRec]);
 
-  // 右上角的打字、拍照，以及在记录页上轻点底部「记录」：都从这里打开（见 RecordHeadActions）
+  // 在别的页面轻点录音键会带着 ?compose=1 来到记录页：直接打开「记一条」，再把参数从地址里去掉
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('compose') !== '1') return;
+    url.searchParams.delete('compose');
+    window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+    showSheet();
+  }, [showSheet]);
+
+  // 导航右边的录音键、在记录页上轻点底部「记录」：都从这里打开（见 record-intent）
   useEffect(() => {
     const onRecord = (event: Event) => {
       const intent = (event as CustomEvent<RecordIntent>).detail;
@@ -270,7 +291,7 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
             <button type="button" className="record-retry" onClick={() => void submit(draft)}>重试保存</button>
             {draft.source !== 'photo' && <button type="button" onClick={() => {
               setText(draft.text);
-              setSheet('compose');
+              showSheet();
               setEditingDraft(draft);
             }}>编辑</button>}
             <button type="button" onClick={() => { void removeRecordDraft(draft.request_id); setRecordError(''); }}>移除草稿</button>
@@ -280,6 +301,9 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
       </section>, recoverySlot)}
 
       {!ledgerHasRecords && <Timeline entries={[]} />}
+
+      {/* 空的一天：大号四色光圈话筒是页面主角；有记录后收成导航旁边的小号 */}
+      {empty && <RecordTab variant="hero" active />}
 
       <div className="fc-dock" aria-busy={working}>
         <div className="fc-dock-inner">
@@ -296,14 +320,16 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
             hidden
           />
           {working && <p className="journal-status" role="status">正在记入手账…</p>}
+          {/* 导航条和旁边的录音键都在 TabBar 里，每个页面一样 */}
           <TabBar active="log" />
         </div>
       </div>
 
       {/* 记录面板：文字 / 照片 / 语音 都能来 */}
       {sheet === 'compose' && (
-        <div className="fc-mask" onClick={() => !working && setSheet(null)}>
-          <div className="fc-sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="fc-mask record-sheet" data-closing={sheetClosing || undefined} onClick={() => !working && closeSheet()}>
+          <div className="fc-sheet" role="dialog" aria-modal="true" aria-label="记一条" onClick={(e) => e.stopPropagation()}>
+            <i className="record-sheet-grab" aria-hidden="true" />
             <h3>{editingDraft ? '继续编辑记录' : '记一条'}</h3>
 
             <div className="fc-examples">
@@ -340,13 +366,13 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
                 onPointerDown={onComposeDown}
                 onContextMenu={(e) => e.preventDefault()}
               >
-                <MicIcon />
+                <MicFillIcon />
                 {listening ? '在听…' : '按住说话'}
               </button>
             </div>
 
             <div className="fc-sheet-actions">
-              <button type="button" className="fc-btn ghost" onClick={() => setSheet(null)}>
+              <button type="button" className="fc-btn ghost" onClick={closeSheet}>
                 取消
               </button>
               <button

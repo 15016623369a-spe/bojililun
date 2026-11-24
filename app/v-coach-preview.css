@@ -1160,3 +1160,82 @@
     transition: none;
   }
 }
+
+/* ============================================================
+   11 月 25 日：我的教练页照回顾的质感重排（用户要求）。
+   跟随白天 / 夜间；面用回顾数据块那一套（纯色、不描边、圆角 --tile-r），
+   快捷提问改成 iOS 分组列表（一整块、行间细线、右边细灰箭头），
+   图标换成 App 图标式的星芒方块，话筒和记录页录音键同一个样子。
+   ============================================================ */
+html .coach-preview {
+  --coach-bg: #0d0e0f; --coach-surface: #1d1e21; --coach-surface-2: #26272b;
+  --coach-ink: #eeefea; --coach-muted: #8a8d92; --coach-soft: #c2c4be;
+  --coach-line: rgb(255 255 255 / 7%); --coach-line-strong: rgb(255 255 255 / 12%);
+  --coach-glass: rgb(13 14 15 / 78%); --coach-sel-bg: #ecebe6; --coach-sel-fg: #151613;
+  background: var(--coach-bg); color-scheme: dark;
+}
+html:not([data-theme="dark"]) .coach-preview {
+  --coach-bg: #e2e3df; --coach-surface: #ecedea; --coach-surface-2: #dddeda;
+  --coach-ink: #151613; --coach-muted: #73766f; --coach-soft: #3a3c37;
+  --coach-line: rgb(21 22 19 / 8%); --coach-line-strong: rgb(21 22 19 / 14%);
+  --coach-glass: rgb(226 227 223 / 80%); --coach-sel-bg: #151613; --coach-sel-fg: #f1f2ee;
+  color-scheme: light;
+}
+html .coach-preview::backdrop { background: rgb(0 0 0 / 35%); backdrop-filter: none; }
+
+/* 顶栏：iOS 导航栏，毛玻璃 + 细线；中间星芒方块和标题 */
+html .coach-preview-head { padding: calc(10px + env(safe-area-inset-top)) 10px 10px; border-bottom: .5px solid var(--coach-line); background: var(--coach-glass); -webkit-backdrop-filter: blur(20px) saturate(1.4); backdrop-filter: blur(20px) saturate(1.4); }
+html .coach-preview-back { font-size: 16px; font-weight: 400; }
+html .coach-preview-back:hover { background: transparent; }
+html .coach-preview-mark { width: 30px; height: 30px; border: 0; border-radius: 8px; background: linear-gradient(180deg, #c7b9f5, #8fa9ec); color: #fff; box-shadow: inset 0 0 0 .5px rgb(0 0 0 / 8%); }
+@supports (corner-shape: squircle) { html .coach-preview-mark, html .coach-msg-avatar { corner-shape: squircle; border-radius: 30%; } }
+html .coach-preview-mark svg { width: 18px; height: 18px; }
+html .coach-preview-head h2 { font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
+html .coach-preview-subtitle { font-size: 12px; }
+
+/* 正文：左右和回顾一样留边，块与块隔开 */
+html .coach-preview-body { padding: 18px 24px 24px; }
+html .coach-hero { gap: 22px; }
+
+/* 「近 30 天发现」：回顾的数据块 */
+html .coach-hero-card { gap: 10px; padding: 16px; border: 0; border-radius: var(--tile-r); background: var(--coach-surface); }
+html .coach-hero-kicker { font-size: 13px; font-weight: 600; color: var(--coach-muted); letter-spacing: 0; }
+html .coach-hero-title { font-size: 24px; font-weight: 700; letter-spacing: -.02em; }
+html .coach-hero-detail { color: var(--coach-soft); font-size: 15px; }
+html .coach-stat b { letter-spacing: -.025em; }
+html .coach-latest-pill { border: 0; border-radius: 14px; background: rgb(var(--dk-fg-rgb, 21 22 19) / 5%); color: var(--coach-soft); }
+html .coach-latest-pill:hover { background: rgb(var(--dk-fg-rgb, 21 22 19) / 8%); }
+
+/* 快捷提问：iOS 分组列表 */
+html .coach-starter-list { gap: 0; overflow: hidden; border-radius: var(--tile-r); background: var(--coach-surface); }
+html .coach-starter-card { position: relative; gap: 2px 12px; padding: 13px 16px; border: 0; border-radius: 0; background: transparent; }
+html .coach-starter-card + .coach-starter-card::before { content: ''; position: absolute; top: 0; left: 16px; right: 0; height: .5px; background: var(--coach-line-strong); }
+html .coach-starter-card:hover { background: rgb(var(--dk-fg-rgb, 21 22 19) / 4%); border-color: transparent; }
+html .coach-starter-card:active { transform: none; background: rgb(var(--dk-fg-rgb, 21 22 19) / 8%); }
+html .coach-starter-title { font-size: 16px; font-weight: 500; }
+html .coach-starter-hint { font-size: 13px; }
+html .coach-starter-arrow { width: 8px; height: 14px; color: var(--coach-muted); opacity: .6; }
+html .coach-starter-card:hover .coach-starter-arrow { transform: none; color: var(--coach-muted); }
+
+/* 对话：你的话是反相气泡（夜间浅色、白天墨色），教练的话放在数据块的面上 */
+html .coach-msg-user p { background: var(--coach-sel-bg); color: var(--coach-sel-fg); font-size: 15px; font-weight: 400; border-radius: 20px 20px 6px 20px; }
+html .coach-msg-avatar { width: 26px; height: 26px; border: 0; border-radius: 7px; background: linear-gradient(180deg, #c7b9f5, #8fa9ec); color: #fff; }
+html .coach-msg-avatar svg { width: 15px; height: 15px; }
+html .coach-msg-bubble { border: 0; border-radius: 6px 20px 20px 20px; background: var(--coach-surface); }
+html .coach-msg-bubble > p { font-size: 15px; }
+
+/* 底部输入：毛玻璃底，输入框是一块圆角面；空着时右边是录音键（珊瑚圆 + 白色实心话筒），有字时是反相的发送键 */
+html .coach-preview-dock { border-top: .5px solid var(--coach-line); background: var(--coach-glass); -webkit-backdrop-filter: blur(20px) saturate(1.4); backdrop-filter: blur(20px) saturate(1.4); }
+html .coach-preview-topics button { border: 0; background: rgb(var(--dk-fg-rgb, 21 22 19) / 7%); color: var(--coach-soft); font-size: 13px; }
+html .coach-preview-topics button:hover:not(:disabled) { border: 0; background: rgb(var(--dk-fg-rgb, 21 22 19) / 11%); color: var(--coach-ink); }
+html .coach-input-form { border: 0; border-radius: var(--tile-r); background: var(--coach-surface); padding: 5px 5px 5px 16px; }
+html .coach-input-form:focus-within { border: 0; box-shadow: inset 0 0 0 1px var(--coach-line-strong); }
+html .coach-input-form input { font-size: 16px; }
+html .coach-input-form button[type="submit"] { background: var(--coach-sel-bg); color: var(--coach-sel-fg); }
+html .coach-input-form .coach-mic { background: var(--coral); color: #fff; }
+html .coach-input-form .coach-mic svg { width: 18px; height: 18px; }
+html .coach-input-form .coach-mic.is-on { transform: scale(1.08); background: #d84c3a; animation: none; }
+html .coach-listen { border: 0; background: var(--coach-surface); box-shadow: inset 0 0 0 1px rgb(240 99 81 / 35%); }
+/* 白天柠檬黄在浅面上看不清：图标改墨色，小圆点加一圈细边 */
+html:not([data-theme="dark"]) .coach-latest-pill .icon:first-child { color: var(--coach-ink); }
+html:not([data-theme="dark"]) .coach-preview .coach-dot { box-shadow: 0 0 0 1px rgb(21 22 19 / 25%); }

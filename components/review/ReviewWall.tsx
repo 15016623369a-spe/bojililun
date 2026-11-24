@@ -107,9 +107,12 @@ export default function ReviewWall({ hero, data, variant }: { hero: WallHero; da
         </>}
       </div>
     </div>
+    {/* 饮食放在「身体与饮食」里（11 月 25 日用户要求）：排在今天的四块后面、和同样看一段时间的「能量收支」挨着，
+        自己跟着上面的日／周／月走，标题旁写「本周日均 / 本月日均」 */}
+    <FoodTile data={data} period={hero.period} {...tile('food')} />
     <EnergyTile week={week} {...tile('energy')} />
 
-    {open && <SheetLayer id={open} data={data} variant={variant} origin={origin}
+    {open && <SheetLayer id={open} data={data} variant={variant} origin={origin} period={hero.period}
       onClosed={() => { setOpen(null); setLifted(null); const o = origin.current; if (o?.keyboard) o.el.focus({ preventScroll: true }); }} />}
   </div>;
 }
@@ -251,6 +254,49 @@ function DeficitTile({ data, fed, fedLabel, ...tile }: { data: WallData; fed: Wa
   </div>;
 }
 
+/** 本周一（周视图从这天算起） */
+function mondayOf(date: string) {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * 饮食（中号长方形），和容量主块一样跟着日／周／月走（11 月 25 日用户确认）：
+ * 日看今天的摄入、蛋白质对着目标；周、月看记了饮食的日子的日均，另写记了几天。没记饮食的日子不算进日均。
+ */
+function FoodTile({ data, period, ...tile }: { data: WallData; period: WallHero['period'] } & TileProps) {
+  const p = data.profile;
+  const today = data.days.at(-1)!;
+  const from = period === 'day' ? today.date : period === 'week' ? mondayOf(today.date) : `${today.date.slice(0, 7)}-01`;
+  const span = data.days.filter((d) => d.date >= from);
+  const logged = span.filter((d) => d.kcal !== null);
+  const word = period === 'day' ? '今天' : period === 'week' ? '本周' : '本月';
+  const kcal = logged.length ? avg(logged.map((d) => d.kcal!)) : 0;
+  const protein = logged.length ? avg(logged.map((d) => d.protein ?? 0)) : 0;
+  const burn = span.length ? sum(span.map((d) => d.burn)) / (period === 'day' ? 1 : span.length) : 0;
+  const meter = (label: string, value: number, target: number | null, unit: string) => (
+    <div className="rw-food-row">
+      <span>{label}</span>
+      <i className="rw-ticks" aria-hidden="true"><b style={{ width: `${target ? Math.min(1, value / target) * 100 : 0}%` }} /></i>
+      <span className="rw-food-v"><b>{fmt(Math.round(value))}</b>{target ? <em>/ {fmt(target)}</em> : null} {unit}</span>
+    </div>
+  );
+  return <div className="rw-tile rw-wide" {...tile}>
+    <TileHead title={period === 'day' ? '今日饮食' : <>饮食<small>{word}日均</small></>} />
+    {!logged.length ? <div className="rw-tile-b rw-setup"><p>{word}还没记饮食</p><span>在「记录」里说一句吃了什么，或拍张照</span></div> : <>
+      <div className="rw-tile-b rw-food">
+        {meter('摄入', kcal, p?.targetKcal ?? null, 'kcal')}
+        {meter('蛋白质', protein, p?.protein ?? null, 'g')}
+      </div>
+      <div className="rw-tile-f">
+        <span>{burn > 0 ? <>运动消耗{period === 'day' ? '' : '日均'} ≈{fmt(Math.round(burn))} kcal</> : `${word}还没有训练消耗`}</span>
+        <span>{period === 'day' ? `${data.mealsByDay[today.date]?.length ?? 0} 餐` : `记了 ${logged.length} 天`}{p ? '' : ' · 去「我的」设目标'}</span>
+      </div>
+    </>}
+  </div>;
+}
+
 function EnergyTile({ week, ...tile }: { week: WallData['days'] } & TileProps) {
   const logged = present(week.map((d) => d.kcal));
   const burn = sum(week.map((d) => d.burn));
@@ -274,11 +320,12 @@ function EnergyTile({ week, ...tile }: { week: WallData['days'] } & TileProps) {
 }
 
 /* ---------------- 抽屉 ---------------- */
-function SheetLayer({ id, data, variant, origin, onClosed }: {
-  id: SheetId; data: WallData; variant: SculptureVariant;
+function SheetLayer({ id, data, variant, origin, period, onClosed }: {
+  id: SheetId; data: WallData; variant: SculptureVariant; period: WallHero['period'];
   origin: React.MutableRefObject<{ el: HTMLElement; rect: DOMRect; keyboard: boolean } | null>; onClosed: () => void;
 }) {
-  const [range, setRange] = useState<RangeKey>('d7');
+  // 「饮食」抽屉跟着打开时的日／周／月：月视图默认看 30 天，其余 7 天
+  const [range, setRange] = useState<RangeKey>(id === 'food' && period === 'month' ? 'd30' : 'd7');
   const [full, setFull] = useState(false);
   const [phase, setPhase] = useState<'enter' | 'open' | 'closing'>('enter');
   const sheet = useRef<HTMLElement>(null);
@@ -408,7 +455,7 @@ function SheetLayer({ id, data, variant, origin, onClosed }: {
           <Seg options={RANGES} value={range} onChange={setRange} label="统计区间" />
           <span>截至 {short(data.today)}</span>
         </div>
-        <Content data={data} range={range} variant={variant} />
+        <Content data={data} range={range} variant={variant} period={period} />
       </div>
     </section>
   </div>, document.body);

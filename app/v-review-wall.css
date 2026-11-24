@@ -170,6 +170,30 @@ html:not([data-theme="dark"]) .rw-legend b { color: color-mix(in srgb, var(--c, 
 .rw-emini small { text-align: center; font-size: 11px; color: var(--rw-mute); }
 .rw-emini .today small { color: var(--rw-ink); font-weight: 700; }
 
+/* ---------- 今日饮食（中号长方形）：两行条形码刻度，墨色是已吃的部分 ---------- */
+.rw-food { justify-content: center; gap: 12px; }
+.rw-food-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; color: var(--rw-ink2); }
+.rw-ticks { position: relative; height: 18px; overflow: hidden; border-radius: 3px; background: repeating-linear-gradient(90deg, rgb(var(--rw-rgb) / 18%) 0 1.4px, transparent 1.4px 4.6px); }
+.rw-ticks b { position: absolute; inset: 0 auto 0 0; background: repeating-linear-gradient(90deg, rgb(var(--rw-rgb) / 88%) 0 1.4px, transparent 1.4px 4.6px); transform-origin: left; animation: rw-grow-x .9s var(--spring) .2s both; }
+.rw-food-v { font: 500 12px var(--font-num); color: var(--rw-mute); white-space: nowrap; text-align: right; }
+.rw-food-v b { font: 700 16px var(--font-num); letter-spacing: -.01em; color: var(--rw-ink); }
+.rw-food-v em { margin-left: 2px; font-style: normal; }
+
+/* 抽屉里：今天的每一餐 */
+.rw-food-progs .rw-prog-top b { width: 56px; flex: none; white-space: nowrap; }
+.rw-meals-h { margin: 0 0 6px; font-size: 13px; }
+.rw-meals { list-style: none; margin: 0; padding: 0; border-radius: 16px; background: rgb(var(--rw-rgb) / 5%); }
+.rw-meals li + li { border-top: 1px solid rgb(var(--rw-rgb) / 7%); }
+.rw-meals a { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto auto; align-items: center; gap: 10px; padding: 12px 12px 12px 14px; color: inherit; text-decoration: none; transition: scale .5s var(--spring-bounce); }
+.rw-meals a:active { scale: .98; transition-duration: .12s; }
+.rw-meals a > .icon { color: var(--rw-faint); }
+.rw-meal-t { font: 600 12px var(--font-num); color: var(--rw-mute); }
+.rw-meal-n { display: grid; gap: 2px; min-width: 0; }
+.rw-meal-n b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rw-meal-n small { font-size: 11.5px; color: var(--rw-mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rw-meal-k { font: 700 15px var(--font-num); white-space: nowrap; }
+.rw-meal-k small { margin-left: 2px; font-size: 11px; font-weight: 600; color: var(--rw-mute); }
+
 /* ---------- 抽屉 ---------- */
 html.rw-lock { overflow: hidden; }
 .journal-shell.is-review > :is(.journal-head, .journal-content) { transition: scale .62s var(--spring), translate .62s var(--spring); }

@@ -46,6 +46,27 @@ export function MicIcon({ className }: P) {
   );
 }
 
+/** 实心话筒（照 SF Symbols 的 mic.fill）：实心胶囊 + 托架弧线 + 竖杆，用在录音按钮的珊瑚圆心上 */
+export function MicFillIcon({ className }: P) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden fill="none">
+      <rect x="8.2" y="2" width="7.6" height="12.6" rx="3.8" fill="currentColor" />
+      <path d="M5.2 11.2a6.8 6.8 0 0 0 13.6 0M12 18.1v3.4" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** 实心星芒（照 SF Symbols 的 sparkles）：一大两小三颗四角星，用在「我的教练」图标上 */
+export function SparklesIcon({ className }: P) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden fill="currentColor">
+      <path d="M10 4.2c.55 4.6 3.1 7.15 7.7 7.7-4.6.55-7.15 3.1-7.7 7.7-.55-4.6-3.1-7.15-7.7-7.7 4.6-.55 7.15-3.1 7.7-7.7Z" />
+      <path d="M18.3 1.8c.24 2 1.34 3.1 3.34 3.34-2 .24-3.1 1.34-3.34 3.34-.24-2-1.34-3.1-3.34-3.34 2-.24 3.1-1.34 3.34-3.34Z" />
+      <path d="M18.6 15.6c.2 1.6 1.08 2.48 2.68 2.68-1.6.2-2.48 1.08-2.68 2.68-.2-1.6-1.08-2.48-2.68-2.68 1.6-.2 2.48-1.08 2.68-2.68Z" />
+    </svg>
+  );
+}
+
 export function KeyboardIcon({ className }: P) {
   return (
     <svg {...base} className={className} aria-hidden>

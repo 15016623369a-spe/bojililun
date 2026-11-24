@@ -814,3 +814,24 @@ html[data-theme="dark"] .plan-muscle-dialog::backdrop { background: rgb(0 0 0 / 
 .plan-title p { flex-wrap: wrap; row-gap: 8px; }
 .plan-title-side, .plan-model-switch button { white-space: nowrap; flex: none; }
 .plan-title .plan-title-hint { order: 3; flex-basis: 100%; }
+
+/* ---------- 11 月 24 日：计划首屏整屏固定，不上下滑动 ----------
+   页头、标题、人体、下方一行按屏幕高度分配，人体占剩下的全部高度；只有模型能拖动旋转。
+   底部导航固定在最下面，这里留出它的高度。加练（/train/extra）同一套版式。 */
+html:has(.journal-shell.is-plan), html:has(.journal-shell.is-plan) body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+.journal-shell.is-plan {
+  display: flex; flex-direction: column;
+  height: 100dvh; min-height: 0; overflow: hidden;
+  padding-bottom: calc(84px + env(safe-area-inset-bottom));
+}
+.is-plan .journal-head { flex: none; }
+.is-plan .journal-content { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.is-plan .plan-root.fc { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.is-plan .plan-title { flex: none; }
+.is-plan .plan-stage { flex: 1; min-height: 0; height: auto; }
+.is-plan .plan-under { flex: none; }
+/* 去掉「正面」后，「默认 / 男 / 女」挪到大标题同一行右侧，提示文字单独一行，人体多出一行高度 */
+.is-plan .plan-title { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 12px; min-height: 0; }
+.is-plan .plan-title > p { display: contents; }
+.is-plan .plan-title .plan-model-switch { grid-column: 2; grid-row: 1; margin: 0; }
+.is-plan .plan-title .plan-title-hint { grid-column: 1 / -1; margin-top: 8px; }

@@ -6,8 +6,9 @@ import { useEffect } from 'react';
 import { BarsIcon, BodyIcon } from './icons';
 import RecordTab from './RecordTab';
 
-// 顺序：训练（左，今日训练单）· 记录（中，长按就地录音）· 回顾（右）。选中胶囊的弹簧动画见 app/motion.css
-const LEFT = { href: '/train', label: '训练', key: 'body' as const, Icon: BodyIcon };
+// 顺序：训练（左）· 记录（中，长按就地录音）· 回顾（右）。选中胶囊的弹簧动画见 app/motion.css
+// 训练入口先到点阵人体选肌群（11 月 24 日用户要求）；今日训练单从右上角的计划胶囊进
+const LEFT = { href: '/body', label: '训练', key: 'body' as const, Icon: BodyIcon };
 const RIGHT = { href: '/review', label: '回顾', key: 'review' as const, Icon: BarsIcon };
 
 export type TabKey = 'log' | 'body' | 'review';
@@ -50,11 +51,14 @@ export default function TabBar({ active }: { active: TabKey }) {
 
   // 选中胶囊只在换到新页面后从上一个位置弹过去（motion.css 的 pill-from）。
   // 不在点下时先把胶囊挪到新入口：那样新页面一加载，胶囊会先跳回原位再弹一次。按下的反馈由按压回弹负责。
-  const leftOn = active === LEFT.key || on(LEFT.href);
+  const leftOn = active === LEFT.key || on(LEFT.href) || on('/train');
   const logOn = active === 'log' || on('/log');
   const rightOn = active === RIGHT.key || on(RIGHT.href);
 
+  // 导航条右边常驻一颗录音键（像 iOS 26 标签栏旁的按钮）：每个页面都在，切页时导航和它都不动。
+  // 按住说话在哪个页面都能记（也能说「今天练胸，给我排四个动作」）；轻点打开记录页的「记一条」面板
   return (
+    <div className="fc-nav-row">
     <nav className="fc-tabs" aria-label="主导航">
       <Link
         href={LEFT.href}
@@ -80,5 +84,7 @@ export default function TabBar({ active }: { active: TabKey }) {
         <i className="u" />
       </Link>
     </nav>
+    <RecordTab variant="orb" active={logOn} />
+    </div>
   );
 }

@@ -6,8 +6,8 @@ import { useRouter } from 'next/navigation';
 import { getRecognizerCtor, type Recognizer } from '@/lib/browser-recognition';
 import AskSheet from './AskSheet';
 import { createRecordDraft, sendRecordDraft } from '@/lib/record-drafts';
-import { MicIcon } from './icons';
-import { requestRecord } from './RecordHeadActions';
+import { MicFillIcon, MicIcon } from './icons';
+import { requestRecord } from './record-intent';
 import VoiceOverlay, { type VoicePhase } from './VoiceOverlay';
 
 /** 长按判定：短于这个时间算「点一下，去记录页」 */
@@ -30,8 +30,15 @@ export default function RecordTab({
   active,
   onAudioRecorded,
   onTapStart,
+  variant = 'tab',
 }: {
   active?: boolean;
+  /**
+   * tab：底部导航中间的「记录」；
+   * orb：记录页导航右边的四色光圈话筒（轻点打字 / 拍照，按住说话）；
+   * hero：空的一天放在页面中间的大号四色光圈话筒，下面带说法示例
+   */
+  variant?: 'tab' | 'orb' | 'hero';
   /** 录完之后拿到音频；没接转写接口时先落成一句提示 */
   onAudioRecorded?: (blob: Blob, ms: number) => void;
   onTapStart?: () => void;
@@ -265,7 +272,7 @@ export default function RecordTab({
     return x >= rect.left - pad && x <= rect.right + pad && y >= rect.top - pad && y <= rect.bottom + pad;
   };
 
-  const onPointerDown = (event: React.PointerEvent<HTMLAnchorElement>) => {
+  const onPointerDown = (event: React.PointerEvent<HTMLElement>) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     if (phaseRef.current !== 'idle') return;
     event.preventDefault();
@@ -280,7 +287,7 @@ export default function RecordTab({
     }, LONG_PRESS_MS);
   };
 
-  const onPointerMove = (event: React.PointerEvent<HTMLAnchorElement>) => {
+  const onPointerMove = (event: React.PointerEvent<HTMLElement>) => {
     if (!longPress.current) return;
     if (phaseRef.current !== 'recording' && phaseRef.current !== 'canceling') return;
     const pulledUp = startY.current - event.clientY > CANCEL_DISTANCE;
@@ -290,10 +297,11 @@ export default function RecordTab({
   const onPointerUp = () => {
     window.clearTimeout(pressTimer.current);
     if (!longPress.current) {
-      // 短按：已在记录页就打开录入面板（打字、照片、面板里也能按住说话），否则去记录页
+      // 短按：已在记录页就打开录入面板（打字、照片、面板里也能按住说话），否则去记录页；
+      // 导航旁的录音键在别的页面轻点，去记录页时顺手把面板打开
       if (active && requestRecord('compose')) return;
       onTapStart?.();
-      router.push('/log');
+      router.push(variant === 'tab' ? '/log' : '/log?compose=1');
       return;
     }
     if (phaseRef.current === 'canceling') {
@@ -332,7 +340,35 @@ export default function RecordTab({
 
   return (
     <>
-      <a
+      {variant !== 'tab' ? (() => {
+        const button = (
+          <button
+            type="button"
+            className={`fc-rec-orb fc-voice-btn${variant === 'hero' ? ' is-hero' : ''}`}
+            data-live={phase !== 'idle' || undefined}
+            aria-label="记一条：按住说话，轻点打字或拍照"
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={onPointerCancel}
+            onContextMenu={(event) => event.preventDefault()}
+            onClick={(event) => {
+              // 指针的短按在 onPointerUp 里处理；键盘 Enter / Space 没有指针事件，detail 是 0
+              if (event.detail === 0 && !requestRecord('compose')) router.push('/log?compose=1');
+            }}
+          >
+            <span className="fc-voice-disc"><MicFillIcon /></span>
+          </button>
+        );
+        return variant === 'hero' ? (
+          <div className="fc-voice-hero">
+            {button}
+            <b>按住说话</b>
+            <span>「午饭吃了牛肉面」<br />「卧推 4 组 10 次 60 公斤」</span>
+            <small>轻点打字或拍照</small>
+          </div>
+        ) : button;
+      })() : <a
         href="/log"
         className={`fc-tab fc-rec-tab${active ? ' on' : ''}`}
         aria-current={active ? 'page' : undefined}
@@ -356,7 +392,7 @@ export default function RecordTab({
         <MicIcon />
         <span>记录</span>
         <i className="u" />
-      </a>
+      </a>}
 
       {question && <AskSheet question={question} onClose={() => setQuestion(null)} />}
       {toast && (
