@@ -86,9 +86,9 @@ export default function ReviewWall({ hero, data, variant }: { hero: WallHero; da
           <div className="rw-tile-b"><div className="rw-macro">
             <Rings rates={[(fed.carbs ?? 0) / p.carbs, (fed.protein ?? 0) / p.protein, (fed.fat ?? 0) / p.fat]} />
             <div className="rw-legend">
-              <span><i style={{ background: 'var(--rw-carb)' }} />碳水 {Math.round(((fed.carbs ?? 0) / p.carbs) * 100)}%<b>{Math.round(fed.carbs ?? 0)}/{p.carbs} g</b></span>
-              <span><i style={{ background: 'var(--rw-ink)' }} />蛋白 {Math.round(((fed.protein ?? 0) / p.protein) * 100)}%<b>{Math.round(fed.protein ?? 0)}/{p.protein} g</b></span>
-              <span><i style={{ background: 'var(--lilac)' }} />脂肪 {Math.round(((fed.fat ?? 0) / p.fat) * 100)}%<b>{Math.round(fed.fat ?? 0)}/{p.fat} g</b></span>
+              <span style={{ '--c': 'var(--rw-carb)' } as Vars} title={`${Math.round(fed.carbs ?? 0)}/${p.carbs} g`}>碳水<b>{Math.round(((fed.carbs ?? 0) / p.carbs) * 100)}%</b></span>
+              <span style={{ '--c': 'var(--rw-ink)' } as Vars} title={`${Math.round(fed.protein ?? 0)}/${p.protein} g`}>蛋白<b>{Math.round(((fed.protein ?? 0) / p.protein) * 100)}%</b></span>
+              <span style={{ '--c': 'var(--lilac)' } as Vars} title={`${Math.round(fed.fat ?? 0)}/${p.fat} g`}>脂肪<b>{Math.round(((fed.fat ?? 0) / p.fat) * 100)}%</b></span>
             </div>
           </div></div>
           <div className="rw-tile-f"><span>{fedLabel}{fmt(fed.kcal ?? 0)} kcal</span><span>目标 {fmt(p.targetKcal)}</span></div>
@@ -99,12 +99,11 @@ export default function ReviewWall({ hero, data, variant }: { hero: WallHero; da
         <TileHead title="代谢" />
         {!p || today.tdee === null || today.bmr === null ? <Setup text="补全身高、年龄和活动量" /> : <>
           <div className="rw-tile-b rw-metab">
-            <div><span className="rw-num rw-m-big">{fmt(today.tdee)}<small>kcal</small></span><p>每日总代谢</p></div>
+            <div><span className="rw-num rw-m-big">{fmt(today.tdee)}<small>kcal</small></span><p>每日总代谢 · {p.activityLabel}</p></div>
             <div className="rw-msplit" aria-hidden="true"><i className="b" style={{ flexBasis: `${(today.bmr / today.tdee) * 100}%` }} /><i className="a" /></div>
             <div className="rw-mrow"><span><i className="b" />基础代谢</span><b>{fmt(today.bmr)}</b></div>
             <div className="rw-mrow"><span><i className="a" />日常活动</span><b>{fmt(today.tdee - today.bmr)}</b></div>
           </div>
-          <div className="rw-tile-f"><span>活动系数 × {p.factor}</span><span>{p.activityLabel}</span></div>
         </>}
       </div>
     </div>
@@ -143,7 +142,9 @@ function HeroTile({ hero, ...tile }: { hero: WallHero } & TileProps) {
     </div>
     <div className="rw-hero-row">
       <span className="rw-num rw-hero-num"><b><CountUp value={picked !== null ? bars[picked].value : hero.total} split ms={picked !== null ? 320 : 650} /></b><small>kg</small></span>
-      {hero.pill && <span className="rw-pill lemon">{hero.pill}</span>}
+      {/* 块是中号长方形，柱子要占满下面整宽：涨跌只留「↑ 50%」（完整说法在 title 里），训练天数、组数、时长收成一行 */}
+      {hero.pill && <span className="rw-pill lemon" title={hero.pill}>{hero.pill.split(' 较')[0]}</span>}
+      <p className="rw-hero-reads">{hero.reads.map((r) => <span key={r.label} aria-label={r.label}><b><CountUp value={r.value} dec={r.dec} /></b>{r.unit}</span>)}</p>
     </div>
     {n ? <div className="rw-hero-chart" key={hero.period} data-period={hero.period}>
       <PickPlot n={n} picked={picked} label="每天的训练容量，按住左右拖动查看" className="rw-hplot" style={{ '--n': n, '--gap': `${gap}px` } as Vars}
@@ -154,9 +155,6 @@ function HeroTile({ hero, ...tile }: { hero: WallHero } & TileProps) {
       </PickPlot>
       <Xl labels={bars.map((b) => b.label)} sel={sel} gap={gap} />
     </div> : <p className="rw-hero-empty">今天还没有训练，练完这里按动作列出容量</p>}
-    <div className="rw-hero-reads">
-      {hero.reads.map((r) => <div key={r.label}><span className="rw-num"><b><CountUp value={r.value} dec={r.dec} /></b><small>{r.unit}</small></span><p>{r.label}</p></div>)}
-    </div>
   </div>;
 }
 
@@ -164,8 +162,6 @@ function HeroTile({ hero, ...tile }: { hero: WallHero } & TileProps) {
 function PrTile({ data, ...tile }: { data: WallData } & TileProps) {
   const latest = data.prs.at(-1);
   const recent = data.prs.filter((e) => e.date >= data.days.at(-7)!.date).length;
-  const points = latest ? data.prHistory[latest.id]?.points.slice(-7) ?? [] : [];
-  const lo = Math.min(...points.map((x) => x.value)), hi = Math.max(...points.map((x) => x.value));
   return <div className="rw-tile" {...tile}>
     <TileHead title="个人纪录" />
     {latest ? <div className="rw-tile-b">
@@ -174,8 +170,6 @@ function PrTile({ data, ...tile }: { data: WallData } & TileProps) {
         <span className="rw-num rw-pr-num">{latest.value.toFixed(1)}<small>kg</small></span>
         <p className="rw-pr-meta">{fmt(latest.weight, latest.weight % 1 ? 1 : 0)} kg × {latest.reps} · {short(latest.date)}</p>
       </div>
-      <div className="rw-steps" aria-hidden="true">{points.map((x, i) => <i key={i} className={x.pr ? 'up' : undefined}
-        style={{ height: `${30 + ((x.value - lo) / (hi - lo || 1)) * 70}%`, '--d': `${300 + i * 50}ms` } as Vars} />)}</div>
     </div> : <div className="rw-tile-b rw-setup"><p>还没有突破</p><span>同一动作超过以前的最好成绩就记一次</span></div>}
     <div className="rw-tile-f"><span>近 7 天</span><b>{recent} 次突破</b></div>
   </div>;
@@ -230,16 +224,17 @@ function DeficitTile({ data, fed, fedLabel, ...tile }: { data: WallData; fed: Wa
   const lo = Math.min(0, b0 - 400), hi = b1 + 600;
   const v = fed && fed.tdee !== null && fed.kcal !== null ? fed.tdee - fed.kcal : null;
   const k = (x: number) => ((Math.max(lo, Math.min(hi, x)) - lo) / (hi - lo)) * 100;
-  const pt = (x: number, rr: number) => { const a = ((150 + (240 * k(x)) / 100) * Math.PI) / 180; return [73.5 + rr * Math.cos(a), 56 + rr * Math.sin(a)]; };
-  const [x0, y0] = pt(lo, 44), [x1, y1] = pt(hi, 44);
-  const arc = `M${x0.toFixed(1)} ${y0.toFixed(1)} A44 44 0 1 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`;
-  const mark = (x: number) => { const [a, b] = pt(x, 40), [c, d] = pt(x, 49), [tx, ty] = pt(x, 58); return <g key={x}><line className="mark" x1={a} y1={b} x2={c} y2={d} /><text x={tx} y={ty + 3} textAnchor="middle">{x}</text></g>; };
+  const pt = (x: number, rr: number) => { const a = ((150 + (240 * k(x)) / 100) * Math.PI) / 180; return [73.5 + rr * Math.cos(a), 73 + rr * Math.sin(a)]; };
+  const [x0, y0] = pt(lo, 54), [x1, y1] = pt(hi, 54);
+  const arc = `M${x0.toFixed(1)} ${y0.toFixed(1)} A54 54 0 1 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`;
+  const mark = (x: number) => { const [a, b] = pt(x, 50), [c, d] = pt(x, 59), [tx, ty] = pt(x, 71); return <g key={x}><line className="mark" x1={a} y1={b} x2={c} y2={d} /><text x={tx} y={ty + 3} textAnchor="middle">{x}</text></g>; };
   const inBand = v !== null && v >= b0 && v <= b1;
   return <div className="rw-tile" {...tile}>
-    <TileHead title="热量缺口" />
+    <TileHead title={<>热量缺口{fedLabel && fed && <small>{short(fed.date)}</small>}</>} />
     {!p ? <Setup text="在「我的」里补全资料" /> : <>
       <div className="rw-tile-b rw-gauge">
-        <svg viewBox="0 0 147 104" aria-hidden="true">
+        {/* 圆弧铺满块宽，读数放得下；圆心留出刻度数字的高度，正上方的数字不被裁掉 */}
+        <svg viewBox="0 0 147 106" aria-hidden="true">
           <path className="tk" d={arc} pathLength={100} />
           <path className="band" d={arc} pathLength={100} style={{ strokeDasharray: `0 ${k(b0)} ${k(b1) - k(b0)} 200` }} />
           {v !== null && <path className="val" d={arc} pathLength={100} style={{ '--v': k(v) } as Vars} />}
@@ -252,7 +247,6 @@ function DeficitTile({ data, fed, fedLabel, ...tile }: { data: WallData; fed: Wa
             : <span className={inBand ? 'rw-pill coral' : 'rw-pill'}>{inBand ? '在建议区' : v < b0 ? (p.goal === 'bulk' ? '盈余偏多' : '低于建议区') : (p.goal === 'bulk' ? '盈余不足' : '高于建议区')}</span>}
         </>}</div>
       </div>
-      <div className="rw-tile-f"><span>{fedLabel}总代谢 − 摄入</span></div>
     </>}
   </div>;
 }
@@ -265,7 +259,7 @@ function EnergyTile({ week, ...tile }: { week: WallData['days'] } & TileProps) {
     <TileHead title="能量收支" />
     <div className="rw-tile-b rw-energy">
       <div className="rw-e-reads">
-        <div><span className="rw-num">{logged.length ? fmt(Math.round(avg(logged))) : '—'}<small>kcal</small></span><p>日均摄入</p></div>
+        <div><span className="rw-num">{logged.length ? fmt(Math.round(avg(logged))) : '—'}<small>kcal</small></span><p>近 7 天日均摄入</p></div>
         <div><span className="rw-num coral">{fmt(burn)}<small>kcal</small></span><p>运动消耗 · 估算</p></div>
       </div>
       <div className="rw-emini" aria-hidden="true">
@@ -276,7 +270,6 @@ function EnergyTile({ week, ...tile }: { week: WallData['days'] } & TileProps) {
         </div>)}
       </div>
     </div>
-    <div className="rw-tile-f"><span>近 7 天</span><span>运动消耗只作参考，不计入总代谢</span></div>
   </div>;
 }
 

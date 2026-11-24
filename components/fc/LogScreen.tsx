@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import AskSheet from './AskSheet';
-import { CameraIcon, KeyboardIcon, MicIcon } from './icons';
+import { CameraIcon, MicIcon } from './icons';
+import { RECORD_EVENT, type RecordIntent } from './RecordHeadActions';
 import TabBar from './TabBar';
 import Timeline from './Timeline';
 import { createRecordDraft, keepRecordDraft, recordDrafts, removeRecordDraft, sendRecordDraft, type RecordDraft } from '@/lib/record-drafts';
@@ -50,8 +51,7 @@ function compressImage(file: File): Promise<string> {
 export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: boolean }) {
   const router = useRouter();
 
-  const [phase, setPhase] = useState<'idle' | 'listening' | 'busy' | 'done'>('idle');
-  const [heard, setHeard] = useState('');
+  const [phase, setPhase] = useState<'idle' | 'busy'>('idle');
   const [toast, setToast] = useState('');
   const [ask, setAsk] = useState<string | null>(null);
 
@@ -68,9 +68,7 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
   const downAt = useRef(0);
   const abortRef = useRef(false);
   const finalRef = useRef('');
-  const heardRef = useRef('');
   const busyRef = useRef(false);
-  const modeRef = useRef<'record' | 'compose'>('record');
 
   useEffect(() => {
     if (!toast) return;
@@ -112,8 +110,6 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
     }
   }, [router]);
 
-  const handleInput = useCallback((value: string) => void submit(createRecordDraft('voice', value)), [submit]);
-
   const stopRec = useCallback(() => {
     abortRef.current = false;
     const rec = recRef.current;
@@ -137,9 +133,7 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
       }
     }
     recRef.current = null;
-    setPhase('idle');
     setListening(false);
-    setHeard('');
   }, []);
 
   const photoInput = useRef<HTMLInputElement>(null);
@@ -148,92 +142,59 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
     setSheet('compose');
   }, []);
 
-  const startRec = useCallback(
-    (mode: 'record' | 'compose') => {
-      const Ctor = getRecognizerCtor();
-      if (!Ctor) {
-        if (mode === 'record') openComposer();
-        else setToast('这个浏览器不支持语音，先打字吧');
-        return;
-      }
-      modeRef.current = mode;
-      finalRef.current = '';
-      heardRef.current = '';
+  /** 面板里「按住说话」：边说边把识别的字填进输入框，松手后由用户确认再记下来 */
+  const startRec = useCallback(() => {
+    const Ctor = getRecognizerCtor();
+    if (!Ctor) {
+      setToast('这个浏览器不支持语音，先打字吧');
+      return;
+    }
+    finalRef.current = '';
+    setListening(true);
 
-      if (mode === 'record') {
-        setHeard('');
+    try {
+      const rec = new Ctor();
+      rec.lang = 'zh-CN';
+      rec.continuous = true;
+      rec.interimResults = true;
 
-        setPhase('listening');
-      } else {
-        setListening(true);
-      }
+      rec.onresult = (ev) => {
+        let interim = '';
+        for (let i = ev.resultIndex; i < ev.results.length; i += 1) {
+          const r = ev.results[i];
+          const t = r[0]?.transcript ?? '';
+          if (r.isFinal) finalRef.current += t;
+          else interim += t;
+        }
+        composeSource.current = 'voice';
+        setText(`${finalRef.current}${interim}`);
+      };
 
-      try {
-        const rec = new Ctor();
-        rec.lang = 'zh-CN';
-        rec.continuous = true;
-        rec.interimResults = true;
-
-        rec.onresult = (ev) => {
-          let interim = '';
-          for (let i = ev.resultIndex; i < ev.results.length; i += 1) {
-            const r = ev.results[i];
-            const t = r[0]?.transcript ?? '';
-            if (r.isFinal) finalRef.current += t;
-            else interim += t;
-          }
-          const value = `${finalRef.current}${interim}`;
-          heardRef.current = value;
-          if (modeRef.current === 'record') setHeard(value);
-          else {
-            composeSource.current = 'voice';
-            setText(value);
-          }
-        };
-
-        rec.onerror = (ev: { error?: string }) => {
-          abortRef.current = true;
-          if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
-            setToast('没有麦克风权限，先打字记一条');
-            if (modeRef.current === 'record') openComposer();
-          } else if (ev.error === 'no-speech') {
-            setToast('没听到声音，再说一次');
-          }
-          setPhase('idle');
-          setListening(false);
-        };
-
-        rec.onend = () => {
-          recRef.current = null;
-          setListening(false);
-          if (abortRef.current) return;
-          const value = (finalRef.current || heardRef.current).trim();
-          if (modeRef.current === 'record') {
-            if (value) handleInput(value);
-            else setPhase('idle');
-          }
-        };
-
-        recRef.current = rec;
-        rec.start();
-      } catch {
-        setPhase('idle');
+      rec.onerror = (ev: { error?: string }) => {
+        abortRef.current = true;
+        if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') setToast('没有麦克风权限，先打字记一条');
+        else if (ev.error === 'no-speech') setToast('没听到声音，再说一次');
         setListening(false);
-        setToast('语音识别没启动成功，先打字记一条');
-        if (mode === 'record') openComposer();
-      }
-    },
-    [handleInput, openComposer],
-  );
+      };
+
+      rec.onend = () => {
+        recRef.current = null;
+        setListening(false);
+      };
+
+      recRef.current = rec;
+      rec.start();
+    } catch {
+      setListening(false);
+      setToast('语音识别没启动成功，先打字记一条');
+    }
+  }, []);
 
   useEffect(() => {
     const onUp = () => {
       if (!recRef.current) return;
-      const held = Date.now() - downAt.current;
-      const mode = modeRef.current;
-      if (held < 300) {
+      if (Date.now() - downAt.current < 300) {
         abortRec();
-        if (mode === 'record') openComposer();
         return;
       }
       stopRec();
@@ -244,19 +205,25 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', abortRec);
     };
-  }, [abortRec, openComposer, stopRec]);
+  }, [abortRec, stopRec]);
 
-  const onDown = (e: React.PointerEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    if (phase === 'busy') return;
-    downAt.current = Date.now();
-    startRec('record');
-  };
+  // 右上角的打字、拍照，以及在记录页上轻点底部「记录」：都从这里打开（见 RecordHeadActions）
+  useEffect(() => {
+    const onRecord = (event: Event) => {
+      const intent = (event as CustomEvent<RecordIntent>).detail;
+      event.preventDefault();
+      if (intent === 'photo') {
+        if (!busyRef.current) photoInput.current?.click();
+      } else openComposer();
+    };
+    window.addEventListener(RECORD_EVENT, onRecord);
+    return () => window.removeEventListener(RECORD_EVENT, onRecord);
+  }, [openComposer]);
 
   const onComposeDown = (e: React.PointerEvent<HTMLButtonElement>) => {
     e.preventDefault();
     downAt.current = Date.now();
-    startRec('compose');
+    startRec();
   };
 
   const onFile = async (file: File | undefined) => {
@@ -285,23 +252,10 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
     await submit(editingDraft ? { ...editingDraft, text: value } : createRecordDraft(composeSource.current, value));
   };
 
-  const recording = phase === 'listening';
   const recoverySlot = drafts.length > 0 ? document.getElementById('record-recovery-slot') : null;
 
   return (
     <>
-      {recording && (
-        <div className="fc-pill">
-          <div className="fc-pill-hd">
-            <span>在听…</span>
-            <span className="fc-wave" aria-hidden>
-              <i /> <i /> <i /> <i /> <i /> <i /> <i /> <i /> <i />
-            </span>
-          </div>
-          <div className="fc-quote">{heard || '说一句话'}</div>
-        </div>
-      )}
-
       {recoverySlot && createPortal(<section className="record-recovery" aria-label="待保存的记录">
         {drafts.map((draft) => <article key={draft.request_id}>
           <header className="record-recovery-head">
@@ -329,37 +283,6 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
 
       <div className="fc-dock" aria-busy={working}>
         <div className="fc-dock-inner">
-          <div className="fc-record-controls">
-            <button
-              type="button"
-              className="fc-record-icon"
-              aria-label="打字"
-              title="打字"
-              onClick={openComposer}
-            >
-              <KeyboardIcon />
-            </button>
-            <button
-              type="button"
-              className={`fc-speak${recording ? ' rec' : ''}`}
-              onPointerDown={onDown}
-              onContextMenu={(e) => e.preventDefault()}
-              aria-label="按住说话记录"
-            >
-              <MicIcon />
-              {recording ? '松开结束' : phase === 'busy' ? '正在记…' : '按住说话'}
-            </button>
-            <button
-              type="button"
-              className="fc-record-icon"
-              aria-label="拍照或选照片"
-              title="拍照或选照片"
-              disabled={working}
-              onClick={() => photoInput.current?.click()}
-            >
-              <CameraIcon />
-            </button>
-          </div>
           <input
             ref={photoInput}
             type="file"
@@ -372,6 +295,7 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
             }}
             hidden
           />
+          {working && <p className="journal-status" role="status">正在记入手账…</p>}
           <TabBar active="log" />
         </div>
       </div>

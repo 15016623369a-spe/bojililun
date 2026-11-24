@@ -6,6 +6,7 @@ import { COACH_STARTERS, type CoachEvidence, type CoachState, type CoachTopic } 
 import CoachCharts from './CoachCharts';
 import { MicIcon } from './icons';
 import { useHoldToSpeak } from './useHoldToSpeak';
+import { useDraggableOrb } from './useDraggableOrb';
 
 function CoachMark({ size = 24 }: { size?: number }) {
   return (
@@ -59,6 +60,7 @@ export default function CoachPreview() {
   const latest = useRef<HTMLDivElement>(null);
   const running = useRef(false);
   const closing = useRef(false);
+  const orb = useDraggableOrb(52);
 
   const [draft, setDraft] = useState('');
   const [voiceNote, setVoiceNote] = useState('');
@@ -278,13 +280,20 @@ export default function CoachPreview() {
 
   return (
     <>
+      {/* 可拖动：按住拖到别处，松手贴到最近的一边；轻点仍是打开教练 */}
       <button
         ref={trigger}
         className="coach-orb"
         type="button"
-        aria-label="打开我的教练"
+        aria-label="打开我的教练（可拖动）"
         aria-haspopup="dialog"
-        onClick={open}
+        data-dragging={orb.dragging || undefined}
+        style={orb.style}
+        {...orb.handlers}
+        onClick={() => {
+          if (orb.consumeDragClick()) return;
+          open();
+        }}
       >
         <CoachMark size={24} />
       </button>

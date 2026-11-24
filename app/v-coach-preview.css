@@ -2,7 +2,9 @@
   position: fixed;
   z-index: 29;
   right: max(18px, calc((100vw - 524px) / 2));
-  bottom: calc(172px + env(safe-area-inset-bottom));
+  /* 记录页底部只剩导航后，默认停在导航右上方；拖动后改用 left / top（见 useDraggableOrb） */
+  bottom: calc(104px + env(safe-area-inset-bottom));
+  --orb-safe-b: env(safe-area-inset-bottom, 0px);
   display: grid;
   place-items: center;
   width: 52px;
@@ -16,11 +18,25 @@
     0 12px 26px -8px rgb(8 10 6 / 78%),
     0 0 0 1px rgb(255 255 255 / 6%) inset,
     0 1px 0 rgb(255 255 255 / 16%) inset;
-  cursor: pointer;
-  touch-action: manipulation;
+  cursor: grab;
+  touch-action: none;
   user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
-  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s ease, border-color 0.22s ease;
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s ease, border-color 0.22s ease,
+    left 0.5s var(--spring-bounce, cubic-bezier(0.22, 1, 0.36, 1)), top 0.5s var(--spring-bounce, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+/* 拖动中：跟手不过渡，微微放大浮起；松手后 left / top 带弹簧贴边 */
+.coach-orb.coach-orb[data-dragging] { /* 压过下面的 :hover、:active */
+  cursor: grabbing;
+  transform: scale(1.08);
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s ease;
+  box-shadow:
+    0 22px 36px -10px rgb(8 10 6 / 85%),
+    0 0 0 1px rgb(255 255 255 / 8%) inset,
+    0 1px 0 rgb(255 255 255 / 18%) inset;
 }
 
 .coach-orb:hover {

@@ -19,7 +19,10 @@
   --mist: #91bce8;
   --coral: #f06351;
   --lilac: #bdadf0;
-  --font-num: 'Helvetica Neue', 'SF Pro Display', -apple-system, 'PingFang SC', system-ui, sans-serif;
+  /* 数据块（照负一屏小组件）的圆角；底部导航条用同一个圆角，里面的选中块按内边距收小，保持同心 */
+  --tile-r: 22px;
+  /* 苹果设备上先用系统字体（SF Pro + 苹方），和负一屏小组件同一套字形；其他系统再退到 Helvetica Neue */
+  --font-num: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', 'PingFang SC', system-ui, sans-serif;
   --ease-out: cubic-bezier(.2, .8, .2, 1);
   --ease-spring: cubic-bezier(.32, 1.25, .4, 1);
 
@@ -57,7 +60,7 @@ body {
 body {
   background: var(--canvas);
   color: var(--text);
-  font-family: 'Helvetica Neue', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB',
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', 'PingFang SC', 'Hiragino Sans GB',
     'Microsoft YaHei', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: none;

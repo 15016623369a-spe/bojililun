@@ -2,7 +2,8 @@
    新版视觉 · 记录：大字日期、时间刻度、横向记录卡、语音态
    ============================================================ */
 
-.journal-shell.is-record { padding-bottom: calc(196px + env(safe-area-inset-bottom)); }
+/* 底部只剩导航（原来的「按住说话」一行已去掉，打字和拍照在右上角） */
+.journal-shell.is-record { padding-bottom: calc(124px + env(safe-area-inset-bottom)); }
 .is-record .journal-footer { background: rgb(226 227 223); padding-top: 4px; }
 .hero-word { margin: 6px 0 0; font-size: 34px; font-weight: 700; letter-spacing: -.01em; line-height: 1.1; }
 .is-record .big-date-hero { margin: 8px 0 24px; }
@@ -277,7 +278,7 @@
 .record-recovery-actions button { min-height: 44px; padding-inline: 6px; text-decoration: underline; text-underline-offset: 4px; }
 .record-estimated { display: inline-block; margin-right: 8px; color: var(--gray-1); }
 .record-undo-notice {
-  position: fixed; z-index: 70; left: 16px; right: 16px; bottom: calc(156px + env(safe-area-inset-bottom));
+  position: fixed; z-index: 70; left: 16px; right: 16px; bottom: calc(100px + env(safe-area-inset-bottom));
   max-width: 480px; margin-inline: auto; padding: 4px 10px 4px 14px; border-radius: 16px;
   display: flex; align-items: center; flex-wrap: wrap; gap: 4px 9px; background: var(--dk-fill, var(--ink-0)); color: var(--silver-2);
 }

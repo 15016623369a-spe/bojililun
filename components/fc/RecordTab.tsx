@@ -7,6 +7,7 @@ import { getRecognizerCtor, type Recognizer } from '@/lib/browser-recognition';
 import AskSheet from './AskSheet';
 import { createRecordDraft, sendRecordDraft } from '@/lib/record-drafts';
 import { MicIcon } from './icons';
+import { requestRecord } from './RecordHeadActions';
 import VoiceOverlay, { type VoicePhase } from './VoiceOverlay';
 
 /** 长按判定：短于这个时间算「点一下，去记录页」 */
@@ -289,7 +290,8 @@ export default function RecordTab({
   const onPointerUp = () => {
     window.clearTimeout(pressTimer.current);
     if (!longPress.current) {
-      // 短按：保持原来的行为，去记录页
+      // 短按：已在记录页就打开录入面板（打字、照片、面板里也能按住说话），否则去记录页
+      if (active && requestRecord('compose')) return;
       onTapStart?.();
       router.push('/log');
       return;
@@ -334,7 +336,7 @@ export default function RecordTab({
         href="/log"
         className={`fc-tab fc-rec-tab${active ? ' on' : ''}`}
         aria-current={active ? 'page' : undefined}
-        aria-label="记录：轻点进入记录页，按住说话"
+        aria-label={active ? '记录：轻点记一条，按住说话' : '记录：轻点进入记录页，按住说话'}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -345,6 +347,7 @@ export default function RecordTab({
           // 键盘 Enter / Space 的 click 没有指针事件，detail 是 0，补一次。
           event.preventDefault();
           if (event.detail === 0) {
+            if (active && requestRecord('compose')) return;
             onTapStart?.();
             router.push('/log');
           }
