@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { BarsIcon, BodyIcon } from './icons';
 import RecordTab from './RecordTab';
 
@@ -15,12 +15,7 @@ export type TabKey = 'log' | 'body' | 'review';
 export default function TabBar({ active }: { active: TabKey }) {
   const pathname = usePathname() ?? '';
   const router = useRouter();
-  const [pending, setPending] = useState<string | null>(null);
   const on = (href: string) => pathname === href || pathname.startsWith(href + '/');
-
-  useEffect(() => {
-    setPending(null);
-  }, [pathname]);
 
   useEffect(() => {
     let cancelled = false;
@@ -53,16 +48,17 @@ export default function TabBar({ active }: { active: TabKey }) {
     };
   }, [router]);
 
-  const leftOn = pending ? pending === LEFT.href : active === LEFT.key || on(LEFT.href);
-  const logOn = pending ? pending === '/log' : active === 'log' || on('/log');
-  const rightOn = pending ? pending === RIGHT.href : active === RIGHT.key || on(RIGHT.href);
+  // 选中胶囊只在换到新页面后从上一个位置弹过去（motion.css 的 pill-from）。
+  // 不在点下时先把胶囊挪到新入口：那样新页面一加载，胶囊会先跳回原位再弹一次。按下的反馈由按压回弹负责。
+  const leftOn = active === LEFT.key || on(LEFT.href);
+  const logOn = active === 'log' || on('/log');
+  const rightOn = active === RIGHT.key || on(RIGHT.href);
 
   return (
     <nav className="fc-tabs" aria-label="主导航">
       <Link
         href={LEFT.href}
         prefetch={true}
-        onClick={() => { if (!on(LEFT.href)) setPending(LEFT.href); }}
         className={`fc-tab${leftOn ? ' on' : ''}`}
         aria-current={active === LEFT.key ? 'page' : undefined}
       >
@@ -71,15 +67,11 @@ export default function TabBar({ active }: { active: TabKey }) {
         <i className="u" />
       </Link>
 
-      <RecordTab
-        active={logOn}
-        onTapStart={() => { if (!on('/log')) setPending('/log'); }}
-      />
+      <RecordTab active={logOn} />
 
       <Link
         href={RIGHT.href}
         prefetch={true}
-        onClick={() => { if (!on(RIGHT.href)) setPending(RIGHT.href); }}
         className={`fc-tab${rightOn ? ' on' : ''}`}
         aria-current={active === RIGHT.key ? 'page' : undefined}
       >
