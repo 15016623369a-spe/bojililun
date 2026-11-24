@@ -8,6 +8,7 @@ import './visual.css';
 import './plan-visual.css';
 import './v-train.css';
 import './v-record.css';
+import './v-coach-preview.css';
 import './v-review.css';
 import './v-review-wall.css';
 import './v-backdrop.css';

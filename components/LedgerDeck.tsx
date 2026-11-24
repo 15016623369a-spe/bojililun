@@ -33,18 +33,22 @@ const haptic = (ms = 5) => { try { navigator.vibrate?.(ms); } catch { /* iOS 网
  * 记录页的一天（手账数据）：时间刻度上每条记录一根标记，下方横向卡片按时间排开；
  * 选中的手账卡在下面展开 main 原有的卡片编辑（快选、备注、份量重算）。
  */
-export default function LedgerDeck({ items, cards, picks, nowMinutes, past = false }: {
+export default function LedgerDeck({ items, cards, picks, nowMinutes, past = false, selectedCard }: {
   /** 回看过去某天：空状态不提示录入 */
   past?: boolean;
   items: DeckItem[];
   cards: Card[];
   picks: Record<number, CardPick | null>;
   nowMinutes: number | null;
+  selectedCard?: number;
 }) {
   const deck = useRef<HTMLDivElement>(null);
   const frame = useRef(0);
   const firstPending = items.findIndex((item) => item.pending);
-  const [activeKey, setActiveKey] = useState(() => items[firstPending >= 0 ? firstPending : items.length - 1]?.key);
+  const [activeKey, setActiveKey] = useState(() => (
+    items.find(item => selectedCard !== undefined && item.cardId === selectedCard)
+    ?? items[firstPending >= 0 ? firstPending : items.length - 1]
+  )?.key);
   const index = items.findIndex((item) => item.key === activeKey);
   const active = index >= 0 ? index : Math.max(0, items.length - 1);
   const [now, setNow] = useState(nowMinutes);

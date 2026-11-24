@@ -43,7 +43,7 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
     <JournalShell active="review" title="回顾" today={today} className="is-review is-ledger-review" backdrop={backdrop}
       headerAction={<div className="head-actions">
         <ReviewExport key={range.start} today={today} start={range.start} />
-        <Link href="/me" className="head-avatar" aria-label="我的个人资料"><Icon name="user" size={19} /></Link>
+        <Link href="/me" prefetch={true} className="head-avatar" aria-label="我的个人资料"><Icon name="user" size={19} /></Link>
       </div>}
       hero={<>
         <p className="hero-word" aria-hidden="true">回顾</p>
@@ -53,7 +53,7 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
             <span className="range-cal" aria-hidden="true">{Array.from({ length: 9 }, (_, i) => <i key={i} />)}</span>
           </Link>
           <nav className="vseg small" aria-label="统计区间">
-            {SEGMENTS.map((s) => <Link key={s.key} href={s.key === 'week' ? '/review' : `/review?period=${s.key}`} scroll={false}
+            {SEGMENTS.map((s) => <Link key={s.key} href={s.key === 'week' ? '/review' : `/review?period=${s.key}`} prefetch={true} scroll={false}
               className={period === s.key ? 'on' : undefined} aria-current={period === s.key ? 'page' : undefined}>{s.label}</Link>)}
           </nav>
         </div>

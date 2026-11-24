@@ -21,13 +21,13 @@
 .page-flow { display: contents; }
 .page-flow[data-shift] .journal-content,
 .page-flow[data-shift] .runner-main,
-.page-flow[data-shift] .runner-dark { position: relative; animation: page-in .62s var(--spring) both; }
-.page-flow[data-shift="1"], .page-flow[data-shift="2"] { --from: 44px; }
-.page-flow[data-shift="-1"], .page-flow[data-shift="-2"] { --from: -44px; }
+.page-flow[data-shift] .runner-dark { position: relative; animation: page-in .28s var(--spring) both; }
+.page-flow[data-shift="1"], .page-flow[data-shift="2"] { --from: 18px; }
+.page-flow[data-shift="-1"], .page-flow[data-shift="-2"] { --from: -18px; }
 .page-flow[data-shift="0"] { --from: 0px; }
 .page-flow[data-shift="0"] .journal-content { animation-name: page-rise; }
-@keyframes page-in { from { left: var(--from, 0px); opacity: .35; } to { left: 0; opacity: 1; } }
-@keyframes page-rise { from { top: 14px; opacity: .4; } to { top: 0; opacity: 1; } }
+@keyframes page-in { from { left: var(--from, 0px); opacity: .72; } to { left: 0; opacity: 1; } }
+@keyframes page-rise { from { top: 8px; opacity: .72; } to { top: 0; opacity: 1; } }
 .page-flow[data-shift] .journal-content { position: relative; }
 
 /* 窄屏上裁掉换页时滑出视口的内容，避免固定底栏跟着视口变宽而下移。 */
@@ -36,10 +36,10 @@
 }
 
 /* 底部导航：选中胶囊从上一个位置弹到新位置 */
-.page-flow[data-shift="1"] .fc-tabs .fc-tab.on { animation: pill-from .56s var(--spring-bounce) both; --pill-from: -100%; }
-.page-flow[data-shift="2"] .fc-tabs .fc-tab.on { animation: pill-from .62s var(--spring-bounce) both; --pill-from: -200%; }
-.page-flow[data-shift="-1"] .fc-tabs .fc-tab.on { animation: pill-from .56s var(--spring-bounce) both; --pill-from: 100%; }
-.page-flow[data-shift="-2"] .fc-tabs .fc-tab.on { animation: pill-from .62s var(--spring-bounce) both; --pill-from: 200%; }
+.page-flow[data-shift="1"] .fc-tabs .fc-tab.on { animation: pill-from .32s var(--spring-bounce) both; --pill-from: -100%; }
+.page-flow[data-shift="2"] .fc-tabs .fc-tab.on { animation: pill-from .36s var(--spring-bounce) both; --pill-from: -200%; }
+.page-flow[data-shift="-1"] .fc-tabs .fc-tab.on { animation: pill-from .32s var(--spring-bounce) both; --pill-from: 100%; }
+.page-flow[data-shift="-2"] .fc-tabs .fc-tab.on { animation: pill-from .36s var(--spring-bounce) both; --pill-from: 200%; }
 @keyframes pill-from { from { translate: var(--pill-from) 0; } to { translate: 0 0; } }
 
 /* 按压回弹：按下快速收一点，松手带回弹弹回。用 scale 属性，和元素已有的 transform 叠加 */

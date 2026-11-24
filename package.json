@@ -18,6 +18,8 @@
     "backfill:exercise-metrics": "node scripts/backfill-exercise-metrics.mjs"
   },
   "dependencies": {
+    "@ai-sdk/openai-compatible": "^3.0.94",
+    "ai": "^7.0.179",
     "next": "15.5.29",
     "pinyin-pro": "^3.29.5",
     "react": "19.1.10",
