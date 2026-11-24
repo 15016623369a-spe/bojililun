@@ -64,6 +64,7 @@ Next.js 15 App Router、React 19、TypeScript、Three.js；服务端用 Node 的
 
 - 安装依赖后用 `npm run dev` 启动 HTTPS 开发服务，默认端口 3001；仅用 HTTP 调试可运行 `npm run dev:http`。脚本清单见 [package.json](package.json)，详细启动步骤见 [README](README.md)。
 - `npm run typecheck` 检查类型，`npm run build` 验证生产构建。跑会写数据的 `npm run smoke` 或训练截图时，可先用 `FITCHECK_DB_PATH=/tmp/fitcheck-demo.db npm run dev:http` 启动独立的演示库，再从另一个终端执行相应命令。
+- 每个 PR 和推到 `main` 时，GitHub Actions（[ci.yml](.github/workflows/ci.yml)，Node 24）依次跑 `npm ci`、类型检查、`npm run test:ledger`、`node --test scripts/sculpture-labels.test.cjs` 和生产构建；本地提交前可以先跑同样几条。`node_modules` 不进仓库（有的机器上它是软链接，`.gitignore` 写成不带斜杠的 `node_modules`）。`/zzortho`、`/zzprobe2`、`/zzseed` 是雕塑模型的开发工具页，只在 `next dev` 下可用，正式版返回 404。
 - 训练与模型截图脚本分别为 `npm run shot:training`、`npm run shot:body`。复核视觉时检查正常入口、同一日期与数据、单位和选中态。设计概念图用于讨论；PR 对照图取自目标分支与改动分支实际运行的相同场景。
 
 ## 提交 Pull Request
