@@ -142,7 +142,7 @@ export default function TodayPlan({
         <div className="empty-plan">
           <b>还没有安排动作</b>
           <p>回到人体上点一块肌肉挑几个动作，或者按住底部「记录」说「今天练胸，给我排四个动作」。</p>
-          <Link className="ghost-pill" href="/body">去点选肌群</Link>
+          <Link className="ghost-pill" href="/body" prefetch={true}>去点选肌群</Link>
         </div>
       ) : (
         <ol className="plan-rows">
@@ -189,7 +189,7 @@ export default function TodayPlan({
         </ol>
       )}
 
-      {!allDone && <Link href="/body" className="add-row">
+      {!allDone && <Link href="/body" prefetch={true} className="add-row">
         <span className="add-row-icon" aria-hidden="true"><Icon name="plus" size={18} /></span>从动作库添加 · 也可以按住「记录」说「再加一个飞鸟」
       </Link>}
 

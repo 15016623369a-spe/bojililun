@@ -12,7 +12,7 @@ export default function PlanPill({ total, done, live }: { total: number; done: n
     : finished ? `今日计划已完成，共 ${total} 个动作`
       : total ? `今日计划，已练 ${done} / ${total} 个动作` : '今日还没有计划';
   const shown = Math.min(total, 8);
-  return <Link className="plan-pill" data-state={state} data-finished={finished || undefined} href="/train" aria-label={label}>
+  return <Link className="plan-pill" data-state={state} data-finished={finished || undefined} href="/train" prefetch={true} aria-label={label}>
     {state === 'live' && <><i className="plan-pill-live" aria-hidden="true" /><span>训练中</span></>}
     {state === 'empty' && <><Icon name="plus" size={15} stroke={2.2} /><span>今日计划</span></>}
     {state === 'todo' && <>

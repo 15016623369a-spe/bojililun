@@ -6,10 +6,26 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { MuscleId } from '@/lib/muscles';
 import { canonicalMuscle, labelAtBarycentric, SCULPTURE_GROUPS, SCULPTURE_VARIANTS, sculptureGroup, type SculptureVariant } from '@/lib/sculpture-groups';
-import { labeledGeometry, validateLabelData } from '@/lib/sculpture-geometry';
+import { buildGeometryBVH, enableFastSculptureRaycast, labeledGeometry, validateLabelData } from '@/lib/sculpture-geometry';
 
 const BY_BYTE = new Map(SCULPTURE_GROUPS.map((g) => [g.byteValue, g.id]));
 const BYTE_OF = new Map(SCULPTURE_GROUPS.map((g) => [g.id, g.byteValue]));
+
+type CachedMeshEntry = {
+  geometry: THREE.BufferGeometry;
+  position: THREE.Vector3;
+  quaternion: THREE.Quaternion;
+  scale: THREE.Vector3;
+};
+
+type PreparedSculpture = {
+  meshes: CachedMeshEntry[];
+  centerOffset: THREE.Vector3;
+  groupScale: number;
+};
+
+const preparedCache = new Map<SculptureVariant, Promise<PreparedSculpture>>();
+const centroidCache = new Map<string, { p: THREE.Vector3; n: THREE.Vector3 }>();
 
 /**
  * 计划首屏的点阵后处理：先把中性灰雕塑渲染进纹理，再在屏幕空间按格采样亮度画圆点。
@@ -90,8 +106,8 @@ function disposeSubject(subject: THREE.Object3D) {
     for (const material of Array.isArray(obj.material) ? obj.material : [obj.material]) disposeMaterial(material);
   });
 }
-async function checkedFetch(url: string, signal: AbortSignal) {
-  const response = await fetch(url, { signal });
+async function checkedFetch(url: string) {
+  const response = await fetch(url);
   if (!response.ok) throw new Error(`人体资源加载失败 (${response.status})`);
   return response;
 }
@@ -101,6 +117,69 @@ async function verifyHash(bytes: ArrayBuffer, expected: string) {
   const digest = await crypto.subtle.digest('SHA-256', bytes);
   const actual = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
   if (actual !== expected) throw new Error('人体资源版本不匹配');
+}
+
+function loadPreparedSculpture(variant: SculptureVariant): Promise<PreparedSculpture> {
+  const existing = preparedCache.get(variant);
+  if (existing) return existing;
+
+  const task = (async (): Promise<PreparedSculpture> => {
+    const spec = SCULPTURE_VARIANTS[variant];
+    const META = spec.metadata;
+    const version = META.binarySha256;
+    const [modelBytes, labelBytes, metadata] = await Promise.all([
+      checkedFetch(`${spec.model}?v=${META.modelSha256}`).then((r) => r.arrayBuffer()),
+      checkedFetch(`${spec.labels}.bin?v=${version}`).then((r) => r.arrayBuffer()),
+      checkedFetch(`${spec.labels}.json?v=${version}`).then((r) => r.json()),
+    ]);
+    const labels = new Uint8Array(labelBytes);
+    validateLabelData(labels, metadata, META);
+    await Promise.all([verifyHash(labelBytes, META.binarySha256), verifyHash(modelBytes, META.modelSha256)]);
+
+    const gltf = await new GLTFLoader().parseAsync(modelBytes, '/models/sculpture/');
+    const meshes: CachedMeshEntry[] = [];
+    try {
+      gltf.scene.updateMatrixWorld(true);
+      const sourceMeshes: THREE.Mesh[] = [];
+      gltf.scene.traverse((o) => { if (o instanceof THREE.Mesh) sourceMeshes.push(o); });
+      if (sourceMeshes.length !== META.meshOrder.length) throw new Error('模型网格顺序不匹配');
+      const box = new THREE.Box3().setFromObject(gltf.scene);
+      const height = box.max.y - box.min.y;
+      const centerOffset = box.getCenter(new THREE.Vector3());
+
+      for (let i = 0; i < sourceMeshes.length; i++) {
+        const mesh = sourceMeshes[i];
+        const entry = META.meshOrder[i];
+        if (mesh.geometry.getAttribute('position').count !== entry.vertexCount) throw new Error('模型顶点数量不匹配');
+        const geometry = labeledGeometry(mesh, labels.subarray(entry.vertexOffset, entry.vertexOffset + entry.vertexCount), height);
+        buildGeometryBVH(geometry);
+        const position = new THREE.Vector3();
+        const quaternion = new THREE.Quaternion();
+        const scale = new THREE.Vector3();
+        mesh.matrixWorld.decompose(position, quaternion, scale);
+        meshes.push({ geometry, position, quaternion, scale });
+        mesh.geometry.dispose();
+        for (const old of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) disposeMaterial(old);
+      }
+      return { meshes, centerOffset, groupScale: 2.05 / height };
+    } catch (error) {
+      for (const m of meshes) m.geometry.dispose();
+      disposeSubject(gltf.scene);
+      throw error;
+    }
+  })().catch((error) => {
+    preparedCache.delete(variant);
+    throw error;
+  });
+
+  preparedCache.set(variant, task);
+  return task;
+}
+
+/** Preload and prepare the 3D sculpture geometry and BVH in the background so entering /body is instant. */
+export function preloadSculpture(variant: SculptureVariant = 'male'): void {
+  if (typeof window === 'undefined') return;
+  void loadPreparedSculpture(variant).catch(() => {});
 }
 
 export default function SculptureBody({ recorded = [], selected = null, side = 'front', onPick, onHover, spin = false, variant = 'male', heatLevels, heatTint, heatPalette, look = 'sculpture', anchor = null }: {
@@ -124,8 +203,8 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
 }) {
   const mount = useRef<HTMLDivElement>(null);
   const anchorEl = useRef<HTMLDivElement>(null);
-  const latest = useRef({ recorded, selected, side, onPick, spin, heatLevels, heatTint, anchor });
-  latest.current = { recorded, selected, side, onPick, spin, heatLevels, heatTint, anchor };
+  const latest = useRef({ recorded, selected, side, onPick, spin, heatLevels, heatTint, anchor, variant });
+  latest.current = { recorded, selected, side, onPick, spin, heatLevels, heatTint, anchor, variant };
   const api = useRef<{ refresh: () => void; setSide: (side: 'front' | 'back') => void; anchor: () => void } | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [hovered, setHovered] = useState<MuscleId | null>(null);
@@ -140,7 +219,6 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
     const host = mount.current;
     if (!host) return;
     let disposed = false;
-    const abort = new AbortController();
     let renderer: THREE.WebGLRenderer;
     try {
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -337,24 +415,46 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
     const centroidAnchor = (muscle: MuscleId) => {
       const byte = BYTE_OF.get(muscle);
       if (!subject || byte === undefined) return null;
+      const cacheKey = `${latest.current.variant}:${latest.current.side}:${muscle}`;
+      const cached = centroidCache.get(cacheKey);
+      if (cached) return { muscle, p: cached.p.clone(), n: cached.n.clone() };
+
       subject.updateMatrixWorld(true);
-      const sum = new THREE.Vector3(), nsum = new THREE.Vector3(), tmp = new THREE.Vector3(), ntmp = new THREE.Vector3();
-      let count = 0;
+      let sx = 0, sy = 0, sz = 0, nx = 0, ny = 0, nz = 0, count = 0;
       subject.traverse((obj) => {
         if (!(obj instanceof THREE.Mesh)) return;
-        const pos = obj.geometry.getAttribute('position'), ids = obj.geometry.getAttribute('muscleIds'), nor = obj.geometry.getAttribute('normal');
+        const pos = obj.geometry.getAttribute('position');
+        const ids = obj.geometry.getAttribute('muscleIds');
+        const nor = obj.geometry.getAttribute('normal');
         if (!pos || !ids) return;
+        const posArr = pos.array;
+        const idsArr = ids.array;
+        const norArr = nor?.array;
+        const m = obj.matrixWorld.elements;
+        const m0 = m[0], m1 = m[1], m2 = m[2], m4 = m[4], m5 = m[5], m6 = m[6];
+        const m8 = m[8], m9 = m[9], m10 = m[10], m12 = m[12], m13 = m[13], m14 = m[14];
         for (let i = 0; i < pos.count; i += 3) {
-          if (Math.round(ids.getX(i)) !== byte) continue;
-          tmp.fromBufferAttribute(pos, i).applyMatrix4(obj.matrixWorld);
+          const o = i * 3;
+          if (Math.round(idsArr[o]) !== byte) continue;
+          const x = posArr[o], y = posArr[o + 1], z = posArr[o + 2];
+          const wx = m0 * x + m4 * y + m8 * z + m12;
           // 双侧肌群取观者右侧那一块，和参考图里胸部锚点的位置一致
-          if (tmp.x < .015) continue;
-          sum.add(tmp); count++;
-          if (nor) nsum.add(ntmp.fromBufferAttribute(nor, i).transformDirection(obj.matrixWorld));
+          if (wx < 0.015) continue;
+          sx += wx;
+          sy += m1 * x + m5 * y + m9 * z + m13;
+          sz += m2 * x + m6 * y + m10 * z + m14;
+          count++;
+          if (norArr) {
+            const lx = norArr[o], ly = norArr[o + 1], lz = norArr[o + 2];
+            nx += m0 * lx + m4 * ly + m8 * lz;
+            ny += m1 * lx + m5 * ly + m9 * lz;
+            nz += m2 * lx + m6 * ly + m10 * lz;
+          }
         }
       });
       if (!count) return null;
-      sum.divideScalar(count);
+      const sum = new THREE.Vector3(sx / count, sy / count, sz / count);
+      const nsum = new THREE.Vector3(nx, ny, nz);
       // 把重心吸附到相机看得见的表面上
       const dir = sum.clone().sub(camera.position).normalize();
       raycaster.set(camera.position, dir);
@@ -363,7 +463,9 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
       const n = hit?.face && hit.object instanceof THREE.Mesh
         ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld)
         : nsum.lengthSq() ? nsum.normalize() : new THREE.Vector3(0, 0, 1);
-      return { muscle, ...toSubject(p, n) };
+      const local = toSubject(p, n);
+      centroidCache.set(cacheKey, { p: local.p.clone(), n: local.n.clone() });
+      return { muscle, ...local };
     };
     const syncAnchor = () => {
       const want = latest.current.anchor;
@@ -445,45 +547,27 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
         onLeave();
       },
     };
-    void (async () => {
-      const spec = SCULPTURE_VARIANTS[variant];
-      const MODEL = spec.model;
-      const LABELS = spec.labels;
-      const META = spec.metadata;
-      const version = META.binarySha256;
-      const [modelBytes, labelBytes, metadata] = await Promise.all([
-        checkedFetch(`${MODEL}?v=${META.modelSha256}`, abort.signal).then((r) => r.arrayBuffer()),
-        checkedFetch(`${LABELS}.bin?v=${version}`, abort.signal).then((r) => r.arrayBuffer()),
-        checkedFetch(`${LABELS}.json?v=${version}`, abort.signal).then((r) => r.json()),
-      ]);
-      const labels = new Uint8Array(labelBytes);
-      validateLabelData(labels, metadata, META);
-      await Promise.all([verifyHash(labelBytes, META.binarySha256), verifyHash(modelBytes, META.modelSha256)]);
+    void loadPreparedSculpture(variant).then((prepared) => {
       if (disposed) return;
-      const gltf = await new GLTFLoader().parseAsync(modelBytes, '/models/sculpture/');
-      if (disposed) { disposeSubject(gltf.scene); return; }
-      try {
-        gltf.scene.updateMatrixWorld(true);
-        const meshes: THREE.Mesh[] = [];
-        gltf.scene.traverse((o) => { if (o instanceof THREE.Mesh) meshes.push(o); });
-        if (meshes.length !== META.meshOrder.length) throw new Error('模型网格顺序不匹配');
-        const box = new THREE.Box3().setFromObject(gltf.scene);
-        const height = box.max.y-box.min.y;
-        for (let i = 0; i < meshes.length; i++) {
-          const mesh = meshes[i], entry = META.meshOrder[i];
-          if (mesh.geometry.getAttribute('position').count !== entry.vertexCount) throw new Error('模型顶点数量不匹配');
-          const geometry = labeledGeometry(mesh, labels.subarray(entry.vertexOffset, entry.vertexOffset+entry.vertexCount), height);
-          mesh.geometry.dispose();
-          for (const old of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) disposeMaterial(old);
-          mesh.geometry = geometry; mesh.material = material;
-        }
-        gltf.scene.position.sub(box.getCenter(new THREE.Vector3()));
-        subject = new THREE.Group(); subject.add(gltf.scene);
-        subject.scale.setScalar(2.05/height);
-        subject.rotation.y = latest.current.side === 'front' ? -Math.PI/2 : Math.PI/2;
-        scene.add(subject); refresh(); syncAnchor(); setStatus('ready');
-      } catch (error) { disposeSubject(gltf.scene); throw error; }
-    })().catch((error: Error) => {
+      const inner = new THREE.Group();
+      inner.position.copy(prepared.centerOffset).negate();
+      for (const entry of prepared.meshes) {
+        const mesh = new THREE.Mesh(entry.geometry, material);
+        mesh.position.copy(entry.position);
+        mesh.quaternion.copy(entry.quaternion);
+        mesh.scale.copy(entry.scale);
+        enableFastSculptureRaycast(mesh);
+        inner.add(mesh);
+      }
+      subject = new THREE.Group();
+      subject.add(inner);
+      subject.scale.setScalar(prepared.groupScale);
+      subject.rotation.y = latest.current.side === 'front' ? -Math.PI / 2 : Math.PI / 2;
+      scene.add(subject);
+      refresh();
+      syncAnchor();
+      setStatus('ready');
+    }).catch((error: Error) => {
       if (disposed || error.name === 'AbortError') return;
       console.error('Sculpture labels:', error);
       setStatus('error');
@@ -520,7 +604,7 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
         if (t >= 1) turn = null;
       }
       controls.update();
-      if (needsHover && pointer && !down && time-lastHover > 70) {
+      if (needsHover && pointer && !down && time - lastHover > 32) {
         updateHover(pickAt(pointer.x, pointer.y)); needsHover = false; lastHover = time;
       }
       if (dirty) {
@@ -540,7 +624,7 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
     };
     raf = requestAnimationFrame(tick);
     return () => {
-      disposed = true; abort.abort(); api.current = null;
+      disposed = true; api.current = null;
       cancelAnimationFrame(raf); observer.disconnect();
       controls.removeEventListener('change', onControlsChange); controls.dispose();
       renderer.domElement.removeEventListener('pointerdown', onDown);
@@ -548,14 +632,15 @@ export default function SculptureBody({ recorded = [], selected = null, side = '
       renderer.domElement.removeEventListener('pointerup', onUp);
       renderer.domElement.removeEventListener('pointerleave', onLeave);
       renderer.domElement.removeEventListener('pointercancel', onCancel);
-      if (subject) disposeSubject(subject);
+      // Do NOT dispose shared cached BufferGeometry instances on unmount; only dispose per-mount resources.
+      subject = null;
       if (post) {
         post.target.dispose(); post.material.dispose();
         post.scene.traverse((obj) => { if (obj instanceof THREE.Mesh) obj.geometry.dispose(); });
       }
       heat.dispose(); material.dispose(); renderer.dispose(); renderer.domElement.remove();
     };
-  }, [heatPalette]);
+  }, [heatPalette, variant]);
 
   return <div className={`sculpture-viewer${look === 'halftone' ? ' is-halftone' : ''}`} data-status={status} data-selected={canonicalMuscle(selected) ?? ''} data-hovered={hovered ?? ''}
     data-recorded={[...new Set(recorded.map(canonicalMuscle).filter(Boolean))].join(',')}>

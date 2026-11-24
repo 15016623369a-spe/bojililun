@@ -7,6 +7,28 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ['127.0.0.1', '192.168.1.156'],
   // 关掉左下角的 dev 指示器，它会压住拍照按钮
   devIndicators: false,
+  experimental: {
+    staleTimes: {
+      dynamic: 30,
+      static: 180,
+    },
+  },
+  async headers() {
+    return [
+      {
+        source: '/models/:path*',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=604800, stale-while-revalidate=86400' }],
+      },
+      {
+        source: '/plan-poses/:path*',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=604800, stale-while-revalidate=86400' }],
+      },
+      {
+        source: '/draco/:path*',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=604800, stale-while-revalidate=86400' }],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

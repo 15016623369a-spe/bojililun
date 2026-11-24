@@ -64,14 +64,14 @@ export default function TrainPage() {
     <JournalShell active="plan" title="今日训练" today={today} className="is-train"
       headerAction={<div className="journal-head-actions">
         <span className="journal-head-label">今日训练</span>
-        <Link className="journal-head-circle" href="/body" aria-label="回到点选肌群">
+        <Link className="journal-head-circle" href="/body" prefetch={true} aria-label="回到点选肌群">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="5" r="2.2" /><path d="M7 9.5h10M12 9.5v5m0 0-3 6m3-6 3 6" /></svg>
         </Link>
       </div>}
       hero={<BigDate date={today} note={regions.length ? `${regions.join(' · ')}${allDone ? ' · 已完成' : ''}` : '还没安排'} />}>
 
       {!snap.profile && (
-        <Link href="/me" className="soft-banner">先完善个人资料，才能计算热量目标和训练建议<Icon name="arrow-right" size={18} /></Link>
+        <Link href="/me" prefetch={true} className="soft-banner">先完善个人资料，才能计算热量目标和训练建议<Icon name="arrow-right" size={18} /></Link>
       )}
 
       <TodayPlan key={today} initialItems={plan} images={images} activeSession={activeSession
