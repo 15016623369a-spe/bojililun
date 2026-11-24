@@ -14,6 +14,7 @@
     "shot:library": "node scripts/shot-library.mjs",
     "shot:training": "node scripts/shot-training.mjs",
     "shot:body": "node scripts/shot-body.mjs",
+    "sync:sculpture-anims": "node scripts/sync-sculpture-exercises.mjs",
     "test:ledger": "node --test tests/ledger.cjs",
     "backfill:exercise-metrics": "node scripts/backfill-exercise-metrics.mjs"
   },

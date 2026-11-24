@@ -8,6 +8,9 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { EQUIPMENT_LABEL, TARGET_LABEL, imageUrl } from "@/lib/exercise-label";
+import ExerciseMetricsCard from "@/components/exercise/ExerciseMetricsCard";
+import ExerciseStage from "@/components/exercise/ExerciseStage";
+import { formatExerciseMetrics } from "@/lib/exercise-metrics";
 import { muscleById, type MuscleId } from "@/lib/muscles";
 import { groupForEcorcheName, isExtremity, SHOW_LAYER } from "@/lib/ecorche";
 
@@ -17,6 +20,8 @@ interface DictItem {
   zh_name: string;
   equipment: string;
   target: string;
+  body_part?: string;
+  secondary_muscles?: string | string[];
   mechanic: string;
   movement_pattern: string;
   metabolic_demand: string;
@@ -24,6 +29,10 @@ interface DictItem {
   fatigue_level: string;
   recommended_rep_range: string;
   image: string;
+  hasAnimation?: boolean;
+  hasSculpture?: boolean;
+  mp4Url?: string;
+  kfSheetUrl?: string;
   steps: string[];
   desc: string;
 }
@@ -98,17 +107,19 @@ function ExerciseGif({
   alt,
   big,
   still,
+  hasSculpture,
 }: {
   id: string;
   image: string;
   alt: string;
   big?: boolean;
   still?: boolean;
+  hasSculpture?: boolean;
 }) {
-  const [src, setSrc] = useState(still ? imageUrl(image) : `/api/gif/${id}`);
+  const [src] = useState(still ? imageUrl(image) : `/api/gif/${id}`);
   const [failed, setFailed] = useState(false);
   return (
-    <div className={big ? "fc-dict-gif big" : "fc-dict-gif"}>
+    <div className={`${big ? "fc-dict-gif big" : "fc-dict-gif"}${hasSculpture ? " is-sculpture" : ""}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={failed ? imageUrl(image) : src}
@@ -120,25 +131,6 @@ function ExerciseGif({
       />
     </div>
   );
-}
-
-function exerciseIntro(item: DictItem) {
-  const type =
-    item.mechanic === "compound" || item.mechanic === "多关节"
-      ? "多关节动作"
-      : "单关节动作";
-  const effort =
-    item.metabolic_demand === "高" || item.metabolic_demand === "high"
-      ? "整体用力需求较高"
-      : item.metabolic_demand === "低" || item.metabolic_demand === "low"
-        ? "整体用力需求较低"
-        : "整体用力需求适中";
-  const range =
-    item.recommended_rep_range === "按时长" ||
-    item.recommended_rep_range === "按时间"
-      ? "静态动作按时间记录"
-      : `每组 ${item.recommended_rep_range} 次可作起点`;
-  return `这是一个以${item.movement_pattern || "全身协同动作"}为主的${type}，${effort}。${range}，保持动作稳定并按训练目标调整。`;
 }
 
 /** 身体页：全屏解剖图 + 点肌肉看标准动作；今天练过的肌肉实时亮着 */
@@ -1247,60 +1239,71 @@ export default function MuscleDict({
                 </div>
 
                 <div className="fc-dict-detail-body">
-                  <div className="fc-dict-hero">
-                    <ExerciseGif
-                      id={active.id}
-                      image={active.image}
-                      alt={active.zh_name || active.name}
-                      big
-                    />
-                    <div className="fc-dict-meta">
-                      <h3 className="fc-dict-name">
-                        {active.zh_name || active.name}
-                      </h3>
-                      <p className="fc-dict-en">{active.name}</p>
-                      <div className="fc-dict-chips">
-                        <span>
-                          {EQUIPMENT_LABEL[active.equipment] ??
-                            active.equipment}
-                        </span>
-                        <span>
-                          {TARGET_LABEL[active.target] ?? active.target}
-                        </span>
-                      </div>
+                  <div className="fc-dict-detail-head-meta">
+                    <h3 className="fc-dict-name">
+                      {active.zh_name || active.name}
+                    </h3>
+                    <div className="fc-dict-en-row">
+                      {active.zh_name && active.zh_name !== active.name && (
+                        <span>{active.name}</span>
+                      )}
+                      <span className="ex-meta-pill">
+                        {EQUIPMENT_LABEL[active.equipment] ?? active.equipment}
+                      </span>
                     </div>
                   </div>
 
-                  <h4 className="fc-dict-sub">动作要点 / 步骤</h4>
-                  <section className="fc-exercise-intro">
-                    <h4>动作参考</h4>
-                    <p>{exerciseIntro(active)}</p>
-                  </section>
-                  <div className="fc-exercise-metrics">
-                    <span>
-                      {active.mechanic === "compound" ||
-                      active.mechanic === "多关节"
-                        ? "多关节动作"
-                        : "单关节动作"}
-                    </span>
-                    <span>{active.movement_pattern}</span>
-                    <span>消耗参考：MET {active.met_range}</span>
-                    <span>疲劳程度：{active.fatigue_level}</span>
-                    <span>建议范围：{active.recommended_rep_range}</span>
+                  <div className="fc-dict-detail-stack">
+                    <ExerciseStage
+                      compact
+                      id={active.id}
+                      name={active.zh_name || active.name}
+                      image={imageUrl(active.image)}
+                      hasAnimation={active.hasAnimation ?? true}
+                      hasSculpture={active.hasSculpture}
+                      mp4Url={active.mp4Url}
+                      kfSheetUrl={active.kfSheetUrl}
+                      kfLabels={
+                        formatExerciseMetrics({
+                          ...active,
+                          body_part: active.body_part || "",
+                        }).kfLabels
+                      }
+                    />
+
+                    <ExerciseMetricsCard
+                      compact
+                      exercise={{
+                        ...active,
+                        body_part: active.body_part || "",
+                      }}
+                    />
+
+                    <section className="ex-card is-compact">
+                      <div className="ex-card-hd">
+                        <h2>动作步骤</h2>
+                        <span>
+                          {active.steps.length > 0
+                            ? `${active.steps.length} 步要点`
+                            : "简要说明"}
+                        </span>
+                      </div>
+                      {active.steps.length > 0 ? (
+                        <ol className="ex-steps-list">
+                          {active.steps.map((s, i) => (
+                            <li key={i}>
+                              <span className="ex-step-num">
+                                {String(i + 1).padStart(2, "0")}
+                              </span>
+                              <span>{s}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      ) : (
+                        <p className="fc-note">这个动作暂时没有分步说明。</p>
+                      )}
+                    </section>
                   </div>
-                  <p className="fc-exercise-note">
-                    MET
-                    是动作类型的参考强度，不代表单组卡路里；实际消耗会随体重、负荷和组间休息变化。
-                  </p>
-                  {active.steps.length > 0 ? (
-                    <ol className="fc-dict-steps">
-                      {active.steps.map((s, i) => (
-                        <li key={i}>{s}</li>
-                      ))}
-                    </ol>
-                  ) : (
-                    <p className="fc-note">这个动作暂时没有分步说明。</p>
-                  )}
                 </div>
 
                 <div className="fc-dict-actions">
@@ -1373,6 +1376,7 @@ export default function MuscleDict({
                           id={it.id}
                           image={it.image}
                           alt={it.zh_name || it.name}
+                          hasSculpture={it.hasSculpture}
                           still
                         />
                         <span className="fc-dict-item-body">

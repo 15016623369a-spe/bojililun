@@ -15,6 +15,7 @@ import './v-backdrop.css';
 import './v-stats.css';
 import './v-me.css';
 import './v-extras.css';
+import './exercise-detail.css';
 import './motion.css';
 import './theme-dark.css';
 

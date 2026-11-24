@@ -6,6 +6,7 @@ import { MUSCLES, muscleById, muscleMatchesExercise } from "@/lib/muscles";
 import { sculptureGroup, sculptureGroupMatches } from "@/lib/sculpture-groups";
 import { getExercisePreferences } from "@/lib/core/exercise-preferences";
 import { sortForPlan } from "@/lib/exercise";
+import { sculptureMediaUrls } from "@/lib/exercise-anim";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,6 +18,7 @@ interface Row {
   equipment: string;
   target: string;
   body_part: string;
+  secondary_muscles?: string;
   image: string;
   mechanic: string;
   movement_pattern: string;
@@ -54,7 +56,7 @@ export async function GET(req: Request) {
   const preferences = showPreferences ? getExercisePreferences() : undefined;
   const rows = db
     .prepare(
-      `SELECT id, name, zh_name, equipment, target, body_part, image, mechanic, movement_pattern, metabolic_demand, met_range, fatigue_level, recommended_rep_range${withSteps ? ", zh, zh_steps, gif_url" : ""} FROM exercise`,
+      `SELECT id, name, zh_name, equipment, target, body_part, image, mechanic, movement_pattern, metabolic_demand, met_range, fatigue_level, recommended_rep_range${withSteps ? ", secondary_muscles, zh, zh_steps, gif_url" : ""} FROM exercise`,
     )
     .all() as unknown as Row[];
 
@@ -133,6 +135,7 @@ export async function GET(req: Request) {
         zh_name: x.zh_name,
         equipment: x.equipment,
         target: x.target,
+        secondary_muscles: x.secondary_muscles,
         mechanic: x.mechanic,
         movement_pattern: x.movement_pattern,
         metabolic_demand: x.metabolic_demand,
@@ -141,6 +144,8 @@ export async function GET(req: Request) {
         recommended_rep_range: x.recommended_rep_range,
         image: x.image,
         body_part: x.body_part,
+        hasAnimation: Boolean(x.gif_url),
+        ...sculptureMediaUrls(x.id),
         ...(showPreferences
           ? { preference: preferences?.get(x.id) ?? null }
           : {}),
