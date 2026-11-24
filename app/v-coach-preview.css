@@ -76,6 +76,7 @@
 
 .coach-preview-layout {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr) auto;
   height: 100%;
 }
@@ -497,11 +498,13 @@
 /* Conversation messages */
 .coach-preview-messages {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
 }
 
 .coach-preview-exchange {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
   animation: coachMsgIn 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -721,6 +724,135 @@
 .coach-preview-approve:disabled {
   opacity: 0.72;
   cursor: default;
+}
+
+/* Charts inside coach replies：沿用回顾抽屉的图（components/review/charts.tsx），
+   教练面板白天夜间都是深色，这里按夜间回顾的取值给 --rw-* 变量 */
+.coach-chart {
+  --rw-ink: var(--coach-ink);
+  --rw-ink2: #cfd3c4;
+  --rw-mute: var(--coach-muted);
+  --rw-faint: #6f7367;
+  --rw-rgb: 241 242 234;
+  --rw-sel-bg: #ecebe6;
+  --rw-sel-fg: #151613;
+  --rw-heat: #91bce8;
+  --rw-coral-ink: #ff8a78;
+  --rw-carb: #c9c43a;
+  --rw-gap: #4a4e45;
+  --rw-cur: var(--coach-surface);
+  --rw-stripe: repeating-linear-gradient(90deg, rgb(var(--rw-rgb) / 72%) 0 1.4px, var(--rw-gap) 1.4px 4.6px);
+  --rw-stripe-lemon: repeating-linear-gradient(90deg, rgb(21 22 19 / 80%) 0 1.2px, var(--lemon) 1.2px 4.6px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  min-width: 0;
+  margin: 12px 0 0;
+  padding: 12px 12px 11px;
+  border: 1px solid var(--coach-line);
+  border-radius: 14px;
+  background: rgb(0 0 0 / 22%);
+  color: var(--coach-ink);
+}
+
+.coach-chart-head {
+  display: grid;
+  gap: 2px;
+}
+
+.coach-chart-head b {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--coach-ink);
+}
+
+.coach-chart-head span {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--coach-muted);
+}
+
+.coach-chart .rw-seg {
+  justify-self: start;
+  max-width: 100%;
+}
+
+.coach-chart .rw-seg button {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.coach-chart .rw-seg-ind {
+  height: 26px;
+}
+
+.coach-chart-read {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.coach-chart-num {
+  flex: none;
+  font: 700 24px/1 var(--font-num);
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--coach-tone, var(--coach-accent));
+}
+
+.coach-chart-num small {
+  margin-left: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--coach-muted);
+}
+
+.coach-chart-pick {
+  min-width: 0;
+  font-size: 11.5px;
+  line-height: 1.4;
+  text-align: right;
+  color: var(--coach-muted);
+}
+
+.coach-chart-note {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--coach-muted);
+}
+
+/* 建议区跟着这张图的颜色：训练组数用柠檬黄，热量缺口保持回顾的珊瑚色 */
+.coach-chart[data-tone="lemon"] .rw-band {
+  background: rgb(242 237 33 / 9%);
+  border-color: rgb(242 237 33 / 46%);
+}
+
+.coach-chart[data-tone="lemon"] .rw-band span {
+  color: var(--lemon);
+}
+
+.coach-chart .rw-bar.sel {
+  box-shadow: 0 0 12px -2px color-mix(in srgb, var(--sel) 55%, transparent);
+}
+
+.coach-chart .rw-prog-top b {
+  width: 3.4em;
+  flex: none;
+}
+
+.coach-chart .rw-prog-top strong {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--coach-muted);
+}
+
+.coach-chart .rw-prog-top strong.over {
+  color: var(--rw-coral-ink);
 }
 
 /* Bottom composer dock */

@@ -2,13 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Icon from '@/components/ui/Icon';
-import { COACH_TOPICS, type CoachEvidence, type CoachState, type CoachTopic } from '@/lib/coach-types';
-
-const TOPIC_HINTS: Record<CoachTopic, string> = {
-  meal: '结合今天已记录的餐食给建议',
-  strength: '看看近期力量与训练趋势',
-  plan: '基于最近一次实练生成草案',
-};
+import { COACH_STARTERS, type CoachEvidence, type CoachState, type CoachTopic } from '@/lib/coach-types';
+import CoachCharts from './CoachCharts';
 
 function CoachMark({ size = 24 }: { size?: number }) {
   return (
@@ -385,16 +380,16 @@ export default function CoachPreview() {
                 </div>
 
                 <div className="coach-starter-list" aria-label="快捷提问">
-                  {(Object.keys(COACH_TOPICS) as CoachTopic[]).map(topic => (
+                  {COACH_STARTERS.map(({ topic, question, label, hint }) => (
                     <button
                       key={topic}
                       type="button"
                       className="coach-starter-card"
                       disabled={isSending}
-                      onClick={() => void ask(COACH_TOPICS[topic], topic)}
+                      onClick={() => void ask(question, topic)}
                     >
-                      <span className="coach-starter-title">{COACH_TOPICS[topic]}</span>
-                      <span className="coach-starter-hint">{TOPIC_HINTS[topic]}</span>
+                      <span className="coach-starter-title">{label}</span>
+                      <span className="coach-starter-hint">{hint}</span>
                       <Icon name="arrow-right" size={16} className="coach-starter-arrow" />
                     </button>
                   ))}
@@ -403,7 +398,7 @@ export default function CoachPreview() {
             )}
 
             <div className="coach-preview-messages" aria-live="polite">
-              {turns.map(({ id, question, reply, evidence, plan, confirmed }) => {
+              {turns.map(({ id, question, reply, evidence, plan, charts, confirmed }) => {
                 const isRevealing = reveal?.id === id;
                 const displayReply = isRevealing ? reply.slice(0, reveal.count) : reply;
                 return (
@@ -417,6 +412,7 @@ export default function CoachPreview() {
                       </span>
                       <div className="coach-msg-bubble">
                         <p className={isRevealing ? 'is-streaming' : undefined}>{displayReply}</p>
+                        {!isRevealing && <CoachCharts charts={charts} />}
                         {!isRevealing && <RecordEvidence evidence={evidence} />}
                         {!isRevealing && plan && (
                           <div className="coach-preview-plan">
@@ -503,14 +499,14 @@ export default function CoachPreview() {
           <div className="coach-preview-dock">
             {hasConversation && (
               <div className="coach-preview-topics" aria-label="快捷话题">
-                {(Object.keys(COACH_TOPICS) as CoachTopic[]).map(topic => (
+                {COACH_STARTERS.map(({ topic, question, label }) => (
                   <button
                     key={topic}
                     type="button"
                     disabled={isSending}
-                    onClick={() => void ask(COACH_TOPICS[topic], topic)}
+                    onClick={() => void ask(question, topic)}
                   >
-                    {COACH_TOPICS[topic]}
+                    {label}
                   </button>
                 ))}
               </div>
@@ -524,7 +520,7 @@ export default function CoachPreview() {
             >
               <input
                 aria-label="问教练"
-                placeholder="问训练、饮食，或让我排下次计划…"
+                placeholder="问代谢、三大营养、训练或饮食…"
                 value={draft}
                 maxLength={1500}
                 onChange={event => setDraft(event.target.value)}
