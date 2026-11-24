@@ -68,31 +68,6 @@ async function fetchExercises(
   return res.json();
 }
 
-function exerciseIntro(
-  pattern: string,
-  mechanic: string,
-  demand: string,
-  fatigue: string,
-  reps: string,
-) {
-  const movement = pattern && pattern !== "other" ? pattern : "全身协同动作";
-  const joints =
-    mechanic === "compound" || mechanic === "多关节"
-      ? "同时带动多个关节"
-      : "主要由目标关节完成";
-  const effort =
-    demand === "高" || demand === "high"
-      ? "整体用力需求较高"
-      : demand === "低" || demand === "low"
-        ? "整体用力需求较低"
-        : "整体用力需求适中";
-  const rest =
-    fatigue === "高" || fatigue === "high"
-      ? "建议组间留出充分恢复时间"
-      : "按动作质量和个人状态安排休息";
-  return `这是一个以${movement}为主的${joints}。${effort}；可先按每组 ${reps} 作为参考，再根据动作标准和训练目标调整。${rest}。`;
-}
-
 export default function ExerciseSheet({
   muscle,
   onClose,
@@ -400,18 +375,6 @@ export default function ExerciseSheet({
                 </div>
 
                 <h4 className="fc-dict-sub">要点</h4>
-                <section className="fc-exercise-intro">
-                  <h4>动作参考</h4>
-                  <p>
-                    {exerciseIntro(
-                      active.movement_pattern,
-                      active.mechanic,
-                      active.metabolic_demand,
-                      active.fatigue_level,
-                      active.recommended_rep_range,
-                    )}
-                  </p>
-                </section>
                 <div className="fc-exercise-metrics">
                   <span>
                     {active.mechanic === "compound" ||
@@ -494,14 +457,14 @@ export default function ExerciseSheet({
                 <div>
                   {browseAll && <button type="button" className="fc-dict-back mine-back" onClick={() => setBrowseAll(false)}>‹ 我的动作库</button>}
                   <div className="fc-dict-title">
-                    {title ?? "这块肌肉"}
+                    {title ?? "当前部位"}
                     <span className="fc-dict-count">
                       {busyList ? "…" : `${data?.total ?? 0} 个动作`}
                     </span>
                   </div>
                   <div className="fc-dict-note">
                     {!selection ? "点动作看动图与要点"
-                      : browseAll ? "点一下收进我的动作库并选中，左滑看详情"
+                      : browseAll ? "点按选中并加入我的动作库，左滑看详情"
                         : preference ? "点动作选中，左滑看详情或移出" : "点动作选中，左滑看详情"}
                   </div>
                 </div>
@@ -532,7 +495,7 @@ export default function ExerciseSheet({
               </div>
 
               <div className="fc-dict-list" ref={list}>
-                {busyList && <p className="fc-note">正在取这一块的动作…</p>}
+                {busyList && <p className="fc-note">正在加载动作…</p>}
                 {!busyList &&
                   items.map((it) => {
                     const name = it.zh_name || it.name;
@@ -616,9 +579,9 @@ export default function ExerciseSheet({
                 {!busyList && !listError && items.length === 0 && (
                   <p className="fc-note">
                     {preference && !browseAll ? (
-                      selection ? "这一块还没有收藏的动作，从下面的全部动作里挑。" : <>
-                        这一块还没有常练动作。可以在
-                        <a href="/me/exercises">「我的 · 动作偏好」</a>里标记。
+                      selection ? "这个部位还没有常练动作，从下面的全部动作里挑几个吧。" : <>
+                        这个部位还没有常练动作，可以在
+                        <a href="/me/exercises">「我的 · 动作偏好」</a>里添加。
                       </>
                     ) : (
                       "这个筛选下没有动作，换个器械试试。"

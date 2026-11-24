@@ -1,5 +1,5 @@
 export const COACH_TOPICS = {
-  meal: '晚饭怎么选',
+  meal: '下一餐怎么选',
   strength: '复盘近 30 天',
   plan: '安排下次训练',
 } as const;

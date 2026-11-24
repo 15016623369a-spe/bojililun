@@ -164,7 +164,6 @@ export default function ExerciseRecord({ group, initiallyExpanded = false }: { g
       </ol>
 
       {expanded && <div className="set-details" id={detailsId}>
-        <p className="set-details-intro">每组可单独修改、删除，也可以在这里补一组；实际休息从本组完成计到下一组开始。</p>
         <ol className="set-detail-list">
           {sets.map((set, index) => <li className="set-detail-row" key={set.id}>
             <form onSubmit={(event) => void save(event, set, index)}>

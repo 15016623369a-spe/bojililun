@@ -222,23 +222,17 @@ export default function RecordDetail({ detail }: { detail: TrainingDetail }) {
           </div>
         </div>
         <p className="fc-note">
-          按「MET {energy.met} × 强度 {energy.intensity} × 器械 {energy.equipmentFactor} × {detail.minutes} 分钟 ×{' '}
-          {detail.bodyWeightKg}kg」粗算，量级参考，误差约 ±20%。
-          {energy.intensityCapped && ' 强度已到上限 1.5（再多容量也不加），所以数字不会跟着容量线性涨。'}
-          {detail.profileMissing && ' 去「我的」填了体重会更准。'}
+          按训练部位、时长（{detail.minutes} 分钟）和体重（{detail.bodyWeightKg} kg）粗略估算，上下可能有 20% 左右的出入。
+          {detail.profileMissing && ' 去「我的」填上真实体重会更准。'}
         </p>
         {!energy.plausible && (
           <p className="fc-warn">
-            这组数字偏大：容量密度 {energy.density}（超过 8）。热量已按上限估，建议核对一下组数 / 次数 / 重量。
+            这组训练算出来的总重量高得有点异常，看看是不是重量或者次数多输了一位？
           </p>
         )}
       </div>
 
       <h2 className="fc-sec-title">动作 / 组数 / 重量</h2>
-      <p className="fc-note" style={{ marginTop: -6, marginBottom: 10 }}>
-        填上组数、次数、重量，热量和热区会立刻重算。组数 {LIMITS.sets.min}–{LIMITS.sets.max} · 次数{' '}
-        {LIMITS.reps.min}–{LIMITS.reps.max} · 重量 {LIMITS.weight.min}–{LIMITS.weight.max}kg，超出的部分会自动夹住。
-      </p>
 
       <div className="fc-exs">
         {rows.map((r, i) => (

@@ -39,7 +39,7 @@ export async function POST(req: Request) {
 export async function DELETE(req: Request) {
   const params = new URL(req.url).searchParams;
   const id = Number(params.get('id'));
-  if (!Number.isFinite(id) || id <= 0) return NextResponse.json({ error: '缺少合法的 id' }, { status: 400 });
+  if (!Number.isFinite(id) || id <= 0) return NextResponse.json({ error: '未找到这条偏好，请刷新重试' }, { status: 400 });
   if (params.get('soft') === '1') archiveMemory(id);
   else deleteMemory(id);
   return NextResponse.json({ ok: true, memories: listMemories() });

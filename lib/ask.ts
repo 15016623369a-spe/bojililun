@@ -68,43 +68,18 @@ interface FoodRow {
   default_grams: number;
 }
 
-/** 带主食后缀的菜名（牛肉面 / 蛋炒饭）按主食基准来估，别拿「牛肉」的 250kcal 冒充一碗面 */
-const BASE_DISH: Array<[RegExp, string]> = [
-  [/面$/, '面条'],
-  [/饭$/, '米饭'],
-  [/粥$/, '粥'],
-  [/粉$/, '面条'],
-  [/包$/, '包子'],
-  [/饼$/, '馒头'],
-];
-
+/** 只匹配内置食物表里真实存在的条目或别名，不拿白水面条/白米饭冒充整道炒菜 */
 function findFood(token: string): FoodRow | null {
   if (!token) return null;
   const rows = getDb()
     .prepare('SELECT name, aliases, kcal_100g, protein_100g, carb_100g, fat_100g, default_grams FROM food_cache')
     .all() as unknown as FoodRow[];
-  const base = BASE_DISH.find(([re]) => re.test(token))?.[1];
-  if (base) {
-    const hit = rows.find((r) => r.name === base);
-    if (hit) return hit; // 数字按主食，标题里会说明
-  }
 
-  let best: FoodRow | null = null;
-  let bestScore = 0;
   for (const r of rows) {
     const keys = [r.name, ...r.aliases.split(',').map((s) => s.trim())].filter(Boolean);
-    for (const k of keys) {
-      let score = 0;
-      if (k === token) score = 100;
-      else if (token.includes(k)) score = 50 + k.length * 4;
-      else if (k.includes(token) && token.length >= 2) score = 30 + token.length * 4;
-      if (score > bestScore) {
-        bestScore = score;
-        best = r;
-      }
-    }
+    if (keys.some((k) => k === token)) return r;
   }
-  return bestScore >= 54 ? best : null;
+  return null;
 }
 
 function answerFood(q: string, token: string): AskAnswer | null {
@@ -116,10 +91,7 @@ function answerFood(q: string, token: string): AskAnswer | null {
   return {
     kind: 'food',
     question: q,
-    text:
-      f.name === token
-        ? `${f.name} 约 ${Math.round(f.kcal_100g)} kcal/100g，常见 ${grams}g 一份大约 ${kcal} kcal、蛋白质 ${protein}g。数字来自内置食物库，是近似值。`
-        : `你说的「${token}」库里没有单独条目，按最接近的「${f.name}」估：约 ${Math.round(f.kcal_100g)} kcal/100g，${grams}g 大约 ${kcal} kcal、蛋白质 ${protein}g。配料不同会差不少。`,
+    text: `常见一份${f.name}（约 ${grams}g）大约 ${kcal} kcal，蛋白质 ${protein}g。`,
     facts: [
       { label: '每 100g', value: `${Math.round(f.kcal_100g)} kcal` },
       { label: `一份 ${grams}g`, value: `${kcal} kcal` },
@@ -129,10 +101,10 @@ function answerFood(q: string, token: string): AskAnswer | null {
       {
         id: 'log',
         label: '+ 记为今日饮食',
-        text: `吃了${token}`,
+        text: `吃了${f.name}`,
         items: [
           {
-            name: token,
+            name: f.name,
             grams,
             kcal_100g: f.kcal_100g,
             protein_100g: f.protein_100g,
@@ -143,6 +115,16 @@ function answerFood(q: string, token: string): AskAnswer | null {
         ],
       },
     ],
+  };
+}
+
+function answerMissingFood(q: string, token: string): AskAnswer {
+  return {
+    kind: 'food',
+    question: q,
+    text: `这儿的速查表目前只有基础食材，还没有「${token}」这道菜的数据。要是想记这顿饭，直接在记录页输入「吃了${token}」或者拍张照，那边会按整道菜帮你估算。`,
+    facts: [],
+    actions: [],
   };
 }
 
@@ -307,8 +289,8 @@ function answerToday(q: string): AskAnswer {
     kind: 'today',
     question: q,
     text: (target
-      ? `今天吃了 ${Math.round(snap.consumed.kcal)} kcal（${meals} 条饮食记录），蛋白质 ${protein}g；目标 ${target} kcal，还剩 ${snap.remainingKcal} kcal。`
-      : `今天吃了 ${Math.round(snap.consumed.kcal)} kcal（${meals} 条饮食记录），蛋白质 ${protein}g。还没有填个人资料，所以算不出剩余额度。`) + pending,
+      ? `今天已经吃了 ${Math.round(snap.consumed.kcal)} kcal，蛋白质 ${protein}g，离目标还剩 ${snap.remainingKcal} kcal。`
+      : `今天已经吃了 ${Math.round(snap.consumed.kcal)} kcal，蛋白质 ${protein}g。去「我的」填好身高体重，就能算出还剩多少额度。`) + pending,
     facts: [
       { label: '摄入', value: `${Math.round(snap.consumed.kcal)} kcal` },
       { label: '蛋白质', value: `${protein} g` },
@@ -346,6 +328,7 @@ export function answerQuestion(question: string): AskAnswer {
     if (/牛肉面/.test(q) && /热量|大卡|千卡|kcal|卡路里/i.test(q)) return answerBeefNoodles(q);
     const food = answerFood(q, token);
     if (food) return food;
+    if (token) return answerMissingFood(q, token);
   }
 
   // 兜底：再按「是不是某个动作 / 某个食物」猜一次
@@ -357,7 +340,7 @@ export function answerQuestion(question: string): AskAnswer {
   return {
     kind: 'unknown',
     question: q,
-    text: `这个问题我还答不上来。可以问我：某种食物的热量、某个动作的要点、这周练了哪几块、今天还剩多少热量。`,
+    text: '这个问题暂时答不上来。你可以查基础食材的热量、某个动作的要点、这周的训练汇总，或者今天还剩多少热量。',
     facts: [],
     actions: [],
   };

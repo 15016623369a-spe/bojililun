@@ -246,7 +246,7 @@ function Muscles({ period, periodLabel, muscles, groups, variant, selected, onSe
 /* ---------------- 动作 ---------------- */
 const RM = {
   pr: { tab: 'PR', title: '极限重量 · 估算 1RM', empty: '没有可估算的负重组' },
-  growth: { tab: '8–12 RM', title: '黄金增重重量', empty: '没有 8–12 次的组' },
+  growth: { tab: '8–12 RM', title: '增肌区间重量', empty: '没有 8–12 次的组' },
   endurance: { tab: '12–15 RM', title: '肌耐力重量', empty: '没有 12–15 次的组' },
 } as const;
 type Rm = keyof typeof RM;

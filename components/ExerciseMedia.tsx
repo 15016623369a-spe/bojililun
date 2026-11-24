@@ -57,7 +57,7 @@ function ExerciseMediaPlayer({ id, image, name, hasAnimation = true, variant = '
             setPlay(!playing);
           }}>
           <JournalIcon name={playing ? 'pause' : 'play'} />
-          {playing ? '静图' : '播放'}
+          {playing ? '暂停' : '播放'}
         </button>
       ) : showPoster && <span className="media-tag">静态示意</span>}
     </div>

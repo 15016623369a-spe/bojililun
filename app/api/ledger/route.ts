@@ -45,7 +45,7 @@ export async function POST(req: Request) {
       typeof b.request_id !== 'string' ||
       !b.request_id
     )
-      throw Error('缺少来源或请求标识');
+      throw Error('请求出了点问题，刷新页面再试一下');
     const db = getDb();
     if (db.prepare('SELECT 1 FROM ledger_requests WHERE user_id=? AND request_id=?').get(user, b.request_id))
       return Response.json({ ok: true });

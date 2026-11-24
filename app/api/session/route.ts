@@ -50,7 +50,7 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const body = (await req.json()) as { id?: number; note?: string };
-    if (!body.id) return NextResponse.json({ error: '缺少 id' }, { status: 400 });
+    if (!body.id) return NextResponse.json({ error: '未找到这节训练，请刷新重试' }, { status: 400 });
     const existing = getSession(body.id);
     if (!existing) return NextResponse.json({ error: '训练不存在' }, { status: 404 });
     if (body.note !== undefined) {

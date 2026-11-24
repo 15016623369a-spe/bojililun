@@ -202,12 +202,12 @@ export default function Page() {
     setMsgs((prev) => [
       ...prev,
       { id: uid(), role: 'user', text },
-      { id: pendingId, role: 'assistant', kind: 'pending', text: '想一想' },
+      { id: pendingId, role: 'assistant', kind: 'pending', text: '正在看' },
     ]);
     try {
       await postChat({ text }, pendingId);
     } catch (e) {
-      failPending(pendingId, `出了点问题：${(e as Error).message}`);
+      failPending(pendingId, (e as Error).message);
       setErr((e as Error).message);
     } finally {
       setBusy(false);
@@ -217,7 +217,7 @@ export default function Page() {
   function startVoice() {
     if (typeof window === 'undefined') return;
     if (!window.isSecureContext) {
-      setErr('语音输入需要 HTTPS 环境：当前是 HTTP，浏览器不会开放麦克风。手机请改用 https:// 地址访问（服务端运行 npm run dev:https），或在电脑浏览器打开 localhost。');
+      setErr('当前不是加密连接（HTTP），浏览器不允许打开麦克风。请改用 https:// 地址访问，或者直接打字。');
       return;
     }
     const w = window as unknown as {
@@ -226,7 +226,7 @@ export default function Page() {
     };
     const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
     if (!SR) {
-      setErr('这个浏览器不支持语音识别，试试 Chrome / Safari，或者直接打字。');
+      setErr('当前浏览器不支持语音输入，试试 Safari 或 Chrome，或者直接打字。');
       return;
     }
     setErr('');
@@ -248,10 +248,10 @@ export default function Page() {
       setListening(false);
       if (e.error === 'aborted' || e.error === 'no-speech') return;
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-        setErr('麦克风没授权：点浏览器地址栏左侧的图标，把麦克风设为「允许」后重试。iPhone 还需在 设置 → Safari → 麦克风 选「允许」；安卓在 设置 → 应用 → 浏览器 → 权限 里开麦克风。');
+        setErr('未开启麦克风权限，请在浏览器地址栏或系统设置里允许访问麦克风，或者直接打字。');
         return;
       }
-      setErr(`语音识别出错：${e.error}`);
+      setErr(`语音识别出错，请重试（${e.error}）`);
     };
     rec.onend = () => {
       setListening(false);

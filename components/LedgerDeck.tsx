@@ -23,7 +23,7 @@ export type DeckItem = {
 const KIND: Record<DeckItem['kind'], { label: string; icon: IconName }> = {
   workout: { label: '训练', icon: 'dumbbell' },
   meal: { label: '饮食', icon: 'bowl' },
-  plan_draft: { label: '轻计划', icon: 'note' },
+  plan_draft: { label: '计划草稿', icon: 'note' },
   body_metrics: { label: '体重', icon: 'chart' },
 };
 const hhmm = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
@@ -116,7 +116,7 @@ export default function LedgerDeck({ items, cards, picks, nowMinutes, past = fal
         <span className="deck-kind"><Icon name="mic" size={17} />开始记录</span>
         <b className="big-num">--:--</b>
         <strong>{past ? '这天没有记录' : '今天还没有记录'}</strong>
-        <small>{past ? '可以在月历里换一天看看。' : '用下方的键盘、录音或相机记第一条。'}</small>
+        <small>{past ? '点左上角「月历」可查看其他日期。' : '按住下方说话，也可以打字或者拍下这一餐。'}</small>
       </div>}
       {items.map((item, i) => <article key={item.key} className={`deck-card ${item.kind === 'workout' ? 'training' : item.kind === 'meal' ? 'meal' : item.kind === 'body_metrics' ? 'weight' : 'note'}`}
         data-active={i === active || undefined}>

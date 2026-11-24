@@ -19,8 +19,8 @@ export default function MemoryProposal({
   return (
     <div className="card">
       <div className="card-head">
-        <b>🧠 要不要记住这些？</b>
-        <span>{status === 'open' ? '记忆' : status === 'saved' ? '已记住' : '已忽略'}</span>
+        <b>记住这条偏好？</b>
+        <span>{status === 'open' ? '待确认' : status === 'saved' ? '已保存' : '已忽略'}</span>
       </div>
 
       {candidates.map((c) => (
@@ -52,7 +52,7 @@ export default function MemoryProposal({
         </div>
       ) : (
         <p className="note" style={{ borderColor: 'var(--line)', background: 'transparent', color: 'var(--muted)' }}>
-          {status === 'saved' ? '以后算计划和热量时都会带上这些。' : '没有保存，之后也不会再问。'}
+          {status === 'saved' ? '已保存，排计划和算热量时会自动参考。' : '未保存。'}
         </p>
       )}
     </div>

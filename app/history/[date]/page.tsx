@@ -91,7 +91,6 @@ export default async function DayPage({ params, searchParams }: {
             {groups.map((group) => <ExerciseRecord group={group} key={group.exercise_id} />)}
           </article>
         ))}
-        {sessions.length > 0 && listedQuickWorkouts.length > 0 && <p className="hint">语音记录的数据行已并入训练表格，原句在上方卡片里。</p>}
       </section>}
 
       {meals.length > 0 && <section className="v-section">

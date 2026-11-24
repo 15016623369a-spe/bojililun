@@ -310,7 +310,7 @@ export default function CoachPreview() {
               <div className="coach-preview-title-wrap">
                 <h2 id="coach-preview-title">我的教练</h2>
                 <span className="coach-preview-subtitle">
-                  {isSending ? '正在思考…' : '基于你的训练与饮食手账'}
+                  {isSending ? '正在看记录…' : '结合你的训练与饮食记录'}
                 </span>
               </div>
             </div>
@@ -349,7 +349,7 @@ export default function CoachPreview() {
                   </div>
 
                   <h3 id="coach-preview-summary-title" className="coach-hero-title">
-                    {insight ? insight.title : '随时聊聊你的训练与饮食'}
+                    {insight ? insight.title : '看看近期进展，或者聊聊下一餐怎么吃'}
                   </h3>
 
                   {insight ? (
@@ -369,7 +369,7 @@ export default function CoachPreview() {
                       </div>
                     </div>
                   ) : loadingInit ? (
-                    <p className="coach-hero-detail">正在同步你最近的记录…</p>
+                    <p className="coach-hero-detail">正在读取近期记录…</p>
                   ) : null}
 
                   {state?.overview.latestWorkout && (
@@ -466,7 +466,7 @@ export default function CoachPreview() {
                       <span className="coach-typing-dots" aria-hidden="true">
                         <i /><i /><i />
                       </span>
-                      <span className="coach-thinking-text">正在翻看你的训练与饮食记录…</span>
+                      <span className="coach-thinking-text">正在核对你的记录…</span>
                     </div>
                   </div>
                 </div>

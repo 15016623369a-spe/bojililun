@@ -158,14 +158,12 @@ export function confirmDraft(draftId: string, incoming: FoodItem[]): ConfirmResu
   const remainingKcal = Math.round(profile.target_kcal - consumed.kcal);
   const remainingProtein = Math.round(profile.target_protein - consumed.protein);
 
-  const label = MEAL_LABEL[payload.mealType] ?? '这一餐';
   const text = [
-    `已记入${label}：${total.kcal} kcal，蛋白质 ${total.protein}g。`,
-    `今天 ${consumed.kcal} / ${profile.target_kcal} kcal，${
-      remainingKcal >= 0 ? `还可摄入 ${remainingKcal} kcal` : `已超出 ${Math.abs(remainingKcal)} kcal`
-    }；蛋白质 ${Math.round(consumed.protein)} / ${profile.target_protein}g（还差 ${Math.max(0, remainingProtein)}g）。`
-      + (pendingQuickMealItems ? `还有 ${pendingQuickMealItems} 项热量待补。` : ''),
-  ].join('\n');
+    remainingKcal >= 0
+      ? `算上这顿，今天大概还能吃 ${remainingKcal} kcal，蛋白质还差 ${Math.max(0, remainingProtein)}g。`
+      : `算上这顿，今天热量比目标超了 ${Math.abs(remainingKcal)} kcal，蛋白质还差 ${Math.max(0, remainingProtein)}g。`,
+    pendingQuickMealItems ? `另外还有 ${pendingQuickMealItems} 条饮食没填分量，暂时没算进来。` : '',
+  ].filter(Boolean).join('\n');
 
   return {
     reply: { kind: 'summary', text, consumed, remainingKcal },

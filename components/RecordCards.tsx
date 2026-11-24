@@ -183,7 +183,7 @@ export function RecordEditor({ entry, onClose, onSaved, onDelete }: {
       ? session.groups.map((group) => <ExerciseRecord key={group.exercise_id} group={group} initiallyExpanded />)
       : !error && <p className="hint">正在加载训练明细…</p>)}
     {sessionId && <button className="journal-quiet" type="button" disabled={busy} onClick={dictateToThisCard}>
-      {listening ? '正在听…' : '对这条训练说修改'}
+      {listening ? '正在听…' : '语音修改组数'}
     </button>}
     {mutation && <div className="training-conflict" role="alertdialog" aria-modal="false">
       <b>确认修改这条训练</b>

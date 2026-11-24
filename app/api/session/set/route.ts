@@ -41,8 +41,8 @@ export async function POST(req: Request) {
       append?: boolean;
     };
     if (b.append === true) {
-      if (!Number.isSafeInteger(b.sessionId) || Number(b.sessionId) < 1) throw new Error('缺少 sessionId');
-      if (typeof b.exerciseId !== 'string' || !b.exerciseId) throw new Error('缺少 exerciseId');
+      if (!Number.isSafeInteger(b.sessionId) || Number(b.sessionId) < 1) throw new Error('未找到当前训练，请刷新重试');
+      if (typeof b.exerciseId !== 'string' || !b.exerciseId) throw new Error('请先选择动作');
       assertWeight(b.weight);
       assertReps(b.reps);
       const sets = appendSessionSet(Number(b.sessionId), b.exerciseId, { weight: b.weight, reps: b.reps });
@@ -65,7 +65,7 @@ export async function POST(req: Request) {
       }));
     }
     if (!b.sessionId || !b.exerciseId) {
-      return NextResponse.json({ error: '缺少 sessionId / exerciseId' }, { status: 400 });
+      return NextResponse.json({ error: '未找到当前训练或动作，请刷新重试' }, { status: 400 });
     }
     addSet(b.sessionId, {
       planItemId: b.planItemId ?? null,
@@ -90,7 +90,7 @@ export async function PATCH(req: Request) {
   try {
     const body = (await req.json()) as { id?: number; weight?: number; reps?: number };
     if (!Number.isInteger(body.id) || Number(body.id) <= 0) {
-      return NextResponse.json({ error: '缺少训练组 id' }, { status: 400 });
+      return NextResponse.json({ error: '未找到这一组记录，请刷新重试' }, { status: 400 });
     }
     assertWeight(body.weight);
     assertReps(body.reps);
@@ -105,7 +105,7 @@ export async function PATCH(req: Request) {
 export async function DELETE(req: Request) {
   try {
     const id = Number(new URL(req.url).searchParams.get('id'));
-    if (!Number.isSafeInteger(id) || id < 1) throw new Error('缺少训练组 id');
+    if (!Number.isSafeInteger(id) || id < 1) throw new Error('未找到这一组记录，请刷新重试');
     return NextResponse.json({ ok: true, ...deleteSessionSet(id) });
   } catch (e) {
     const error = e as Error;

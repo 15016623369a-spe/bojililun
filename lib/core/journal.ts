@@ -58,8 +58,8 @@ export interface TrainingConflict {
 export class TrainingConflictError extends Error {
   constructor(public conflict: TrainingConflict) {
     super(conflict.mode === 'exercise' && conflict.target
-      ? `今天的第${conflict.target.ordinal}个动作是「${conflict.target.exerciseName}」，语音里识别到「${conflict.spokenExercise}」，请确认是否替换动作`
-      : `今天的计划或记录包含${conflict.planned.join('、')}，语音里识别到${conflict.actual.join('、')}，请确认实际训练部位`);
+      ? `计划里第 ${conflict.target.ordinal} 个动作是「${conflict.target.exerciseName}」，要换成「${conflict.spokenExercise}」吗？`
+      : `今天计划练${conflict.planned.join('、')}，刚才听到的是练${conflict.actual.join('、')}，按实际练的记吗？`);
     this.name = 'TrainingConflictError';
   }
 }
@@ -357,7 +357,7 @@ export function updateQuickMealItem(quickId: number, index: number, changes: {
   const preparation = changes.preparation?.trim();
   if (preparation && preparation.length > 120) throw new Error('做法或备注请控制在 120 个字以内');
   if (manualKcal != null && (!Number.isSafeInteger(manualKcal) || manualKcal < 0)) {
-    throw new Error('热量需要填写非负整数');
+    throw new Error('热量这里请填 0 或者正整数');
   }
   const updated = estimateQuickMealItem({ ...item, name: foodName ?? item.name, amount: value });
   if (meal !== undefined) updated.meal = meal;

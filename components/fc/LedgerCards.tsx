@@ -10,7 +10,7 @@ import { DumbbellIcon, MealIcon, PencilIcon } from './icons';
 const cardKinds = {
   meal: { label: '饮食', Icon: MealIcon },
   workout: { label: '训练', Icon: DumbbellIcon },
-  plan_draft: { label: '轻计划', Icon: PencilIcon },
+  plan_draft: { label: '计划草稿', Icon: PencilIcon },
   body_metrics: { label: '体重', Icon: PencilIcon },
 };
 
@@ -106,10 +106,10 @@ export default function LedgerCards({
             .filter((i) => i.nutrition_basis)
             .map((i) => {
               const basis = i.nutrition_basis!;
-              const label = { tfda: '台湾食药署', usda: 'USDA', ai: 'AI' }[basis.source];
+              const label = { tfda: '参考食药署数据', usda: '参考 USDA 数据', ai: 'AI 估算' }[basis.source];
               return (
                 <small key={i.id} className="record-nutrition-source">
-                  {i.food_name} · {label}估算 · {basis.assumption ?? i.portion_text ?? '份量未注明'}
+                  {i.food_name} · {label} · {basis.assumption ?? i.portion_text ?? '未注明分量'}
                 </small>
               );
             })}
@@ -169,7 +169,7 @@ export default function LedgerCards({
                         <option value="bone_in">带骨</option>
                       </select>
                     </label>
-                    <button disabled={busy}>更新份量并重算</button>
+                    <button disabled={busy}>按此分量重算</button>
                   </form>
                   <form
                     key={JSON.stringify(item)}

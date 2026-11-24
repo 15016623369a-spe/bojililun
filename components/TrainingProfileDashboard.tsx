@@ -111,7 +111,7 @@ export default function TrainingProfileDashboard({ profile, restrictions, nutrit
     { key: 'goal', label: '训练目标', value: profile.goal ? TRAINING_GOALS[profile.goal] : '尚未设置' },
     { key: 'restriction', label: '伤病与限制', value: active.length ? (active.length === 1 ? active[0].content : `${active.length} 项`) : '暂无' },
     { key: 'prefs', label: '动作偏好', value: `常练 ${preferences.liked} · 不喜欢 ${preferences.disliked}` },
-    { key: 'nutrition', label: '营养目标', value: nutrition ? `${nutrition.target_kcal.toLocaleString('en-US')} kcal · 蛋白 ${nutrition.target_protein} g` : '按需设置' },
+    { key: 'nutrition', label: '营养目标', value: nutrition ? `${nutrition.target_kcal.toLocaleString('en-US')} kcal · 蛋白 ${nutrition.target_protein} g` : '尚未设置' },
   ];
 
   return <div className="me">
@@ -174,7 +174,7 @@ export default function TrainingProfileDashboard({ profile, restrictions, nutrit
             {open === 'restriction' && row.key === 'restriction' && <>
               {active.length > 0 && <ul className="me-restrictions">
                 {active.map(({ id, content }) => <li key={id}><span>{content}</span>
-                  <button type="button" className="chip" disabled={updating !== undefined} onClick={() => void archive(id)}>结束限制</button>
+                  <button type="button" className="chip" disabled={updating !== undefined} onClick={() => void archive(id)}>解除限制</button>
                 </li>)}
               </ul>}
               {restrictionError && <p className="form-err" role="alert">{restrictionError}</p>}

@@ -33,7 +33,7 @@ export async function POST(req: Request) {
       });
       return NextResponse.json(addPlanExercises(body.date, exercises, body.supplemental === true));
     }
-    if (!body.exerciseId) return NextResponse.json({ error: '缺少 exerciseId' }, { status: 400 });
+    if (!body.exerciseId) return NextResponse.json({ error: '请先选择动作' }, { status: 400 });
     const ex = getExercise(body.exerciseId);
     if (!ex) return NextResponse.json({ error: '动作不存在' }, { status: 404 });
 
@@ -60,7 +60,7 @@ export async function PATCH(req: Request) {
       done?: number;
       complete?: boolean;
     };
-    if (!body.id) return NextResponse.json({ error: '缺少 id' }, { status: 400 });
+    if (!body.id) return NextResponse.json({ error: '未找到对应的计划动作，请刷新重试' }, { status: 400 });
     if (body.complete === true) {
       if (!Number.isSafeInteger(body.id) || body.id < 1) throw new Error('计划动作无效');
       completePlannedExercise(body.id);
@@ -75,7 +75,7 @@ export async function PATCH(req: Request) {
 
 export async function DELETE(req: Request) {
   const id = Number(new URL(req.url).searchParams.get('id'));
-  if (!Number.isFinite(id) || id <= 0) return NextResponse.json({ error: '缺少 id' }, { status: 400 });
+  if (!Number.isFinite(id) || id <= 0) return NextResponse.json({ error: '未找到对应的计划动作，请刷新重试' }, { status: 400 });
   const date = deletePlanItem(id);
   return NextResponse.json({ ok: true, items: getPlan(date) });
 }

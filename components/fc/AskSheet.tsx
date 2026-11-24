@@ -62,7 +62,7 @@ export default function AskSheet({ question, onClose, onFollowUp, onLogged, dock
         }
       } catch {
         if (!cancelled) {
-          setText('网络好像断了，再问一次试试。');
+          setText('网络未连接，请稍后再试。');
           setDone(true);
         }
       }
@@ -213,7 +213,7 @@ export default function AskSheet({ question, onClose, onFollowUp, onLogged, dock
           )}
         </div>
 
-        {!docked && <p className="fc-ask-hint">向下划走</p>}
+        {!docked && <p className="fc-ask-hint">下滑关闭</p>}
         {toast && <div className="fc-ask-toast">{toast}</div>}
       </div>
     </div>

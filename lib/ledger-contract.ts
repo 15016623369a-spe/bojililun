@@ -142,5 +142,5 @@ function conforms(value: unknown, s: Schema): boolean {
   return types.includes(typeof value);
 }
 export function validateParse(value: unknown) {
-  if (!conforms(value, parseSchema as Schema)) throw Error('解析结果不符合手账格式，请重试');
+  if (!conforms(value, parseSchema as Schema)) throw Error('刚才没能识别出来，换种说法再试一次吧');
 }

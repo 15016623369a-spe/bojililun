@@ -88,7 +88,7 @@ export default function VoiceOverlay({
         <div className="fc-rec-x" aria-hidden>
           ×
         </div>
-        <p aria-live="assertive">{canceling ? '松开手指，取消发送' : '松开发送，上滑取消'}</p>
+        <p aria-live="assertive">{canceling ? '松手即可取消' : '松手记下，上滑取消'}</p>
       </div>
 
       <div className="fc-rec-press" aria-hidden>
