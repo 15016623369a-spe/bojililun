@@ -37,12 +37,21 @@
   .page-flow[data-shift] .journal-shell { overflow-x: clip; }
 }
 
-/* 底部导航：选中胶囊从上一个位置弹到新位置 */
-.page-flow[data-shift="1"] .fc-tabs .fc-tab.on { animation: pill-from .56s var(--spring-bounce) both; --pill-from: -100%; }
-.page-flow[data-shift="2"] .fc-tabs .fc-tab.on { animation: pill-from .62s var(--spring-bounce) both; --pill-from: -200%; }
-.page-flow[data-shift="-1"] .fc-tabs .fc-tab.on { animation: pill-from .56s var(--spring-bounce) both; --pill-from: 100%; }
-.page-flow[data-shift="-2"] .fc-tabs .fc-tab.on { animation: pill-from .62s var(--spring-bounce) both; --pill-from: 200%; }
+/* 底部导航：只滑动白色背景胶囊（::before），三个文字标签固定不动不串位；
+   起点计入 2px 间距精确对齐原位，采用临界阻尼减速曲线平滑落位，避免冲过目标再反弹。 */
+.page-flow[data-shift="1"] .fc-tabs .fc-tab.on::before { animation: pill-from .34s cubic-bezier(0.22, 1, 0.36, 1) both; --pill-from: calc(-100% - 2px); }
+.page-flow[data-shift="2"] .fc-tabs .fc-tab.on::before { animation: pill-from .4s cubic-bezier(0.22, 1, 0.36, 1) both; --pill-from: calc(-200% - 4px); }
+.page-flow[data-shift="-1"] .fc-tabs .fc-tab.on::before { animation: pill-from .34s cubic-bezier(0.22, 1, 0.36, 1) both; --pill-from: calc(100% + 2px); }
+.page-flow[data-shift="-2"] .fc-tabs .fc-tab.on::before { animation: pill-from .4s cubic-bezier(0.22, 1, 0.36, 1) both; --pill-from: calc(200% + 4px); }
+.page-flow[data-shift="1"] .fc-tabs .fc-tab.on,
+.page-flow[data-shift="-1"] .fc-tabs .fc-tab.on { animation: pill-ink .18s ease-out both; }
+.page-flow[data-shift="2"] .fc-tabs .fc-tab.on,
+.page-flow[data-shift="-2"] .fc-tabs .fc-tab.on { animation: pill-ink .22s ease-out both; }
 @keyframes pill-from { from { translate: var(--pill-from) 0; } to { translate: 0 0; } }
+@keyframes pill-ink {
+  from { color: var(--tab-ink-off, #d2d4cd); }
+  to { color: var(--tab-ink-on, var(--ink-0)); }
+}
 
 /* 按压回弹：按下快速收一点，松手带回弹弹回。用 scale 属性，和元素已有的 transform 叠加 */
 :is(
@@ -79,6 +88,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .page-flow[data-shift] .journal-content, .page-flow[data-shift] .runner-main, .page-flow[data-shift] .runner-dark,
-  .page-flow[data-shift] .fc-tabs .fc-tab.on, :is(.vseg > .on, .rm-tabs > .on) { animation: none !important; }
+  .page-flow[data-shift] .fc-tabs .fc-tab.on, .page-flow[data-shift] .fc-tabs .fc-tab.on::before,
+  :is(.vseg > .on, .rm-tabs > .on) { animation: none !important; }
   * { scale: none !important; }
 }
