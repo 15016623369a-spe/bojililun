@@ -88,7 +88,7 @@ export function createOpenAIProvider(): VisionProvider {
       try {
         parsed = JSON.parse(stripFence(raw)) as ModelJson;
       } catch {
-        return { kind: 'other', text: raw.slice(0, 300) || '模型没有返回可解析的内容。' };
+        return { kind: 'other', text: raw.slice(0, 300) || '刚才没能识别出来，换种说法再试一次吧。' };
       }
 
       const intent = parsed.intent ?? 'other';
@@ -123,7 +123,7 @@ export function createOpenAIProvider(): VisionProvider {
         return { kind: 'equipment', name: parsed.equipment ?? '未知器械' };
       }
 
-      return { kind: 'other', text: parsed.reply?.trim() || '我在。说说你吃了什么，或者今天想练什么？' };
+      return { kind: 'other', text: parsed.reply?.trim() || '直接拍张照片，或者说说吃了什么、今天想练哪个部位都可以。' };
     },
   };
 }

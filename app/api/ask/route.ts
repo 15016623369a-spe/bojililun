@@ -12,7 +12,7 @@ export async function POST(req: Request) {
   try {
     body = (await req.json()) as { question?: string };
   } catch {
-    return NextResponse.json({ error: '请求体不是合法 JSON' }, { status: 400 });
+    return NextResponse.json({ error: '请求出了点问题，刷新页面再试一下' }, { status: 400 });
   }
   const question = String(body.question ?? '').trim();
   if (!question || question.length > 1000) return NextResponse.json({ error: '问题需要 1 至 1000 个字' }, { status: 400 });

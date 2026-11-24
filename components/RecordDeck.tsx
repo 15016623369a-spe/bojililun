@@ -159,7 +159,7 @@ export default function RecordDeck({ entries: given, isToday, freshId, onSaved, 
 
     <div className="deck" ref={deck} onScroll={onScroll}>
       {entries.length === 0 && <div className="deck-card empty">
-        <span className="deck-kind"><Icon name={emptyHint ? 'note' : 'mic'} size={17} />{emptyHint ? '空白的一天' : '开始记录'}</span>
+        <span className="deck-kind"><Icon name={emptyHint ? 'note' : 'mic'} size={17} />{emptyHint ? '当日无记录' : '开始记录'}</span>
         <b className="big-num">--:--</b>
         <strong>{emptyHint ?? '今天还没有记录'}</strong>
         {!emptyHint && <small>按住下方说话，比如「午饭牛肉面加一个卤蛋」</small>}

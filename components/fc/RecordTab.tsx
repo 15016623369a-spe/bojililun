@@ -49,7 +49,7 @@ export default function RecordTab({
   const [question, setQuestion] = useState<string | null>(null);
   const sendVoice = async (text: string) => {
     if (!text) {
-      showToast('没有识别到文字，可轻点记录后打字');
+      showToast('没听清，再说一次，或者点进记录页打字');
       return;
     }
     try {
@@ -58,15 +58,15 @@ export default function RecordTab({
       else if (result.route === 'plan') {
         router.push('/train');
         router.refresh();
-        showToast(result.message || '已加进今日训练');
+        showToast(result.message || '已加入今日计划');
       } else {
         router.push('/log');
         router.refresh();
-        showToast('已记入手账');
+        showToast('已记下');
       }
     } catch (e) {
       router.push('/log');
-      showToast('语音已留在待保存记录，可重试');
+      showToast('刚才网络断了一下，你说的话已经先存下来了，等网好了点重试就行');
     }
   };
   const phaseRef = useRef<Phase>('idle');

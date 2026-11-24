@@ -1,6 +1,6 @@
 /** 教练能回答的话题。数字都由服务端按回顾、训练统计同一套口径算好（lib/coach-data.ts），模型只负责解读。 */
 export const COACH_TOPICS = {
-  meal: '晚饭怎么选',
+  meal: '下一餐怎么选',
   strength: '复盘近 30 天',
   plan: '安排下次训练',
   metabolism: '基础代谢',
@@ -17,7 +17,7 @@ export const COACH_STARTERS: { topic: CoachTopic; question: string; label: strin
   { topic: 'metabolism', question: '我最近的基础代谢是多少', label: '我的基础代谢', hint: '按晨重和「我的」资料算' },
   { topic: 'macros', question: '我每天碳水、脂肪、蛋白质该吃多少', label: '三大营养吃多少', hint: '按目标热量算出克数' },
   { topic: 'training', question: '按我的目标，训练该怎么调整', label: '训练怎么调整', hint: '结合近 30 天的训练分布和纪录' },
-  { topic: 'meal', question: '晚饭怎么选', label: '晚饭怎么选', hint: '结合今天已记录的餐食给建议' },
+  { topic: 'meal', question: '下一餐怎么选', label: '下一餐怎么选', hint: '结合今天已记录的餐食给建议' },
   { topic: 'strength', question: '复盘近 30 天', label: '复盘近 30 天', hint: '看看近期力量与训练趋势' },
   { topic: 'plan', question: '安排下次训练', label: '安排下次训练', hint: '基于最近一次实练生成草案' },
 ];

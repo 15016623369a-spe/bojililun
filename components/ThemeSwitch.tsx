@@ -42,7 +42,6 @@ export default function ThemeSwitch({ initial }: { initial: Theme }) {
   return <section className="theme-switch" aria-label="显示模式">
     <div className="theme-switch-head">
       <span>显示模式</span>
-      <small>夜间以黑色为底，减少夜里看屏的刺眼感</small>
     </div>
     <div className="theme-switch-track" role="radiogroup" aria-label="显示模式" data-value={theme}>
       <span className="theme-switch-thumb" aria-hidden="true" />

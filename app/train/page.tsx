@@ -64,15 +64,11 @@ export default function TrainPage() {
     <JournalShell active="plan" title="今日训练" today={today} className="is-train"
       headerAction={<div className="journal-head-actions">
         <span className="journal-head-label">今日训练</span>
-        <Link className="journal-head-circle" href="/body" prefetch={true} aria-label="回到点选肌群">
+        <Link className="journal-head-circle" href="/body" prefetch={true} aria-label="按部位挑动作">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="5" r="2.2" /><path d="M7 9.5h10M12 9.5v5m0 0-3 6m3-6 3 6" /></svg>
         </Link>
       </div>}
       hero={<BigDate date={today} note={regions.length ? `${regions.join(' · ')}${allDone ? ' · 已完成' : ''}` : '还没安排'} />}>
-
-      {!snap.profile && (
-        <Link href="/me" prefetch={true} className="soft-banner">先完善个人资料，才能计算热量目标和训练建议<Icon name="arrow-right" size={18} /></Link>
-      )}
 
       <TodayPlan key={today} initialItems={plan} images={images} activeSession={activeSession
         ? { id: activeSession.id, startedAt: activeSession.started_at, next: live!.next,
@@ -95,7 +91,7 @@ export default function TrainPage() {
             ))}
             {listedQuickWorkouts.map((entry) => (
               <Link key={entry.id} href={`/history/${today}`} className="v-row">
-                <span><b>语音训练记录</b><small>{(entry.payload?.exercises ?? []).map((exercise) => exercise.name).join('、')
+                <span><b>快速记录的训练</b><small>{(entry.payload?.exercises ?? []).map((exercise) => exercise.name).join('、')
                   || entry.payload?.summary || entry.title}</small></span>
                 <Icon name="chevron-right" size={18} className="row-chev" />
               </Link>
@@ -106,6 +102,9 @@ export default function TrainPage() {
 
       <section className="v-section">
         <h2 className="v-section-title">今日营养</h2>
+        {!snap.profile && (
+          <Link href="/me" prefetch={true} className="soft-banner">填好身高体重，就能算出每日热量目标<Icon name="arrow-right" size={18} /></Link>
+        )}
         <Meter label="摄入" value={kcal} target={targetKcal} unit="kcal" />
         <Meter label="运动消耗" value={burn.kcal} target={targetKcal} unit="kcal" tone="coral" approx />
         <Meter label="蛋白质" value={protein} target={targetProtein} unit="g" />

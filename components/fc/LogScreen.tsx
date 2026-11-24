@@ -97,14 +97,14 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
       const result = await sendRecordDraft(draft);
       if (result.route === 'qa' && result.question) setAsk(result.question);
       else if (result.route === 'plan') {
-        setToast(result.message || '已加进今日训练');
+        setToast(result.message || '已加入今日计划');
         router.push('/train');
       } else {
         router.refresh();
-        setToast(draft.source === 'photo' ? '已记入手账 · 估算' : '已记入手账');
+        setToast(draft.source === 'photo' ? '已记下 · 热量为估算' : '已记下');
       }
     } catch (e) {
-      setRecordError(e instanceof TypeError ? '连接中断，草稿已保留。' : (e as Error).message);
+      setRecordError(e instanceof TypeError ? '刚才网络断了一下，内容已经先存下来了，等网好了点重试就行。' : (e as Error).message);
     } finally {
       setPhase('idle');
       setActiveRequest('');
@@ -381,7 +381,6 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
         <div className="fc-mask" onClick={() => !working && setSheet(null)}>
           <div className="fc-sheet" onClick={(e) => e.stopPropagation()}>
             <h3>{editingDraft ? '继续编辑记录' : '记一条'}</h3>
-            <p className="hint">说一句、写一句，或拍张照片。照片识别后直接记入手账。</p>
 
             <div className="fc-examples">
               {EXAMPLES.map((x) => (
@@ -424,7 +423,7 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
 
             <div className="fc-sheet-actions">
               <button type="button" className="fc-btn ghost" onClick={() => setSheet(null)}>
-                稍后再记
+                取消
               </button>
               <button
                 type="button"

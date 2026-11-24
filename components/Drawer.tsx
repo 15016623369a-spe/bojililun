@@ -63,7 +63,7 @@ export default function Drawer({
           <div>
             {!today || today.memories.length === 0 ? (
               <p className="empty">
-                还没有记忆。跟它说「我左肩有伤，别给我安排过顶推举」这类话，它会主动问你记不记。
+                还没有保存过偏好。提到伤病限制、忌口或者可用器械时，可以一键记下来。
               </p>
             ) : (
               today.memories.map((m) => (
@@ -73,7 +73,6 @@ export default function Drawer({
                       <span className={`mem-kind ${m.kind}`}>{MEMORY_KIND_LABEL[m.kind]}</span>{' '}
                       <span style={{ fontSize: 13 }}>{m.content}</span>
                     </div>
-                    <div className="sub">来源：{m.source} · 重要度 {m.importance}</div>
                   </div>
                   <button className="del" onClick={() => onDeleteMemory(m.id)}>
                     删除

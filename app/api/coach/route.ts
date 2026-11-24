@@ -10,20 +10,20 @@ export function GET() {
 
 export async function POST(request: Request) {
   if (!request.headers.get('content-type')?.startsWith('application/json')) {
-    return Response.json({ error: '请求格式无效' }, { status: 415 });
+    return Response.json({ error: '请求出了点问题，刷新页面再试一下' }, { status: 415 });
   }
   const origin = request.headers.get('origin');
   if (origin && (!URL.canParse(origin) || new URL(origin).host !== request.headers.get('host'))) {
-    return Response.json({ error: '请求来源无效' }, { status: 403 });
+    return Response.json({ error: '请求来源异常，刷新页面再试一下' }, { status: 403 });
   }
   const body: unknown = await request.json().catch(() => null);
   if (!body || typeof body !== 'object' || !('id' in body) || typeof body.id !== 'string' || !UUID.test(body.id)) {
-    return Response.json({ error: '请求编号无效' }, { status: 400 });
+    return Response.json({ error: '请求出了点问题，刷新页面再试一下' }, { status: 400 });
   }
   try {
     if ('action' in body && body.action === 'confirm') {
       const state = confirmCoachPlan(body.id);
-      return state ? Response.json(state) : Response.json({ error: '这份训练草案已不可用，请重新安排' }, { status: 404 });
+      return state ? Response.json(state) : Response.json({ error: '这份训练草案已经过期了，重新排一次就行' }, { status: 404 });
     }
     if (!('question' in body) || typeof body.question !== 'string' || !body.question.trim() || body.question.length > 1500) {
       return Response.json({ error: '请输入 1–1500 个字的问题' }, { status: 400 });
@@ -33,6 +33,6 @@ export async function POST(request: Request) {
     return Response.json(await askCoach(body.id, body.question.trim(), topic));
   } catch (error) {
     console.error('[coach] 请求处理失败', error instanceof Error ? error.message : '');
-    return Response.json({ error: '教练暂时没能完成，请重试' }, { status: 500 });
+    return Response.json({ error: '刚才没能生成回复，再试一次吧' }, { status: 500 });
   }
 }

@@ -26,8 +26,9 @@ type Tool<F> = { facts: F; chart: CoachChart | null };
 type Unavailable = { available: false; missing: string };
 
 const NEED_PROFILE = '「我的」里的性别、年龄、身高、体重和活动量';
+/** 对话里说区间用口语（文案约束：不说「近 30 天」）；图表标题沿用回顾抽屉的「近 30 天」 */
+const SPOKEN: Record<CoachRange, string> = { d7: '最近一周', d30: '最近一个月', y1: '最近一年' };
 const round1 = (n: number) => Math.round(n * 10) / 10;
-const signed = (n: number, dec = 0) => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${fmt(Math.abs(n), dec)}`;
 const dateWord = (date: string) => `${Number(date.slice(5, 7))} 月 ${Number(date.slice(8))} 日`;
 
 function windowDays(wall: WallData, range: CoachRange): WallDay[] {
@@ -103,7 +104,7 @@ export function metabolism(wall: WallData, range: CoachRange): Tool<MetabolismFa
     : today.bmrWeight !== p.weight ? { kind: 'older' } : { kind: 'profile' };
   const facts: MetabolismFacts = {
     available: true,
-    range: RANGE_WORD[range],
+    range: SPOKEN[range],
     today: { date: today.date, bmr: today.bmr, tdee: today.tdee, weight: today.bmrWeight },
     weightSource,
     formula: `10 × ${today.bmrWeight} + 6.25 × ${p.height} − 5 × ${p.age} ${p.sex === 'male' ? '+ 5' : '− 161'}`,
@@ -140,8 +141,8 @@ export function metabolismReply(f: MetabolismFacts, question: string) {
   const lead = `${f.range}你的基础代谢平均 ${fmt(f.average.bmr)} kcal，今天是 ${fmt(f.today.bmr)} kcal：按${src}、身高 ${f.person.height} cm、${f.person.age} 岁${f.person.sex}性，用 Mifflin-St Jeor 公式 ${f.formula} ≈ ${fmt(f.today.bmr)}。`;
   const total = `每日总代谢 = 基础代谢 × ${f.activity.factor}（${f.activity.label} · ${f.activity.desc}）≈ ${fmt(f.today.tdee)} kcal，训练已经算在活动系数里，不再另加。`;
   const change = f.change.weight !== 0
-    ? `这段时间体重从 ${f.start.weight} kg 到 ${f.today.weight} kg（${signed(f.change.weight, 1)} kg），基础代谢跟着${f.change.bmr >= 0 ? '多了' : '少了'} ${fmt(Math.abs(f.change.bmr))} kcal。体重每变 1 kg，基础代谢约变 10 kcal，所以它短期内不会大起大落。`
-    : f.weighIns ? '这段时间体重基本没变，基础代谢也稳定。' : '这段时间没有新的称重，基础代谢没变；记下晨重后会按实际体重更新。';
+    ? `这段时间体重从 ${f.start.weight} kg 到 ${f.today.weight} kg，基础代谢跟着${f.change.bmr >= 0 ? '多了' : '少了'} ${fmt(Math.abs(f.change.bmr))} kcal。体重每变 1 kg，基础代谢约变 10 kcal，所以它短期内不会大起大落。`
+    : f.weighIns ? '这段时间体重基本没变，基础代谢也稳定。' : '这段时间没有新的称重，基础代谢没变，记下晨重后会按实际体重更新。';
   return /体重|晨重|称重|掉秤|胖了|瘦了/.test(question) ? [change, lead, total].join('\n') : [lead, total, change].join('\n');
 }
 
@@ -181,7 +182,7 @@ export function energy(wall: WallData, range: CoachRange): Tool<EnergyFacts> {
   const rate = (key: 'protein' | 'carbs' | 'fat') => Math.round(avg(logged.map((d) => (d[key] ?? 0) / target[key])) * 100);
   const facts: EnergyFacts = {
     available: true,
-    range: RANGE_WORD[range],
+    range: SPOKEN[range],
     goal: p.goalLabel,
     goalKey: p.goal,
     band: wall.band,
@@ -229,7 +230,7 @@ export function energyReply(f: EnergyFacts) {
         : deficit < lo ? '缺口偏小，体重会降得慢' : '缺口偏大，容易掉肌肉、也难坚持';
   const lines = [
     `${f.range}记了 ${f.loggedDays} 天饮食，平均每天摄入 ${fmt(intake)} kcal，每日总代谢约 ${fmt(tdee)} kcal，平均${deficit >= 0 ? `缺口 ${fmt(deficit)}` : `盈余 ${fmt(-deficit)}`} kcal。`,
-    `你的目标是${f.goal}，建议区是${f.bandText}，有 ${f.daysInBand} 天在建议区内；${judge}。`,
+    `你的目标是${f.goal}，建议区是${f.bandText}，有 ${f.daysInBand} 天在建议区内，${judge}。`,
   ];
   const c = f.macros.completion;
   if (c) lines.push(`三大营养平均完成度：蛋白 ${c.protein}%、碳水 ${c.carbs}%、脂肪 ${c.fat}%（90%–110% 算达标）。`);
@@ -316,7 +317,7 @@ export function macroPlan(db: DatabaseSync, wall: WallData, goal: GoalKey): Tool
       { key: 'carbs', name: '碳水', value: facts.recent?.carbs ?? null, target: t.carbs, unit: 'g' },
       { key: 'fat', name: '脂肪', value: facts.recent?.fat ?? null, target: t.fat, unit: 'g' },
     ],
-    note: `蛋白质 ${fmt(perKgOf(goal), 1)} g/kg 优先，脂肪约占 27%，其余给碳水；和「我的」算目标热量同一个公式。`,
+    note: `蛋白质 ${fmt(perKgOf(goal), 1)} g/kg 优先，脂肪约占 27%，其余给碳水，和「我的」算目标热量同一个公式。`,
   };
   return { facts, chart };
 }
@@ -328,7 +329,7 @@ export function macroReply(f: MacroFacts, goalAsked: boolean) {
       : f.delta.planned < 0 ? `减 ${-f.delta.planned} kcal 缺口` : f.delta.planned > 0 ? `加 ${f.delta.planned} kcal 盈余` : '不增不减';
   const lines = [
     `按${f.goal}算，你每天大约吃 ${fmt(f.targetKcal)} kcal：蛋白质 ${f.protein.grams} g、碳水 ${f.carbs.grams} g、脂肪 ${f.fat.grams} g。`,
-    `怎么算的：每日总代谢 ${fmt(f.tdee)} kcal（基础代谢 ${fmt(f.bmr)} × ${f.factor}）${delta}，取整约 ${fmt(f.targetKcal)} kcal；蛋白质按体重 ${f.weight} kg × ${fmt(f.protein.perKg, 1)} g/kg ≈ ${f.protein.grams} g（${fmt(f.protein.kcal)} kcal）；脂肪占总热量 27%，${fmt(f.fat.kcal)} kcal ÷ 9 ≈ ${f.fat.grams} g；剩下 ${fmt(f.carbs.kcal)} kcal 给碳水，÷ 4 ≈ ${f.carbs.grams} g。`,
+    `怎么算的：每日总代谢 ${fmt(f.tdee)} kcal（基础代谢 ${fmt(f.bmr)} × ${f.factor}）${delta}，取整约 ${fmt(f.targetKcal)} kcal。蛋白质按体重 ${f.weight} kg × ${fmt(f.protein.perKg, 1)} g/kg ≈ ${f.protein.grams} g（${fmt(f.protein.kcal)} kcal）。脂肪占总热量 27%，${fmt(f.fat.kcal)} kcal ÷ 9 ≈ ${f.fat.grams} g。剩下 ${fmt(f.carbs.kcal)} kcal 给碳水，÷ 4 ≈ ${f.carbs.grams} g。`,
   ];
   if (f.recent) {
     const gaps = [
@@ -344,7 +345,7 @@ export function macroReply(f: MacroFacts, goalAsked: boolean) {
   }
   if (f.profile.goalKey !== f.goalKey) {
     const diff = f.targetKcal - f.profile.kcal;
-    lines.push(`你在「我的」里的目标是${f.profile.goal}（每天 ${fmt(f.profile.kcal)} kcal），换成${f.goal}每天${diff < 0 ? '少' : '多'}吃 ${fmt(Math.abs(diff))} kcal；要换目标去「我的」改。`);
+    lines.push(`你在「我的」里的目标是${f.profile.goal}（每天 ${fmt(f.profile.kcal)} kcal），换成${f.goal}每天${diff < 0 ? '少' : '多'}吃 ${fmt(Math.abs(diff))} kcal，要换目标去「我的」改。`);
   } else if (f.profile.kcal !== f.targetKcal) {
     lines.push(`「我的」里存的目标还是按 ${f.profile.weight} kg 算的 ${fmt(f.profile.kcal)} kcal，去「我的」更新体重后会一致。`);
   } else {
@@ -444,7 +445,7 @@ export function training(db: DatabaseSync, today: string, wall: WallData, range:
   })).filter((s) => s.exercises.length);
 
   const facts: TrainingFacts = {
-    range: RANGE_WORD[range],
+    range: SPOKEN[range],
     totals: { sessions: totals.sessions, days: totals.days, sets: totals.sets, volume: totals.volume, durationMin: totals.durationMin },
     daysPerWeek: round1(totals.days / weeks),
     regions,
@@ -460,7 +461,7 @@ export function training(db: DatabaseSync, today: string, wall: WallData, range:
     disliked: prefs.disliked.map((x) => x.name),
     suggestions,
     guideline: focus === 'strength'
-      ? '力量：主项每组 3–6 次、组间休息 2–3 分钟，辅助动作 8–12 次；每个大肌群每周仍要 10 组左右'
+      ? '力量：主项每组 3–6 次、组间休息 2–3 分钟，辅助动作 8–12 次，每个大肌群每周仍要 10 组左右'
       : focus === 'cut'
         ? '减脂期保肌：大肌群每周仍保持 10 组左右、重量尽量不降，配合每天 8000 步以上或每周 2–3 次有氧'
         : '增肌：每个大肌群每周 10–20 组、每周练到 2 次，每组 6–12 次、留 1–2 次余力，次数做到上限再加重量',
@@ -485,7 +486,7 @@ export function trainingReply(f: TrainingFacts, focus: TrainingFocus) {
     : focus === 'cut' ? '减脂期练力量是为了保住肌肉：大肌群每周仍保持 10 组左右、重量尽量不降。'
       : '增肌常用的标准是每个大肌群每周 10–20 组、每周练到 2 次。';
   if (!f.totals.sets) {
-    return `${f.range}还没有训练记录。${guide}可以从每周 3 天全身训练开始，每次胸、背、腿各 1–2 个动作，每组 6–12 次；记下几次训练后，我就能按你的实际情况调整。`;
+    return `${f.range}还没有训练记录。${guide}可以从每周 3 天全身训练开始，每次胸、背、腿各 1–2 个动作，每组 6–12 次。记下几次训练后，我就能按你的实际情况调整。`;
   }
   const lines = [
     `${f.range}你练了 ${f.totals.days} 天（平均每周 ${f.daysPerWeek} 天），共 ${fmt(f.totals.sets)} 组、容量 ${fmt(f.totals.volume)} kg。`,
@@ -497,18 +498,18 @@ export function trainingReply(f: TrainingFacts, focus: TrainingFocus) {
     ? `先把${f.suggestions.map((s) => `${s.region}（${s.exercises.join('、')}）`).join('、')}加到每周 10 组左右`
     : f.weak.length ? `先把${f.weak.join('、')}加到每周 10 组左右` : '组数保持住';
   const repNote = f.repShare6to12 === null || focus === 'strength' ? ''
-    : f.repShare6to12 >= 60 ? `你 ${f.repShare6to12}% 的组在 6–12 次，这个范围很合适；` : `你只有 ${f.repShare6to12}% 的组在 6–12 次，可以多放在这个范围；`;
+    : f.repShare6to12 >= 60 ? `你 ${f.repShare6to12}% 的组在 6–12 次，这个范围很合适。` : `你只有 ${f.repShare6to12}% 的组在 6–12 次，可以多放在这个范围。`;
   const tail = focus === 'strength' ? '主项次数做到上限再加重量。'
     : focus === 'cut' ? '每组留 1–2 次余力，再配合每天 8000 步以上或每周 2–3 次有氧。'
       : '每组留 1–2 次余力，次数做到上限再加重量。';
-  lines.push(`建议：${freq}；${fill}；${repNote}${tail}`);
+  lines.push(`建议：${freq}。${fill}。${repNote}${tail}`);
   const best = f.progress.find((p) => p.last > p.first);
   if (best) lines.push(`进步：${best.name}估算 1RM 从 ${best.first} kg 到 ${best.last} kg${f.prs.count ? `，${f.range}一共破了 ${f.prs.count} 次个人纪录` : ''}，照这个节奏练。`);
   else if (f.progress[0]) lines.push(`${f.progress[0].name}最近 ${f.progress[0].sessions} 次估算 1RM 在 ${f.progress[0].first}–${f.progress[0].best} kg，暂时持平，可以先把次数做上去。`);
   const care: string[] = [];
-  if (f.constraints.length) care.push(`你记过「${f.constraints.join('；')}」，${f.avoid.length ? `${f.avoid.join('、')}先避开，` : ''}以上建议已经跳过相关动作`);
+  if (f.constraints.length) care.push(`你记过「${f.constraints.join('、')}」，${f.avoid.length ? `${f.avoid.join('、')}先避开，` : ''}以上建议已经跳过相关动作`);
   if (f.disliked.length) care.push(`不喜欢的${f.disliked.join('、')}没有放进建议`);
-  if (care.length) lines.push(`${care.join('；')}。`);
+  if (care.length) lines.push(`${care.join('。')}。`);
   return lines.join('\n');
 }
 
@@ -552,6 +553,8 @@ export function coachData(db: DatabaseSync, today: string) {
     training: (range: CoachRange, focus: TrainingFocus) => training(db, today, wall(), range, focus),
     profile: () => profileFacts(db, wall()),
     profileGoal: (): GoalKey => wall().profile?.goal ?? 'maintain',
+    /** 今天的每日总代谢（回顾「代谢」同一个数），没有营养资料时为 null */
+    todayTdee: () => wall().days.at(-1)?.tdee ?? null,
     trainingGoal: () => getTrainingProfile().goal,
   };
 }

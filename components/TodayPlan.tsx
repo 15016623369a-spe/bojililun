@@ -140,9 +140,9 @@ export default function TodayPlan({
 
       {allDone && !showDone ? null : items.length === 0 ? (
         <div className="empty-plan">
-          <b>还没有安排动作</b>
-          <p>回到人体上点一块肌肉挑几个动作，或者按住底部「记录」说「今天练胸，给我排四个动作」。</p>
-          <Link className="ghost-pill" href="/body" prefetch={true}>去点选肌群</Link>
+          <b>今天还没排动作</b>
+          <p>按部位自己挑，或者长按底部「记录」说一句「今天练胸，排四个动作」。</p>
+          <Link className="ghost-pill" href="/body" prefetch={true}>按部位挑动作</Link>
         </div>
       ) : (
         <ol className="plan-rows">
@@ -198,7 +198,7 @@ export default function TodayPlan({
           {err && <p className="start-err" role="alert">{err}</p>}
           <button type="button" className="ink-btn" data-extra={allDone || undefined} disabled={busy || saving}
             onClick={allDone ? () => { haptic(10); router.push('/train/extra'); } : start}>
-            <span>{busy ? '正在开始…' : activeSession ? '继续训练' : allDone ? '再加一组' : doneCount ? '接着练' : '开始训练'}</span>
+            <span>{busy ? '正在开始…' : activeSession ? '继续训练' : allDone ? '去加练' : doneCount ? '接着练' : '开始训练'}</span>
             <span className="ink-btn-meta">{activeSession?.next ? `${activeSession.next.name} · 剩 ${activeSession.next.setsLeft} 组`
               : allDone ? '今日计划已完成' : doneCount ? `剩 ${remainingSets} 组` : `${totalSets} 组`}
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6" /></svg>
