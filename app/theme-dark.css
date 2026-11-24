@@ -43,9 +43,15 @@ html[data-theme="dark"] :is(
 html[data-theme="dark"] .heat-stat[aria-pressed="true"] :is(span, .big-num, small) { color: #151613; }
 
 /* 底部导航与主按钮：深灰底、浅色字，加一圈很淡的边 */
-html[data-theme="dark"] .fc-tabs { background: #1c1e21; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 6%), 0 12px 28px -14px rgb(0 0 0 / 80%); }
-html[data-theme="dark"] .fc-tabs .fc-tab { color: #a3a6a0; }
-html[data-theme="dark"] .fc-tabs .fc-tab.on { background: linear-gradient(#f1f2ee, #dfe0da); color: #151613; }
+html[data-theme="dark"] .fc-tabs {
+  --tab-ink-off: #a3a6a0;
+  --tab-ink-on: #151613;
+  --tab-pill-bg: linear-gradient(#f1f2ee, #dfe0da);
+  background: #1c1e21;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 6%), 0 12px 28px -14px rgb(0 0 0 / 80%);
+}
+html[data-theme="dark"] .fc-tabs .fc-tab { color: var(--tab-ink-off); }
+html[data-theme="dark"] .fc-tabs .fc-tab.on { background: transparent; color: var(--tab-ink-on); }
 html[data-theme="dark"] :is(.ink-btn, .plan-start, .export-primary, .fc-dict-actions .fc-btn.primary, .fc .fc-speak, .stats-chip, .plan-pill) {
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 7%), 0 14px 30px -18px rgb(0 0 0 / 80%);
 }

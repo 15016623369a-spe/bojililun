@@ -109,7 +109,7 @@ export default function PlanDetail({ muscle, muscleLabel, region, pose, variant,
 
   const count = (n?: number) => (n === undefined ? '' : `${n} 个`);
   const startMeta = activeSession ? activeMeta ?? '回到正在进行的训练' : extra ? '加入今日计划' : planDone ? '今日计划已完成' : planCount ? `今日 ${planCount} 个动作` : '先挑动作';
-  const startLabel = activeSession ? '继续训练' : extra ? '挑加练动作' : planDone ? '再加一组' : '开始训练';
+  const startLabel = activeSession ? '继续训练' : extra ? '挑加练动作' : planDone ? '去加练' : '开始训练';
 
   return (
     <div className="plan-detail" data-closing={closing || undefined} data-dragging={drag.live || undefined}

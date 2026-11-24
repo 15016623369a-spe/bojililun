@@ -128,30 +128,30 @@ export default function SetupFlow() {
   // 体重、身高年龄、活动量没动过就是跳过：按钮写「暂不填写」，不让默认值看起来像已经填好
   const unset = (step === 'weight' && weight === null) || (step === 'body' && height === null && age === null) || (step === 'activity' && activity === null);
   const title: Record<Step, React.ReactNode> = {
-    model: <>先选一个<br />默认的人体模型</>,
-    goal: <>这阵子，<br />你想练成什么样？</>,
-    weight: <>现在的体重<br />大概是多少？</>,
-    body: <>身高和年龄<br />大概是多少？</>,
-    activity: <>平时的<br />活动量怎么样？</>,
+    model: <>选一个默认的<br />人体模型</>,
+    goal: <>这一阶段，<br />你的主要目标是？</>,
+    weight: <>目前的体重<br />是多少？</>,
+    body: <>填一下你的<br />身高和年龄</>,
+    activity: <>日常活动量<br />在哪一档？</>,
     restriction: <>有没有需要<br />避开的动作？</>,
     favorites: <>挑几个<br />你常练的动作</>,
   };
   const note: Record<Step, string> = {
-    model: '计划页和回顾页会用它来显示人体，可以随时在「我的」里换。',
-    goal: '目标会影响推荐的组次和营养目标，随时可在「我的」修改。',
-    weight: weight === null ? '不填就跳过，不会保存。填了会存为第一条体重记录，之后可以在「我的」里看到变化。' : '保存为第一条体重记录，之后可以在「我的」里看到变化。',
+    model: '用于「训练」和「回顾」页的肌群展示，之后随时可以在「我的」里换。',
+    goal: '用来决定推荐组次和每日营养目标，随时可以在「我的」里改。',
+    weight: '记作你的第一次体重，方便后面看趋势变化。',
     body: sex && weight
-      ? '和性别、体重一起算基础代谢和每天的热量目标；不填就跳过，之后可在「我的」补。'
-      : '用来算基础代谢和热量目标，还需要前面的性别和体重；不填就跳过，之后可在「我的」补。',
-    activity: '决定每天的总代谢（基础代谢 × 活动系数），训练也算在里面。没选就按「轻度」。',
-    restriction: '比如旧伤或医生建议避开的动作，排计划时会提醒你。',
-    favorites: '选中的动作会进「我的动作库」，排计划时排在前面。',
+      ? '用来计算你的基础代谢和每日热量目标。'
+      : '配合性别和体重，用来计算你的基础代谢和每日热量目标。',
+    activity: '每日总代谢 = 基础代谢 × 活动系数，日常训练已经算在里面了。没选默认按「轻度」。',
+    restriction: '比如旧伤或医生建议避开的动作，排计划时会优先避开。',
+    favorites: '选中的动作会收进「我的动作库」，挑动作时排在前面。',
   };
 
   return <div className="setup">
     <header className="setup-head">
       <div className="journal-brand"><JournalIcon name="brand" />FitCheck</div>
-      {step !== 'goal' && <button type="button" className="setup-skip" onClick={skip} disabled={saving}>跳过，稍后填写</button>}
+      {step !== 'goal' && <button type="button" className="setup-skip" onClick={skip} disabled={saving}>先跳过</button>}
     </header>
     <div className="setup-progress" aria-hidden="true">{STEPS.map((s, i) => <i key={s} data-state={i < index ? 'done' : i === index ? 'now' : undefined} />)}</div>
     <div className="setup-count">
@@ -182,7 +182,6 @@ export default function SetupFlow() {
       {step === 'weight' && <div className="setup-weight" data-unset={weight === null || undefined}>
         <Stepper readout label="体重" value={weight ?? 70} unit="kg" step={0.1} min={20} max={400} onChange={setWeight} />
         <TickRuler value={weight ?? 70} min={20} max={400} step={0.1} major={10} label="体重刻度尺" unit="kg" onChange={setWeight} />
-        {weight === null && <p className="setup-hint">按加减、滑动刻度或点数字输入，也可以跳过。</p>}
       </div>}
 
       {step === 'body' && <div className="setup-body">
@@ -192,7 +191,6 @@ export default function SetupFlow() {
         <div data-unset={age === null || undefined}>
           <Stepper label="年龄" value={age ?? 30} unit="岁" step={1} min={12} max={90} onChange={setAge} />
         </div>
-        {height === null && age === null && <p className="setup-hint">按加减或点数字输入，也可以跳过。</p>}
       </div>}
 
       {step === 'activity' && <div className="setup-options">
@@ -222,7 +220,7 @@ export default function SetupFlow() {
             onClick={() => { haptic(4); setPart(p.key); }}>{p.label}</button>)}
         </div>
         <ul className="setup-ex">
-          {!items[part] && <li className="setup-hint">正在取动作…</li>}
+          {!items[part] && <li className="setup-hint">正在加载动作…</li>}
           {(items[part] ?? []).map((item) => {
             const on = liked.has(item.id);
             return <li key={item.id}>

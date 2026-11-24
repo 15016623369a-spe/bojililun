@@ -60,7 +60,7 @@ export async function PATCH(req: Request) {
       }>;
     };
     const id = Number(body.id);
-    if (!id) return NextResponse.json({ error: '缺少 id' }, { status: 400 });
+    if (!id) return NextResponse.json({ error: '未找到这条记录，请刷新重试' }, { status: 400 });
 
     if (body.kind === 'meal') {
       const names = (body.names ?? []).map((s) => String(s).trim()).filter(Boolean);
@@ -90,7 +90,7 @@ export async function DELETE(req: Request) {
     const url = new URL(req.url);
     const id = Number(url.searchParams.get('id'));
     const kind = url.searchParams.get('kind');
-    if (!id) return NextResponse.json({ error: '缺少 id' }, { status: 400 });
+    if (!id) return NextResponse.json({ error: '未找到这条记录，请刷新重试' }, { status: 400 });
     if (kind === 'meal') deleteMeal(id);
     else deleteTraining(id);
     return NextResponse.json({ ok: true });

@@ -5,6 +5,8 @@ certificates/
 data/fitness.db*
 data/uploads/
 .env
+.env.local
+.env*.local
 *.log
 data/gifs/
 *.tsbuildinfo

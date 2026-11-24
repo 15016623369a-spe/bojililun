@@ -190,7 +190,7 @@ function MacroSheet({ data, range }: P) {
       </div>
       <div>
         <Matrix rows={MACROS.map((m, k) => ({ name: m.name, color: m.color, vals: series[k] }))} labels={b.map((x) => (range === 'd7' ? x.label.replace('周', '') : x.label))} picked={picked} onPick={setPicked} />
-        <Hint>点或拖某一列，上面的完成度换成那一{range === 'y1' ? '月' : '天'}</Hint>
+        <Hint>按住左右拖，看每{range === 'y1' ? '个月' : '一天'}</Hint>
       </div>
     </div>
     <Stats items={MACROS.map((m, k) => [`${m.name}达标`, okN(series[k]), 0, unitN] as Stat)} />
@@ -248,7 +248,7 @@ function DeficitSheet({ data, range }: P) {
       <div>
         <Bars values={vals} labels={b.map((y) => y.label)} picked={picked} onPick={setPicked} def={last}
           band={[lo, hi, '建议区']} tone={(v) => (v >= lo && v <= hi ? 'ok' : '')} selColor="var(--coral)" label="每天的热量缺口" />
-        <Hint>拖到某一{range === 'y1' ? '月' : '天'}，上面的消耗和摄入一起换</Hint>
+        <Hint>按住左右拖，看每{range === 'y1' ? '个月' : '一天'}</Hint>
       </div>
     </div>
     <Stats items={[['最低', Math.min(...real), 0, 'kcal'], ['平均', Math.round(avg(real)), 0, 'kcal'], ['最高', Math.max(...real), 0, 'kcal']]} />
@@ -288,11 +288,10 @@ function MetabSheet({ data, range }: P) {
       </div>
       {real.length > 1 && <div>
         <LineChart values={tdee} labels={b.map((x) => x.label)} picked={picked} onPick={setPicked} def={last} color="var(--rw-heat)" label="每日总代谢的变化" />
-        <Hint>体重变了，基础代谢和总代谢跟着变</Hint>
       </div>}
     </div>
     <Stats items={[['基础代谢', bmr[at] ?? 0, 0, 'kcal'], ['活动系数', `× ${p.factor}`], ['每日总代谢', tdee[at] ?? 0, 0, 'kcal']]} />
-    <Note title="怎么算">基础代谢用 Mifflin-St Jeor 公式，体重取当天或之前最近一次称重，没有称重时用「我的」里的体重。每日总代谢 = 基础代谢 × 活动系数，和「我的」算目标热量是同一个数；热量缺口 = 每日总代谢 − 摄入。训练已经算在活动系数里，「能量收支」里的运动消耗只作参考，不再叠加。</Note>
+    <Note title="怎么算">体重优先取你最近一次称重，还没称过就用「我的」里的体重。日常训练已经算进上面的活动系数里了，不再重复叠加单次运动消耗。</Note>
     <GoLink href="/me" title="在「我的」里改体重和活动量" sub={`现在是${p.activityLabel}（${p.activityDesc}）· ${p.goalLabel}`} icon="user" />
   </>;
 }
@@ -346,7 +345,7 @@ function PrSheet({ data, range }: P) {
       </div> : <p className="rw-empty">这段时间还没有突破。同一个动作的估算 1RM 超过之前的最好成绩，就会记一次。</p>}
     </div>
     <Stats items={[['最近一次', events.length ? short(events.at(-1)!.date) : '—'], ['最大涨幅', rows.length ? round1(Math.max(...rows.map((r) => r.gain))) : 0, 1, 'kg'], ['涉及动作', rows.length, 0, '个']]} />
-    <Note title="怎么算一次突破">对 1–15 次的负重组估算 1RM：单次直接取实举重量，其余用 重量 × (1 + 次数 / 30)。一节训练里的最好成绩超过这个动作此前所有训练的最高值，就记一次；第一次练的动作只记下基线。与统计页「动作表现」同一口径。</Note>
+    <Note title="怎么算一次突破">对 1–15 次的负重组估算 1RM：单次直接取实举重量，其余用 重量 × (1 + 次数 / 30)。一节训练里的最好成绩超过这个动作此前所有训练的最高值，就记一次；第一次练的动作只记下基线。</Note>
     <StatsLink range={range} view="muscles" name="动作表现" sub="PR、8–12 RM、12–15 RM 三档数值和曲线" />
   </>;
 }
@@ -369,7 +368,6 @@ function BodySheet({ data, range, variant }: P) {
         : <p className="rw-empty">这段时间还没有记到具体肌群的训练。</p>}
     </div>
     {muscles.length > 0 && <Stats items={[['最多', muscleLabel(muscles[0].id)], ['平均', round1(total / muscles.length), 1, '组'], ['总组数', total, 0, '组']]} />}
-    <Note title="和统计页同一张图">标注沿用统计页「肌群与动作」：正面标注收在左侧、背面收在右侧，点越大组数越多。点标注或下面的列表看单个肌群；每组只归入一个主要肌群，口径也和统计页一致。</Note>
     <StatsLink range={range} view="muscles" name="肌群与动作" sub="每个肌群的容量、对比和动作表现" />
   </>;
 }

@@ -481,14 +481,14 @@ export default function ExerciseSheet({
                 <div>
                   {browseAll && <button type="button" className="fc-dict-back mine-back" onClick={() => setBrowseAll(false)}>‹ 我的动作库</button>}
                   <div className="fc-dict-title">
-                    {title ?? "这块肌肉"}
+                    {title ?? "当前部位"}
                     <span className="fc-dict-count">
                       {busyList ? "…" : `${data?.total ?? 0} 个动作`}
                     </span>
                   </div>
                   <div className="fc-dict-note">
                     {!selection ? "点动作看动图与要点"
-                      : browseAll ? "点一下收进我的动作库并选中，左滑看详情"
+                      : browseAll ? "点按选中并加入我的动作库，左滑看详情"
                         : preference ? "点动作选中，左滑看详情或移出" : "点动作选中，左滑看详情"}
                   </div>
                 </div>
@@ -519,7 +519,7 @@ export default function ExerciseSheet({
               </div>
 
               <div className="fc-dict-list" ref={list}>
-                {busyList && <p className="fc-note">正在取这一块的动作…</p>}
+                {busyList && <p className="fc-note">正在加载动作…</p>}
                 {!busyList &&
                   items.map((it) => {
                     const name = it.zh_name || it.name;
@@ -603,9 +603,9 @@ export default function ExerciseSheet({
                 {!busyList && !listError && items.length === 0 && (
                   <p className="fc-note">
                     {preference && !browseAll ? (
-                      selection ? "这一块还没有收藏的动作，从下面的全部动作里挑。" : <>
-                        这一块还没有常练动作。可以在
-                        <a href="/me/exercises">「我的 · 动作偏好」</a>里标记。
+                      selection ? "这个部位还没有常练动作，从下面的全部动作里挑几个吧。" : <>
+                        这个部位还没有常练动作，可以在
+                        <a href="/me/exercises">「我的 · 动作偏好」</a>里添加。
                       </>
                     ) : (
                       "这个筛选下没有动作，换个器械试试。"

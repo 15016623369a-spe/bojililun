@@ -1,4 +1,4 @@
-# 每个 PR 和推到 main 时检查：类型、手账测试、雕塑标签测试、生产构建。
+# 每个 PR 和推到 main 时检查：类型、手账测试、教练测试、雕塑标签测试、生产构建。
 # 用 Node 24：服务端依赖 node:sqlite，和本地开发一致。
 name: CI
 
@@ -26,6 +26,8 @@ jobs:
         run: npm run typecheck
       - name: 手账测试
         run: npm run test:ledger
+      - name: 教练测试
+        run: node --test tests/coach.cjs tests/coach-data.cjs
       - name: 雕塑标签测试
         run: node --test scripts/sculpture-labels.test.cjs
       - name: 生产构建

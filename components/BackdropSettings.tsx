@@ -83,9 +83,9 @@ export default function BackdropSettings({ initialUrl, initialGlass }: { initial
       </div>
       <div className="backdrop-actions">
         <button type="button" className="backdrop-btn primary" disabled={busy} onClick={() => input.current?.click()}>{busy ? '正在处理…' : url ? '更换背景' : '选择背景图片'}</button>
-        {url && <button type="button" className="backdrop-btn" disabled={busy} onClick={remove}>恢复冷银灰</button>}
+        {url && <button type="button" className="backdrop-btn" disabled={busy} onClick={remove}>恢复默认背景</button>}
         <input ref={input} type="file" accept="image/*" hidden onChange={(e) => choose(e.target.files?.[0])} />
-        {error ? <p className="backdrop-error" role="alert">{error}</p> : <p className="backdrop-note">竖图效果最好；换一张时，旧图会自动删掉。</p>}
+        {error ? <p className="backdrop-error" role="alert">{error}</p> : <p className="backdrop-note">竖图效果最好。</p>}
       </div>
     </div>
     <label className="backdrop-slider" data-disabled={url ? undefined : ''}>

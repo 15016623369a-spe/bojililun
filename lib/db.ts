@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS coach_turn (
   evidence TEXT NOT NULL,
   equipment_note TEXT,
   plan TEXT,
+  charts TEXT,
   confirmed_at TEXT
 );
 
@@ -287,6 +288,7 @@ function ensureColumns(db: DatabaseSync) {
   ensureJournalKinds(db);
 
   ensureColumn(db, "exercise", "zh_name", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(db, "coach_turn", "charts", "TEXT");
   ensureColumn(db, "session", "plan_json", "TEXT");
   // 记录也支持挂一张照片（训练 / 餐食都当“笔记”用）
   ensureColumn(db, "session", "photo_path", "TEXT");

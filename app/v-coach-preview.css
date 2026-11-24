@@ -76,6 +76,7 @@
 
 .coach-preview-layout {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr) auto;
   height: 100%;
 }
@@ -497,11 +498,13 @@
 /* Conversation messages */
 .coach-preview-messages {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
 }
 
 .coach-preview-exchange {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
   animation: coachMsgIn 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -723,6 +726,135 @@
   cursor: default;
 }
 
+/* Charts inside coach replies：沿用回顾抽屉的图（components/review/charts.tsx），
+   教练面板白天夜间都是深色，这里按夜间回顾的取值给 --rw-* 变量 */
+.coach-chart {
+  --rw-ink: var(--coach-ink);
+  --rw-ink2: #cfd3c4;
+  --rw-mute: var(--coach-muted);
+  --rw-faint: #6f7367;
+  --rw-rgb: 241 242 234;
+  --rw-sel-bg: #ecebe6;
+  --rw-sel-fg: #151613;
+  --rw-heat: #91bce8;
+  --rw-coral-ink: #ff8a78;
+  --rw-carb: #c9c43a;
+  --rw-gap: #4a4e45;
+  --rw-cur: var(--coach-surface);
+  --rw-stripe: repeating-linear-gradient(90deg, rgb(var(--rw-rgb) / 72%) 0 1.4px, var(--rw-gap) 1.4px 4.6px);
+  --rw-stripe-lemon: repeating-linear-gradient(90deg, rgb(21 22 19 / 80%) 0 1.2px, var(--lemon) 1.2px 4.6px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  min-width: 0;
+  margin: 12px 0 0;
+  padding: 12px 12px 11px;
+  border: 1px solid var(--coach-line);
+  border-radius: 14px;
+  background: rgb(0 0 0 / 22%);
+  color: var(--coach-ink);
+}
+
+.coach-chart-head {
+  display: grid;
+  gap: 2px;
+}
+
+.coach-chart-head b {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--coach-ink);
+}
+
+.coach-chart-head span {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--coach-muted);
+}
+
+.coach-chart .rw-seg {
+  justify-self: start;
+  max-width: 100%;
+}
+
+.coach-chart .rw-seg button {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.coach-chart .rw-seg-ind {
+  height: 26px;
+}
+
+.coach-chart-read {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.coach-chart-num {
+  flex: none;
+  font: 700 24px/1 var(--font-num);
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--coach-tone, var(--coach-accent));
+}
+
+.coach-chart-num small {
+  margin-left: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--coach-muted);
+}
+
+.coach-chart-pick {
+  min-width: 0;
+  font-size: 11.5px;
+  line-height: 1.4;
+  text-align: right;
+  color: var(--coach-muted);
+}
+
+.coach-chart-note {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--coach-muted);
+}
+
+/* 建议区跟着这张图的颜色：训练组数用柠檬黄，热量缺口保持回顾的珊瑚色 */
+.coach-chart[data-tone="lemon"] .rw-band {
+  background: rgb(242 237 33 / 9%);
+  border-color: rgb(242 237 33 / 46%);
+}
+
+.coach-chart[data-tone="lemon"] .rw-band span {
+  color: var(--lemon);
+}
+
+.coach-chart .rw-bar.sel {
+  box-shadow: 0 0 12px -2px color-mix(in srgb, var(--sel) 55%, transparent);
+}
+
+.coach-chart .rw-prog-top b {
+  width: 3.4em;
+  flex: none;
+}
+
+.coach-chart .rw-prog-top strong {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--coach-muted);
+}
+
+.coach-chart .rw-prog-top strong.over {
+  color: var(--rw-coral-ink);
+}
+
 /* Bottom composer dock */
 .coach-preview-dock {
   padding: 10px 14px calc(12px + env(safe-area-inset-bottom));
@@ -826,6 +958,141 @@
   cursor: default;
 }
 
+/* 按住说话：输入框为空时发送键换成麦克风，按住时上方出现「在听…」卡片和实时转写 */
+.coach-input-form .coach-mic {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--coach-accent);
+  color: #161812;
+  cursor: pointer;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.16s ease, background-color 0.16s ease, box-shadow 0.2s ease;
+}
+
+.coach-input-form .coach-mic svg {
+  width: 19px;
+  height: 19px;
+}
+
+.coach-input-form .coach-mic.is-on {
+  transform: scale(1.12);
+  animation: coachPulse 1.2s ease-in-out infinite;
+}
+
+.coach-input-form .coach-mic.is-cancel {
+  background: var(--coral);
+  animation: none;
+}
+
+.coach-input-form .coach-mic:disabled {
+  opacity: 0.34;
+  cursor: default;
+}
+
+.coach-input-form input:disabled {
+  opacity: 0.4;
+}
+
+.coach-listen {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 9px;
+  padding: 10px 13px 11px;
+  border: 1px solid rgb(238 235 83 / 30%);
+  border-radius: 16px;
+  background: var(--coach-surface-2);
+  animation: coachMsgIn 0.18s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.coach-listen.is-cancel {
+  border-color: rgb(240 99 81 / 55%);
+}
+
+.coach-listen-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.coach-listen-head b {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--coach-accent);
+}
+
+.coach-listen.is-cancel .coach-listen-head b {
+  color: #ff8a78;
+}
+
+.coach-listen-head span:last-child:not(.coach-listen-wave) {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--coach-muted);
+  white-space: nowrap;
+}
+
+.coach-listen-wave {
+  display: inline-flex;
+  align-items: center;
+  gap: 2.5px;
+  height: 16px;
+}
+
+.coach-listen-wave i {
+  display: block;
+  width: 2.5px;
+  height: 5px;
+  border-radius: 2px;
+  background: var(--coach-accent);
+  animation: coachWave 0.9s ease-in-out infinite;
+}
+
+.coach-listen-wave i:nth-child(2) { animation-delay: 0.12s; }
+.coach-listen-wave i:nth-child(3) { animation-delay: 0.24s; }
+.coach-listen-wave i:nth-child(4) { animation-delay: 0.36s; }
+.coach-listen-wave i:nth-child(5) { animation-delay: 0.24s; }
+.coach-listen-wave i:nth-child(6) { animation-delay: 0.12s; }
+
+.coach-listen.is-cancel .coach-listen-wave i {
+  background: #ff8a78;
+  animation: none;
+}
+
+.coach-listen p {
+  margin: 0;
+  color: var(--coach-ink);
+  font-size: 14.5px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.coach-listen p.is-placeholder {
+  color: var(--coach-muted);
+}
+
+.coach-voice-note {
+  margin: 0 4px 8px;
+  color: #d5d9ca;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+@keyframes coachWave {
+  0%, 100% { height: 4px; }
+  50% { height: 15px; }
+}
+
 /* Keyframes */
 @keyframes coachMsgIn {
   from {
@@ -869,6 +1136,9 @@
   .coach-preview-mark.is-thinking,
   .coach-msg-avatar.is-thinking,
   .coach-typing-dots i,
+  .coach-listen,
+  .coach-listen-wave i,
+  .coach-input-form .coach-mic.is-on,
   .coach-msg-bubble > p.is-streaming::after {
     animation: none;
     transition: none;

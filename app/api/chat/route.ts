@@ -9,7 +9,7 @@ export async function POST(req: Request) {
   try {
     body = (await req.json()) as { text?: string; image?: string };
   } catch {
-    return NextResponse.json({ error: '请求体不是合法 JSON' }, { status: 400 });
+    return NextResponse.json({ error: '请求出了点问题，刷新页面再试一下' }, { status: 400 });
   }
 
   const replies = await handleChat({ text: body.text, imageDataUrl: body.image });

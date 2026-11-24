@@ -2,13 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Icon from '@/components/ui/Icon';
-import { COACH_TOPICS, type CoachEvidence, type CoachState, type CoachTopic } from '@/lib/coach-types';
-
-const TOPIC_HINTS: Record<CoachTopic, string> = {
-  meal: '结合今天已记录的餐食给建议',
-  strength: '看看近期力量与训练趋势',
-  plan: '基于最近一次实练生成草案',
-};
+import { COACH_STARTERS, type CoachEvidence, type CoachState, type CoachTopic } from '@/lib/coach-types';
+import CoachCharts from './CoachCharts';
+import { MicIcon } from './icons';
+import { useHoldToSpeak } from './useHoldToSpeak';
 
 function CoachMark({ size = 24 }: { size?: number }) {
   return (
@@ -64,6 +61,7 @@ export default function CoachPreview() {
   const closing = useRef(false);
 
   const [draft, setDraft] = useState('');
+  const [voiceNote, setVoiceNote] = useState('');
   const [state, setState] = useState<CoachState | null>(null);
   const [loadingInit, setLoadingInit] = useState(false);
   const [optimistic, setOptimistic] = useState<{ id: string; question: string; topic?: CoachTopic } | null>(null);
@@ -71,6 +69,19 @@ export default function CoachPreview() {
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [insightOpen, setInsightOpen] = useState(false);
   const [reveal, setReveal] = useState<{ id: string; count: number } | null>(null);
+
+  // 输入框为空时右边是麦克风：按住说话，松开就把识别出的话发给教练，上滑取消
+  const voice = useHoldToSpeak({
+    onText: text => void ask(text),
+    onNotice: setVoiceNote,
+  });
+  const listening = voice.phase !== 'idle';
+
+  useEffect(() => {
+    if (!voiceNote) return;
+    const timer = setTimeout(() => setVoiceNote(''), 2800);
+    return () => clearTimeout(timer);
+  }, [voiceNote]);
 
   const turns = state?.turns ?? [];
   const hasConversation = turns.length > 0 || Boolean(optimistic) || Boolean(failedAsk);
@@ -310,7 +321,7 @@ export default function CoachPreview() {
               <div className="coach-preview-title-wrap">
                 <h2 id="coach-preview-title">我的教练</h2>
                 <span className="coach-preview-subtitle">
-                  {isSending ? '正在思考…' : '基于你的训练与饮食手账'}
+                  {isSending ? '正在看记录…' : '结合你的训练与饮食记录'}
                 </span>
               </div>
             </div>
@@ -349,7 +360,7 @@ export default function CoachPreview() {
                   </div>
 
                   <h3 id="coach-preview-summary-title" className="coach-hero-title">
-                    {insight ? insight.title : '随时聊聊你的训练与饮食'}
+                    {insight ? insight.title : '看看近期进展，或者聊聊下一餐怎么吃'}
                   </h3>
 
                   {insight ? (
@@ -369,7 +380,7 @@ export default function CoachPreview() {
                       </div>
                     </div>
                   ) : loadingInit ? (
-                    <p className="coach-hero-detail">正在同步你最近的记录…</p>
+                    <p className="coach-hero-detail">正在读取近期记录…</p>
                   ) : null}
 
                   {state?.overview.latestWorkout && (
@@ -385,16 +396,16 @@ export default function CoachPreview() {
                 </div>
 
                 <div className="coach-starter-list" aria-label="快捷提问">
-                  {(Object.keys(COACH_TOPICS) as CoachTopic[]).map(topic => (
+                  {COACH_STARTERS.map(({ topic, question, label, hint }) => (
                     <button
                       key={topic}
                       type="button"
                       className="coach-starter-card"
                       disabled={isSending}
-                      onClick={() => void ask(COACH_TOPICS[topic], topic)}
+                      onClick={() => void ask(question, topic)}
                     >
-                      <span className="coach-starter-title">{COACH_TOPICS[topic]}</span>
-                      <span className="coach-starter-hint">{TOPIC_HINTS[topic]}</span>
+                      <span className="coach-starter-title">{label}</span>
+                      <span className="coach-starter-hint">{hint}</span>
                       <Icon name="arrow-right" size={16} className="coach-starter-arrow" />
                     </button>
                   ))}
@@ -403,7 +414,7 @@ export default function CoachPreview() {
             )}
 
             <div className="coach-preview-messages" aria-live="polite">
-              {turns.map(({ id, question, reply, evidence, plan, confirmed }) => {
+              {turns.map(({ id, question, reply, evidence, plan, charts, confirmed }) => {
                 const isRevealing = reveal?.id === id;
                 const displayReply = isRevealing ? reply.slice(0, reveal.count) : reply;
                 return (
@@ -417,6 +428,7 @@ export default function CoachPreview() {
                       </span>
                       <div className="coach-msg-bubble">
                         <p className={isRevealing ? 'is-streaming' : undefined}>{displayReply}</p>
+                        {!isRevealing && <CoachCharts charts={charts} />}
                         {!isRevealing && <RecordEvidence evidence={evidence} />}
                         {!isRevealing && plan && (
                           <div className="coach-preview-plan">
@@ -466,7 +478,7 @@ export default function CoachPreview() {
                       <span className="coach-typing-dots" aria-hidden="true">
                         <i /><i /><i />
                       </span>
-                      <span className="coach-thinking-text">正在翻看你的训练与饮食记录…</span>
+                      <span className="coach-thinking-text">正在核对你的记录…</span>
                     </div>
                   </div>
                 </div>
@@ -501,16 +513,29 @@ export default function CoachPreview() {
           </div>
 
           <div className="coach-preview-dock">
-            {hasConversation && (
+            {listening && (
+              <div className={`coach-listen${voice.phase === 'canceling' ? ' is-cancel' : ''}`} role="status">
+                <div className="coach-listen-head">
+                  <span className="coach-listen-wave" aria-hidden="true">
+                    <i /><i /><i /><i /><i /><i /><i />
+                  </span>
+                  <b>{voice.phase === 'canceling' ? '松开取消' : voice.phase === 'finishing' ? '正在识别…' : '在听…'}</b>
+                  {voice.phase === 'listening' && <span>松开发送，上滑取消</span>}
+                </div>
+                <p className={voice.heard ? undefined : 'is-placeholder'}>{voice.heard || '说出你的问题，比如「我最近的基础代谢是多少」'}</p>
+              </div>
+            )}
+            {!listening && voiceNote && <p className="coach-voice-note" role="status">{voiceNote}</p>}
+            {hasConversation && !listening && (
               <div className="coach-preview-topics" aria-label="快捷话题">
-                {(Object.keys(COACH_TOPICS) as CoachTopic[]).map(topic => (
+                {COACH_STARTERS.map(({ topic, question, label }) => (
                   <button
                     key={topic}
                     type="button"
                     disabled={isSending}
-                    onClick={() => void ask(COACH_TOPICS[topic], topic)}
+                    onClick={() => void ask(question, topic)}
                   >
-                    {COACH_TOPICS[topic]}
+                    {label}
                   </button>
                 ))}
               </div>
@@ -524,18 +549,32 @@ export default function CoachPreview() {
             >
               <input
                 aria-label="问教练"
-                placeholder="问训练、饮食，或让我排下次计划…"
+                placeholder="问代谢、三大营养、训练或饮食…"
                 value={draft}
                 maxLength={1500}
+                disabled={listening}
                 onChange={event => setDraft(event.target.value)}
               />
-              <button
-                type="submit"
-                aria-label="发送"
-                disabled={isSending || !draft.trim()}
-              >
-                <Icon name="arrow-up" size={18} />
-              </button>
+              {draft.trim() ? (
+                <button
+                  type="submit"
+                  aria-label="发送"
+                  disabled={isSending}
+                >
+                  <Icon name="arrow-up" size={18} />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className={`coach-mic${listening ? ' is-on' : ''}${voice.phase === 'canceling' ? ' is-cancel' : ''}`}
+                  aria-label="按住说话，松开发送"
+                  title="按住说话"
+                  disabled={isSending}
+                  {...voice.bind}
+                >
+                  <MicIcon />
+                </button>
+              )}
             </form>
           </div>
         </div>
