@@ -6,7 +6,10 @@ import { EQUIPMENT_LABEL, TARGET_LABEL, imageUrl } from "@/lib/exercise-label";
 import { muscleById, type MuscleId } from "@/lib/muscles";
 import { sculptureGroup } from "@/lib/sculpture-groups";
 import JournalIcon from "@/components/JournalIcon";
+import ExerciseMetricsCard from "@/components/exercise/ExerciseMetricsCard";
+import ExerciseStage from "@/components/exercise/ExerciseStage";
 import type { ExercisePreference } from "@/lib/core/exercise-preferences";
+import { formatExerciseMetrics } from "@/lib/exercise-metrics";
 
 interface DictItem {
   id: string;
@@ -14,6 +17,8 @@ interface DictItem {
   zh_name: string;
   equipment: string;
   target: string;
+  body_part?: string;
+  secondary_muscles?: string | string[];
   mechanic: string;
   movement_pattern: string;
   metabolic_demand: string;
@@ -21,6 +26,10 @@ interface DictItem {
   fatigue_level: string;
   recommended_rep_range: string;
   image: string;
+  hasAnimation?: boolean;
+  hasSculpture?: boolean;
+  mp4Url?: string;
+  kfSheetUrl?: string;
   steps: string[];
   desc: string;
   preference: ExercisePreference | null;
@@ -66,31 +75,6 @@ async function fetchExercises(
   const res = await fetch(url, { signal, cache: "no-store" });
   if (!res.ok) throw new Error("动作列表加载失败，请重试");
   return res.json();
-}
-
-function exerciseIntro(
-  pattern: string,
-  mechanic: string,
-  demand: string,
-  fatigue: string,
-  reps: string,
-) {
-  const movement = pattern && pattern !== "other" ? pattern : "全身协同动作";
-  const joints =
-    mechanic === "compound" || mechanic === "多关节"
-      ? "同时带动多个关节"
-      : "主要由目标关节完成";
-  const effort =
-    demand === "高" || demand === "high"
-      ? "整体用力需求较高"
-      : demand === "低" || demand === "low"
-        ? "整体用力需求较低"
-        : "整体用力需求适中";
-  const rest =
-    fatigue === "高" || fatigue === "high"
-      ? "建议组间留出充分恢复时间"
-      : "按动作质量和个人状态安排休息";
-  return `这是一个以${movement}为主的${joints}。${effort}；可先按每组 ${reps} 作为参考，再根据动作标准和训练目标调整。${rest}。`;
 }
 
 export default function ExerciseSheet({
@@ -375,68 +359,71 @@ export default function ExerciseSheet({
               </div>
 
               <div className="fc-dict-detail-body">
-                <div className="fc-dict-hero">
-                  <span className="fc-dict-gif big">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={imageUrl(active.image)}
-                      alt={active.zh_name || active.name}
-                    />
-                  </span>
-                  <div>
-                    <div className="fc-dict-name">
-                      {active.zh_name || active.name}
-                    </div>
-                    <div className="fc-dict-en">{active.name}</div>
-                    <div className="fc-dict-chips">
-                      <span>
-                        {EQUIPMENT_LABEL[active.equipment] ?? active.equipment}
-                      </span>
-                      <span>
-                        {TARGET_LABEL[active.target] ?? active.target}
-                      </span>
-                    </div>
+                <div className="fc-dict-detail-head-meta">
+                  <div className="fc-dict-name">
+                    {active.zh_name || active.name}
+                  </div>
+                  <div className="fc-dict-en-row">
+                    {active.zh_name && active.zh_name !== active.name && (
+                      <span>{active.name}</span>
+                    )}
+                    <span className="ex-meta-pill">
+                      {EQUIPMENT_LABEL[active.equipment] ?? active.equipment}
+                    </span>
                   </div>
                 </div>
 
-                <h4 className="fc-dict-sub">要点</h4>
-                <section className="fc-exercise-intro">
-                  <h4>动作参考</h4>
-                  <p>
-                    {exerciseIntro(
-                      active.movement_pattern,
-                      active.mechanic,
-                      active.metabolic_demand,
-                      active.fatigue_level,
-                      active.recommended_rep_range,
+                <div className="fc-dict-detail-stack">
+                  <ExerciseStage
+                    compact
+                    id={active.id}
+                    name={active.zh_name || active.name}
+                    image={imageUrl(active.image)}
+                    hasAnimation={active.hasAnimation ?? true}
+                    hasSculpture={active.hasSculpture}
+                    mp4Url={active.mp4Url}
+                    kfSheetUrl={active.kfSheetUrl}
+                    kfLabels={
+                      formatExerciseMetrics({
+                        ...active,
+                        body_part: active.body_part || "",
+                      }).kfLabels
+                    }
+                  />
+
+                  <ExerciseMetricsCard
+                    compact
+                    exercise={{
+                      ...active,
+                      body_part: active.body_part || "",
+                    }}
+                  />
+
+                  <section className="ex-card is-compact">
+                    <div className="ex-card-hd">
+                      <h2>动作步骤</h2>
+                      <span>
+                        {active.steps.length > 0
+                          ? `${active.steps.length} 步要点`
+                          : "简要说明"}
+                      </span>
+                    </div>
+                    {active.steps.length > 0 ? (
+                      <ol className="ex-steps-list">
+                        {active.steps.map((s, i) => (
+                          <li key={i}>
+                            <span className="ex-step-num">
+                              {String(i + 1).padStart(2, "0")}
+                            </span>
+                            <span>{s}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    ) : (
+                      <p className="fc-note">这个动作暂时没有分步说明。</p>
                     )}
-                  </p>
-                </section>
-                <div className="fc-exercise-metrics">
-                  <span>
-                    {active.mechanic === "compound" ||
-                    active.mechanic === "多关节"
-                      ? "多关节动作"
-                      : "单关节动作"}
-                  </span>
-                  <span>{active.movement_pattern}</span>
-                  <span>消耗参考：MET {active.met_range}</span>
-                  <span>疲劳程度：{active.fatigue_level}</span>
-                  <span>建议范围：{active.recommended_rep_range}</span>
+                  </section>
                 </div>
-                <p className="fc-exercise-note">
-                  MET
-                  是动作类型的参考强度，不代表单组卡路里；实际消耗会随体重、负荷和组间休息变化。
-                </p>
-                {active.steps.length > 0 ? (
-                  <ol className="fc-dict-steps">
-                    {active.steps.map((s, i) => (
-                      <li key={i}>{s}</li>
-                    ))}
-                  </ol>
-                ) : (
-                  <p className="fc-note">这个动作暂时没有分步说明。</p>
-                )}
               </div>
 
               {selection ? null : onChooseExercise ? (
@@ -540,7 +527,7 @@ export default function ExerciseSheet({
                     const selected = planned || selection?.selected.has(it.id);
                     const preview = (
                       <>
-                        <span className="fc-dict-gif">
+                        <span className={`fc-dict-gif${it.hasSculpture ? " is-sculpture" : ""}`}>
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={imageUrl(it.image)} alt="" loading="lazy" />
                         </span>

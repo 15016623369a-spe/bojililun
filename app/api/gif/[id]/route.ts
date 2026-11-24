@@ -17,6 +17,20 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   if (!/^[A-Za-z0-9_-]+$/.test(id)) return new Response('bad id', { status: 400 });
 
+  const localSculptureGif = path.resolve(
+    process.env.SCULPTURE_SRC_DIR || path.join(process.cwd(), '..', 'output', 'exercise-anims'),
+    'gifs',
+    `${id}.gif`,
+  );
+  if (fs.existsSync(localSculptureGif)) {
+    return new Response(new Uint8Array(fs.readFileSync(localSculptureGif)), {
+      headers: {
+        'content-type': 'image/gif',
+        'cache-control': 'no-store',
+      },
+    });
+  }
+
   const file = path.join(GIF_DIR, `${id}.gif`);
   if (!fs.existsSync(file)) {
     const ex = getExercise(id);
