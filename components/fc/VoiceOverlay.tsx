@@ -21,11 +21,18 @@ export default function VoiceOverlay({
   analyser,
   ms,
   cancelRef,
+  tap = false,
+  onDone,
+  onCancel,
 }: {
   phase: VoicePhase;
   analyser: AnalyserNode | null;
   ms: number;
   cancelRef?: React.RefObject<HTMLDivElement | null>;
+  /** 轻点开始的录音：没有手指按着，下方放「取消」「完成」两个按钮 */
+  tap?: boolean;
+  onDone?: () => void;
+  onCancel?: () => void;
 }) {
   const barsRef = useRef<HTMLDivElement | null>(null);
 
@@ -84,16 +91,26 @@ export default function VoiceOverlay({
         </div>
       </div>
 
-      <div className={`fc-rec-cancel${canceling ? ' on' : ''}`} ref={cancelRef}>
-        <div className="fc-rec-x" aria-hidden>
-          ×
+      {tap ? (
+        <div className="fc-rec-tap">
+          <p aria-live="polite">{phase === 'submitting' ? '正在记下…' : '说完点「完成」'}</p>
+          <div className="fc-rec-tap-btns">
+            <button type="button" className="fc-rec-tap-cancel" onClick={onCancel} disabled={phase === 'submitting'}>取消</button>
+            <button type="button" className="fc-rec-tap-done" onClick={onDone} disabled={phase === 'submitting'}>完成</button>
+          </div>
         </div>
-        <p aria-live="assertive">{canceling ? '松手即可取消' : '松手记下，上滑取消'}</p>
-      </div>
+      ) : <>
+        <div className={`fc-rec-cancel${canceling ? ' on' : ''}`} ref={cancelRef}>
+          <div className="fc-rec-x" aria-hidden>
+            ×
+          </div>
+          <p aria-live="assertive">{canceling ? '松手即可取消' : '松手记下，上滑取消'}</p>
+        </div>
 
-      <div className="fc-rec-press" aria-hidden>
-        <MicIcon />
-      </div>
+        <div className="fc-rec-press" aria-hidden>
+          <MicIcon />
+        </div>
+      </>}
     </div>
   );
 }

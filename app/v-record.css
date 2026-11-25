@@ -320,24 +320,10 @@
 .is-record .deck-card.empty small { -webkit-line-clamp: 2; }
 .fc.ledger-detail .fc-ledger-card, .fc.ledger-detail .fc-ledger-card[data-kind], .ledger-moves, .ledger-metric { border-radius: var(--tile-r); }
 
-/* ---------- 导航条右边的话筒圆钮：和导航条同高、同材质，轻点打字 / 拍照，按住说话 ---------- */
+/* ---------- 底部导航外面包的一行（原来右边还有一颗录音键，11 月 25 日并进了中间的「记录」） ---------- */
 .fc-nav-row { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 14px; pointer-events: none; }
 .fc-nav-row .fc-tabs { margin: 0; }
 .fc-nav-row > * { pointer-events: auto; }
-/* 写成 button.fc-rec-orb：压过 .fc button 的透明底 */
-button.fc-rec-orb {
-  flex: none; display: grid; place-items: center; width: 54px; height: 54px; padding: 0; border: 0; border-radius: 50%;
-  background: var(--dk-fill, var(--ink-0)); color: #f1f2ee;
-  box-shadow: inset 0 1px 0 rgb(var(--dk-lift-rgb, 255 255 255) / calc(8% * var(--dk-lift-k, 1))), 0 10px 24px -14px rgb(21 22 19 / 60%);
-  touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
-  transition: scale .45s var(--spring-bounce), background-color .25s;
-}
-button.fc-rec-orb svg { width: 22px; height: 22px; }
-button.fc-rec-orb:active, button.fc-rec-orb[data-live] { scale: .92; }
-button.fc-rec-orb[data-live] { background: var(--coral); color: #151613; }
-.fc-rec-orb:focus-visible { outline: 2px solid var(--lemon); outline-offset: 2px; }
-html[data-theme="dark"] button.fc-rec-orb { background: #1c1e21; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 6%), 0 12px 28px -14px rgb(0 0 0 / 80%); }
-html[data-theme="dark"] button.fc-rec-orb[data-live] { background: var(--coral); }
 
 /* ---------- 11 月 24 日（三）：记录页以语音为主角，「我的教练」是单独的入口 ----------
    今天：大标题「今天」加一行小字；不放条形码时间轴，空的一天也不放大灰卡，大号话筒放中间。
@@ -377,19 +363,8 @@ html[data-theme="dark"] .coach-tile { background: #1c1c1e; }
 html[data-theme="dark"] .coach-tile:active { background: #2c2c2e; }
 html[data-theme="dark"] .coach-tile-chev { color: rgb(235 235 245 / 30%); }
 
-/* 录音按钮（导航右边）：照 iOS「语音备忘录」的录音键，一圈细环 + 中间珊瑚实心圆 + 白色实心话筒。
-   说话时圆心略收、颜色加深。 */
-html button.fc-rec-orb.fc-voice-btn { --ring: 2px; --gap: 3px; position: relative; background: transparent; box-shadow: none; }
-.fc-voice-btn::before { content: ''; position: absolute; inset: 0; border-radius: 50%; box-shadow: inset 0 0 0 var(--ring) rgb(21 22 19 / 16%); }
-html[data-theme="dark"] .fc-voice-btn::before { box-shadow: inset 0 0 0 var(--ring) rgb(255 255 255 / 26%); }
-.fc-voice-disc {
-  position: absolute; inset: calc(var(--ring) + var(--gap)); display: grid; place-items: center; border-radius: 50%;
-  background: var(--coral); color: #fff; transition: scale .35s var(--spring-bounce), background-color .25s;
-}
-.fc-voice-disc svg { width: 22px; height: 22px; }
-html .fc-voice-btn[data-live] .fc-voice-disc { scale: .86; background: #d84c3a; }
 
-/* 空的一天：只放一句话和一行小字，像 iOS 的空列表；录音键在导航右边 */
+/* 空的一天：只放一句话和一行小字，像 iOS 的空列表；录音键是导航中间的话筒 */
 .record-empty { display: grid; justify-items: center; gap: 6px; margin: 76px 0 24px; text-align: center; }
 .record-empty b { font-size: 17px; font-weight: 600; color: var(--ink-0); }
 .record-empty span { max-width: 260px; font-size: 14px; line-height: 1.5; color: var(--gray-1); }
@@ -480,3 +455,34 @@ html[data-theme="dark"] .record-sheet .fc-btn.ghost { background: rgb(255 255 25
 .deck-back-edit:active { scale: .94; }
 .is-record .deck-grid .deck-card.empty { grid-column: 1 / -1; aspect-ratio: auto; min-height: 150px; transform: none; }
 @media (prefers-reduced-motion: reduce) { .is-record .deck-grid .deck-card { transition: none; } }
+
+
+/* ---------- 11 月 25 日：「记录」就是导航中间那颗话筒 ----------
+   不写字，放一颗珊瑚色实心话筒（照 SF Symbols 的 mic.fill）；选中时白底胶囊里也是珊瑚话筒，录音时轻轻缩一下。 */
+.fc-tabs .fc-rec-tab svg.fc-rec-glyph { display: block; position: relative; z-index: 1; width: 22px; height: 22px; color: var(--coral); transition: scale .35s var(--spring-bounce); }
+.fc-tabs .fc-rec-tab[data-live] svg.fc-rec-glyph { scale: .86; }
+
+/* 记录页右上角：打字、拍照两颗圆钮，和回顾页头的圆钮一个样子 */
+.record-head-btns { display: flex; align-items: center; gap: 8px; }
+.record-head-btns button {
+  display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border: 0; border-radius: 50%;
+  background: rgb(var(--dk-fg-rgb, 21 22 19) / 7%); color: var(--ink-0); transition: scale .4s var(--spring-bounce), background-color .2s;
+}
+.record-head-btns button:active { scale: .92; background: rgb(var(--dk-fg-rgb, 21 22 19) / 12%); }
+.record-head-btns svg { width: 20px; height: 20px; }
+
+/* 轻点开始的语音输入：下方两颗按钮，「取消」浅底、「完成」珊瑚底 */
+.fc-rec-tap { position: absolute; left: 0; right: 0; bottom: calc(48px + env(safe-area-inset-bottom)); display: grid; justify-items: center; gap: 18px; }
+.fc-rec-tap p { margin: 0; font-size: 15px; color: rgb(255 255 255 / 80%); }
+.fc-rec-tap-btns { display: flex; gap: 14px; }
+.fc-rec-tap-btns button { min-width: 128px; height: 52px; padding: 0 22px; border: 0; border-radius: 999px; font-size: 17px; font-weight: 600; transition: scale .35s var(--spring-bounce), opacity .2s; }
+.fc-rec-tap-btns button:active { scale: .95; }
+.fc-rec-tap-btns button:disabled { opacity: .5; }
+.fc-rec-tap-cancel { background: rgb(255 255 255 / 16%); color: #fff; }
+.fc-rec-tap-done { background: var(--coral); color: #fff; }
+
+/* 「记一条」里选好的照片：一张小图，右上角 × 去掉 */
+.record-sheet-photo { position: relative; width: 96px; height: 96px; margin: 0 0 10px; }
+.record-sheet-photo img { width: 100%; height: 100%; object-fit: cover; border-radius: 14px; }
+.record-sheet-photo button { position: absolute; top: -6px; right: -6px; display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 50%; background: #151613; color: #f1f2ee; font-size: 15px; line-height: 1; }
+.record-sheet .fc-compose-bar { grid-template-columns: 1fr; }

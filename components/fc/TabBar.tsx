@@ -55,8 +55,8 @@ export default function TabBar({ active }: { active: TabKey }) {
   const logOn = active === 'log' || on('/log');
   const rightOn = active === RIGHT.key || on(RIGHT.href);
 
-  // 导航条右边常驻一颗录音键（像 iOS 26 标签栏旁的按钮）：每个页面都在，切页时导航和它都不动。
-  // 按住说话在哪个页面都能记（也能说「今天练胸，给我排四个动作」）；轻点打开记录页的「记一条」面板
+  // 中间的「记录」就是一颗话筒（RecordTab）：按住说话在哪个页面都能记（也能说「今天练胸，给我排四个动作」），
+  // 在记录页上轻点直接进语音输入。11 月 25 日起不再在导航旁边另放录音键
   return (
     <div className="fc-nav-row">
     <nav className="fc-tabs" aria-label="主导航">
@@ -84,7 +84,6 @@ export default function TabBar({ active }: { active: TabKey }) {
         <i className="u" />
       </Link>
     </nav>
-    <RecordTab variant="orb" active={logOn} />
     </div>
   );
 }
