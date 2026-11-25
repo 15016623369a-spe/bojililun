@@ -5,32 +5,16 @@ import BigDate from '@/components/ui/BigDate';
 import { daySessions, getPlan, liveTraining, sessionTotals, todayStr } from '@/lib/core/workout';
 import { journalForDate } from '@/lib/core/journal';
 import { hasRecordedData } from '@/lib/journal';
-import { todaySnapshot } from '@/lib/core/meals';
 import { getExercise } from '@/lib/exercise';
 import { BODY_LABEL, imageUrl } from '@/lib/exercise-label';
-import Icon from '@/components/ui/Icon';
-import { getDb } from '@/lib/db';
-import { exportJournal } from '@/lib/export';
-import { calcMealTotals, formatDisplayKcal } from '@/lib/calculations';
-import { dayExerciseBurn } from '@/lib/exercise-burn';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const metadata = { title: '今日训练 · FitCheck' };
 
-function Meter({ label, value, target, unit, tone, approx }: { label: string; value: number; target: number; unit: string; tone?: 'coral'; approx?: boolean }) {
-  const filled = target ? Math.round(Math.min(1, value / target) * 40) : 0;
-  return <div className="meter" data-tone={tone}>
-    <span className="meter-label">{label}</span>
-    <span className="meter-ticks" aria-hidden="true">{Array.from({ length: 40 }, (_, i) => <i key={i} data-on={i < filled || undefined} />)}</span>
-    <span className="meter-value"><b>{approx ? '≈' : ''}{value}</b>{target && !approx ? <em>/ {target}</em> : null} {unit}</span>
-  </div>;
-}
-
 export default function TrainPage() {
   const today = todayStr();
   const plan = getPlan(today);
-  const snap = todaySnapshot();
   const details = daySessions(today);
   const quickEntries = journalForDate(today).filter((entry) => entry.quickId !== undefined);
   const quickWorkouts = quickEntries.filter((entry) => entry.kind === 'training');
@@ -41,10 +25,6 @@ export default function TrainPage() {
   const totals = sessionTotals(details);
   // 开了又没记任何一组的训练不列出来
   const trainedSessions = details.filter((d) => d.sets.length > 0);
-  // 饮食与摄入以手账为准（和记录、回顾同一份数据），运动消耗按训练粗估
-  const ledgerDay = exportJournal(getDb(), 'local', today, today).days[0];
-  const mealCards = ledgerDay.entries.filter((c) => c.entry_type === 'meal');
-  const burn = dayExerciseBurn(trainedSessions.map((d) => d.session), ledgerDay.entries, snap.profile?.weight_kg ?? 70);
   // 只有还有没练完动作的那一节才算「训练中」
   const live = liveTraining();
   const activeSession = live?.session ?? null;
@@ -54,11 +34,7 @@ export default function TrainPage() {
   }));
   const regions = [...new Set(plan.map((item) => BODY_LABEL[item.body_part] ?? item.body_part))].slice(0, 3);
 
-  const kcal = Math.round(ledgerDay.daily_summary.intake.kcal ?? 0);
-  const protein = Math.round(ledgerDay.daily_summary.intake.protein_g ?? 0);
   const allDone = plan.length > 0 && plan.every((item) => item.done === 1) && !activeSession;
-  const targetKcal = snap.profile?.target_kcal ?? 0;
-  const targetProtein = snap.profile?.target_protein ?? 0;
 
   return (
     <JournalShell active="plan" title="今日训练" today={today} className="is-train"
@@ -70,59 +46,19 @@ export default function TrainPage() {
       </div>}
       hero={<BigDate date={today} note={regions.length ? `${regions.join(' · ')}${allDone ? ' · 已完成' : ''}` : '还没安排'} />}>
 
+      {/* 训练单只放动作和「今日已练」；今日营养挪到回顾的「今日饮食」块（11 月 24 日用户要求） */}
       <TodayPlan key={today} initialItems={plan} images={images} activeSession={activeSession
         ? { id: activeSession.id, startedAt: activeSession.started_at, next: live!.next,
-          completedSets: details.find((d) => d.session.id === activeSession.id)?.sets.length ?? 0 } : null} />
-
-      {(trainedSessions.length > 0 || listedQuickWorkouts.length > 0) && (
-        <section className="v-section">
-          <h2 className="v-section-title">今天已练</h2>
-          <div className="readouts">
-            <div className="readout lemon"><b className="big-num">{totals.volume.toLocaleString()}</b><span>kg</span><em>训练容量</em></div>
-            <div className="readout"><b className="big-num">{totals.sets}</b><span>组</span><em>完成组数</em></div>
-            <div className="readout"><b className="big-num">{details.length > 0 ? totals.durationMin : '—'}</b><span>分钟</span><em>训练时长</em></div>
-          </div>
-          <div className="v-rows">
-            {trainedSessions.map((d) => (
-              <Link key={d.session.id} href={`/history/${today}`} className="v-row">
-                <span><b>{d.groups.length} 个动作 · {d.sets.length} 组</b><small>{d.groups.map((g) => g.exercise_name).join('、')}</small></span>
-                <Icon name="chevron-right" size={18} className="row-chev" />
-              </Link>
-            ))}
-            {listedQuickWorkouts.map((entry) => (
-              <Link key={entry.id} href={`/history/${today}`} className="v-row">
-                <span><b>快速记录的训练</b><small>{(entry.payload?.exercises ?? []).map((exercise) => exercise.name).join('、')
-                  || entry.payload?.summary || entry.title}</small></span>
-                <Icon name="chevron-right" size={18} className="row-chev" />
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
-
-      <section className="v-section">
-        <h2 className="v-section-title">今日营养</h2>
-        {!snap.profile && (
-          <Link href="/me" prefetch={true} className="soft-banner">填好身高体重，就能算出每日热量目标<Icon name="arrow-right" size={18} /></Link>
-        )}
-        <Meter label="摄入" value={kcal} target={targetKcal} unit="kcal" />
-        <Meter label="运动消耗" value={burn.kcal} target={targetKcal} unit="kcal" tone="coral" approx />
-        <Meter label="蛋白质" value={protein} target={targetProtein} unit="g" />
-        <p className="burn-note">
-          {burn.kcal > 0
-            ? <>净摄入 <b>{(kcal - burn.kcal).toLocaleString()}</b> kcal · 运动消耗按部位、器械、容量和约 {burn.minutes} 分钟训练估算，误差约 ±20%</>
-            : '今天还没有训练，练完后这里会估算运动消耗'}
-        </p>
-        {mealCards.length > 0 && <div className="v-rows">
-          {mealCards.map((c) => (
-            <Link key={c.id} href="/log" className="v-row">
-              <span><b>{c.summary_title} · {formatDisplayKcal(calcMealTotals(c.items).kcal)}</b>
-                <small>{c.items.map((i) => [i.food_name, i.portion_text].filter(Boolean).join(' ')).join('、')}</small></span>
-              <Icon name="chevron-right" size={18} className="row-chev" />
-            </Link>
-          ))}
-        </div>}
-      </section>
+          completedSets: details.find((d) => d.session.id === activeSession.id)?.sets.length ?? 0 } : null}
+        trained={{
+          summary: trainedSessions.length
+            ? [totals.volume ? `${totals.volume.toLocaleString('zh-CN')} kg` : null, `${totals.sets} 组`, totals.durationMin ? `${totals.durationMin} 分钟` : null].filter(Boolean).join(' · ')
+            : null,
+          rows: listedQuickWorkouts.map((entry) => ({
+            key: String(entry.id), href: `/history/${today}`, title: '语音、文字记的训练',
+            sub: (entry.payload?.exercises ?? []).map((exercise) => exercise.name).join('、') || entry.payload?.summary || entry.title,
+          })),
+        }} />
     </JournalShell>
   );
 }

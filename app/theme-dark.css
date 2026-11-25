@@ -66,8 +66,9 @@ html[data-theme="dark"] :is(
 }
 
 /* 记录卡片：夜间不铺大面积柠檬黄，改成深色卡片；训练卡用浅色描边突出（参考图） */
-html[data-theme="dark"] .deck-card { background: #191b1e; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 6%), 0 18px 34px -26px rgb(0 0 0 / 90%); }
-html[data-theme="dark"] .deck-card.training { background: #1d1f23; box-shadow: inset 0 0 0 1.5px rgb(238 239 234 / 72%), 0 18px 34px -26px rgb(0 0 0 / 90%); }
+/* 和回顾数据块同一种面：纯色、不描边；训练卡靠左上角的珊瑚标记和稍亮一级的底区分，不再套白框 */
+html[data-theme="dark"] .deck-card { background: #1d1e21; box-shadow: none; }
+html[data-theme="dark"] .deck-card.training { background: #242528; box-shadow: none; }
 html[data-theme="dark"] .deck-card.training .deck-kind::after { content: ''; width: 8px; height: 8px; margin-left: 2px; border-radius: 2px; background: var(--coral); order: -1; }
 html[data-theme="dark"] .deck-card.training .deck-kind { gap: 8px; }
 html[data-theme="dark"] .deck-card small { color: rgb(238 239 234 / 55%); }
@@ -129,11 +130,28 @@ html[data-theme="dark"] .plan-model-switch button:not([aria-pressed="true"]), ht
 
 /* 回顾 · 数据块墙：深灰数据块、浅色选中态、深色毛玻璃抽屉；石膏人体保持浅色，点仍用墨点白圈 */
 html[data-theme="dark"] :is(.rw, .rw-layer) {
-  --rw-tile: #1c1e21; --rw-tile-2: #17191b; --rw-hi: rgb(255 255 255 / 6%);
-  --rw-sel-bg: #ecebe6; --rw-sel-fg: #151613; --rw-heat: #91bce8; --rw-coral-ink: #ff8a78; --rw-gap: #55585c;
+  /* 负一屏的深色小组件：整块纯色、不描边、不上下渐变，只靠比页底亮一级把块托出来 */
+  --rw-tile: #1d1e21; --rw-tile-2: #1d1e21; --rw-hi: transparent;
+  /* 浅色底上调的粉彩在黑底上发灰，夜间提一点饱和度和亮度 */
+  --rw-carb: var(--lemon); --lilac: #b8a2ff; --coral: #ff6a55;
+  --rw-sel-bg: #ecebe6; --rw-sel-fg: #151613; --rw-heat: #74b6ff; --rw-coral-ink: #ff8a78; --rw-gap: #55585c;
   --rw-cdot: #222428; --rw-cring: rgb(10 11 12 / 85%); --rw-clab: rgb(26 28 31 / 78%); --rw-cgrid: rgb(238 239 234 / 14%); --rw-chip: #222428; --rw-cur: #1c1e21;
 }
 html[data-theme="dark"] .rw-sheet { background: linear-gradient(180deg, rgb(30 32 35 / 55%) 0, rgb(22 24 27 / 70%) 40%, rgb(16 17 19 / 86%) 100%); box-shadow: inset 0 1px 0 rgb(255 255 255 / 12%), 0 -24px 48px -30px rgb(0 0 0 / 80%); }
 html[data-theme="dark"] .rw-pill.mist { background: rgb(145 188 232 / 20%); }
 html[data-theme="dark"] .rw-pill.lilac { background: rgb(189 173 240 / 22%); }
 html[data-theme="dark"] .rw-go-ico, html[data-theme="dark"] .rw-chip { box-shadow: inset 0 0 0 1px rgb(255 255 255 / 7%); }
+html[data-theme="dark"] .rw-tile { box-shadow: none; }
+
+/* 记录页「记一条」面板：右上角打字和轻点底部「记录」都会打开它。原来夜间输入框是白底浅字、两个按钮浅底浅字，看不清 */
+html[data-theme="dark"] .fc-sheet { background: #17181b; box-shadow: inset 0 1px 0 rgb(255 255 255 / 6%); }
+html[data-theme="dark"] .fc-sheet .fc-input { background: #232428; border-color: #33353a; color: #eeefea; }
+html[data-theme="dark"] .fc-sheet .fc-input::placeholder { color: #75787d; }
+html[data-theme="dark"] .fc-sheet .fc-input:focus { border-color: #8a8d92; }
+html[data-theme="dark"] .fc-sheet .fc-examples button { border-color: #34363a; }
+html[data-theme="dark"] .fc-sheet .fc-btn.primary { background: #ecebe6; color: #151613; }
+html[data-theme="dark"] .fc-sheet .fc-btn.ghost { background: #26272b; color: #eeefea; }
+
+/* .fc 作用域（replica.css）里写死了白天的次级字色、细线和浅底，夜间看不清（记录明细的组次、「编辑」等）：夜间换成深色版 */
+html[data-theme="dark"] .fc { --ink-2: #c2c4be; --hair: #2a2d31; --hair-2: #34363a; --green-line: #464a4f; --sage: #222428; }
+html[data-theme="dark"] .fc.ledger-detail .fc-ledger-edit form > button { background: #ecebe6; color: #151613; }

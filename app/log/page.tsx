@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import JournalShell from '@/components/JournalShell';
 import LedgerDeck, { type DeckItem } from '@/components/LedgerDeck';
 import LogScreen from '@/components/fc/LogScreen';
+import RecordHeadButtons from '@/components/fc/RecordHeadButtons';
 import CoachPreview from '@/components/fc/CoachPreview';
-import BigDate from '@/components/ui/BigDate';
+import BigDate, { weekdayOf } from '@/components/ui/BigDate';
 import { getDb } from '@/lib/db';
 import { exportJournal } from '@/lib/export';
 import { readCardPick } from '@/lib/ledger';
@@ -73,21 +74,24 @@ export default async function LogPage({ searchParams }: { searchParams: Promise<
   return (
     <JournalShell active="record" title={past ? '当天记录' : '今天'} today={now} className={`is-record is-ledger${past ? ' is-past' : ''}`} hideNav={!past} backdrop={backdrop}
       back={past ? { href: `/history/calendar?date=${past}`, label: '月历' } : undefined}
-      headerAction={<div className="journal-head-actions"><span className="journal-head-label">记录</span></div>}
-      hero={<>
-        {!past && <p className="hero-word" aria-hidden="true">今天</p>}
-        <BigDate date={today} note={`${meals} 餐 · ${workouts} 次训练`}>
-          {kcal > 0 && <small className="hero-kcal"><b>{Math.round(kcal).toLocaleString('zh-CN')}</b> kcal 摄入</small>}
-        </BigDate>
-      </>}>
+      headerAction={past ? <div className="journal-head-actions"><span className="journal-head-label">记录</span></div> : <RecordHeadButtons />}
+      hero={past ? <BigDate date={today} note={`${meals} 餐 · ${workouts} 次训练`}>
+        {kcal > 0 && <small className="hero-kcal"><b>{Math.round(kcal).toLocaleString('zh-CN')}</b> kcal 摄入</small>}
+      </BigDate> : <div className="record-hero">
+        {/* 今天：大标题加一行小字，不再叠一个超大日期（11 月 24 日用户觉得原版式太满） */}
+        <p className="hero-word">今天</p>
+        <p className="record-hero-sub">{Number(today.slice(5, 7))} 月 {Number(today.slice(8))} 日 {weekdayOf(today)}
+          {items.length > 0 && <> · {meals} 餐 · {workouts} 次训练{kcal > 0 && <> · <b>{Math.round(kcal).toLocaleString('zh-CN')}</b> kcal</>}</>}</p>
+      </div>}>
+      {/* 我的教练：和记录分开的入口，需要时点开 */}
+      {!past && <CoachPreview entry="tile" />}
       <div id="record-recovery-slot" />
       <LedgerDeck key={`${today}:${selectedCard ?? ''}`} items={items} cards={day.entries} picks={picks}
-        nowMinutes={past ? null : minutesOf(new Date().toISOString())} past={Boolean(past)} selectedCard={selectedCard} />
-      {/* 录入、长按录音和底部导航沿用手账的 LogScreen；空状态由上面的卡片承担。回看某一天时不显示录入栏 */}
+        past={Boolean(past)} selectedCard={selectedCard} />
+      {/* 录入面板、拍照和底部导航沿用手账的 LogScreen（打字、拍照在右上角，语音是底部导航中间的话筒）；空状态由上面的卡片承担。回看某一天时不显示录入 */}
       {!past && <div className="fc ledger-dock-scope">
-        <LogScreen ledgerHasRecords />
+        <LogScreen ledgerHasRecords empty={items.length === 0} />
       </div>}
-      {!past && <CoachPreview />}
     </JournalShell>
   );
 }

@@ -14,14 +14,20 @@ const REST_CHOICES = [60, 90, 120, 180];
 
 function haptic(ms = 6) { try { navigator.vibrate?.(ms); } catch { /* iOS 网页无振动 */ } }
 
+/** 「今日已练」里计划以外的训练（语音、文字记的），一行一条 */
+export type TrainedRow = { key: string; title: string; sub: string; href: string };
+
 export default function TodayPlan({
   initialItems,
   images,
   activeSession,
+  trained,
 }: {
   initialItems: PlanItem[];
   images: Record<string, string>;
   activeSession: { id: number; startedAt: string; next?: { name: string; setsLeft: number }; completedSets?: number } | null;
+  /** 今天已练的汇总（容量 · 组数 · 时长）和计划以外的训练 */
+  trained?: { summary: string | null; rows: TrainedRow[] };
 }) {
   const router = useRouter();
   const [items, setItems] = useState<PlanItem[]>(initialItems);
@@ -29,7 +35,6 @@ export default function TodayPlan({
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
-  const [showDone, setShowDone] = useState(false);
   const savedItems = useRef(initialItems);
   const saveQueue = useRef(Promise.resolve());
 
@@ -101,6 +106,10 @@ export default function TodayPlan({
   const remainingSets = items.filter((x) => x.done !== 1).reduce((a, x) => a + x.sets, 0);
   const minutes = Math.round(items.reduce((a, x) => a + x.sets * (40 + x.rest_sec), 0) / 60);
   const startedAt = activeSession ? new Date(activeSession.startedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '';
+  // 练完的动作不和没练的排在一起：上面只留待练（可展开改组次），练完的挪到下面「今日已练」并标灰
+  const pending = items.filter((x) => x.done !== 1);
+  const finished = items.filter((x) => x.done === 1);
+  const extraRows = trained?.rows ?? [];
 
   return (
     <section className="today-plan" data-done={allDone || undefined}>
@@ -114,9 +123,6 @@ export default function TodayPlan({
             <b>今日计划已完成</b>
             <small>{items.length} 个动作 · {totalSets} 组</small>
           </span>
-          <button type="button" className="plan-done-toggle" aria-expanded={showDone} onClick={() => { haptic(4); setShowDone((v) => !v); }}>
-            {showDone ? '收起' : '看清单'}<Icon name="chevron-down" size={15} stroke={2} />
-          </button>
         </div>
       ) : (
         <div className="readouts">
@@ -138,7 +144,7 @@ export default function TodayPlan({
         </div>
       )}
 
-      {allDone && !showDone ? null : items.length === 0 ? (
+      {allDone ? null : items.length === 0 ? (
         <div className="empty-plan">
           <b>今天还没排动作</b>
           <p>按部位自己挑，或者长按底部「记录」说一句「今天练胸，排四个动作」。</p>
@@ -146,7 +152,7 @@ export default function TodayPlan({
         </div>
       ) : (
         <ol className="plan-rows">
-          {items.map((it) => {
+          {pending.map((it) => {
             const expanded = open === it.id;
             return (
               <li key={it.id} className="plan-item" data-open={expanded || undefined} data-done={it.done === 1 || undefined}>
@@ -156,11 +162,11 @@ export default function TodayPlan({
                     {images[it.exercise_id] ? <img src={images[it.exercise_id]} alt="" loading="lazy" /> : null}
                   </span>
                   <span className="plan-item-main">
-                    <b>{it.supplemental ? <SupplementalMark /> : null}{it.name}{it.done === 1 && <em className="tag">已练</em>}</b>
+                    <b>{it.supplemental ? <SupplementalMark /> : null}{it.name}</b>
                     <small>{it.sets} × {it.reps} · {it.weight ? `${it.weight} kg` : it.equipment === 'body weight' ? '自重' : '重量待定'}<span className="sep">·</span>{TARGET_LABEL[it.target] ?? it.target}</small>
                   </span>
                   <span className="set-dots" aria-label={`${it.sets} 组`}>
-                    {Array.from({ length: Math.min(it.sets, 8) }, (_, i) => <i key={i} data-on={it.done === 1 || undefined} />)}
+                    {Array.from({ length: Math.min(it.sets, 8) }, (_, i) => <i key={i} />)}
                   </span>
                 </button>
                 <div className="plan-item-editor" aria-hidden={!expanded}>
@@ -192,6 +198,37 @@ export default function TodayPlan({
       {!allDone && <Link href="/body" prefetch={true} className="add-row">
         <span className="add-row-icon" aria-hidden="true"><Icon name="plus" size={18} /></span>从动作库添加 · 也可以按住「记录」说「再加一个飞鸟」
       </Link>}
+
+      {(finished.length > 0 || extraRows.length > 0) && (
+        <section className="done-section" aria-label="今日已练">
+          <h2 className="v-section-title"><span>今日已练</span>{trained?.summary && <small>{trained.summary}</small>}</h2>
+          <ol className="plan-rows done-rows">
+            {finished.map((it) => (
+              <li key={it.id} className="plan-item" data-done>
+                <div className="plan-item-head">
+                  <span className="thumb">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    {images[it.exercise_id] ? <img src={images[it.exercise_id]} alt="" loading="lazy" /> : null}
+                  </span>
+                  <span className="plan-item-main">
+                    <b>{it.supplemental ? <SupplementalMark /> : null}{it.name}</b>
+                    <small>{it.sets} × {it.reps} · {it.weight ? `${it.weight} kg` : it.equipment === 'body weight' ? '自重' : '重量待定'}<span className="sep">·</span>{TARGET_LABEL[it.target] ?? it.target}</small>
+                  </span>
+                  <span className="done-check" aria-label="已练"><Icon name="check" size={15} stroke={2.6} /></span>
+                </div>
+              </li>
+            ))}
+          </ol>
+          {extraRows.length > 0 && <div className="v-rows">
+            {extraRows.map((row) => (
+              <Link key={row.key} href={row.href} className="v-row">
+                <span><b>{row.title}</b><small>{row.sub}</small></span>
+                <Icon name="chevron-right" size={18} className="row-chev" />
+              </Link>
+            ))}
+          </div>}
+        </section>
+      )}
 
       {items.length > 0 && (
         <div className="start-dock">

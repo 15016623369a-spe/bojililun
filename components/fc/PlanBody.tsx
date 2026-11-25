@@ -188,7 +188,6 @@ export default function PlanBody({ variant = 'male', profileModel, modelChoice =
       <header className="plan-title" data-focus={focus ? (picked ? 'picked' : 'hover') : undefined} aria-live="polite">
         <div className="plan-title-main" key={focusGroup?.label ?? 'idle'}>{focusGroup?.label ?? (mode === 'extra' ? '加练' : '点选肌群')}</div>
         <p>
-          <span className="plan-title-side">{side === 'front' ? '正面' : '背面'}</span>
           <PlanModelSwitch choice={choice} onChange={changeModel} />
           {focusRegion
             ? <span key={focusRegion} className="plan-title-hint">{focusRegion}<em>{picked ? '进入' : <><span className="on-touch">松手进入</span><span className="on-mouse">点击进入</span></>}</em></span>

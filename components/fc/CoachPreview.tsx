@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from 'react';
 import Icon from '@/components/ui/Icon';
 import { COACH_STARTERS, type CoachEvidence, type CoachState, type CoachTopic } from '@/lib/coach-types';
 import CoachCharts from './CoachCharts';
-import { MicIcon } from './icons';
+import { MicFillIcon, SparklesIcon } from './icons';
 import { useHoldToSpeak } from './useHoldToSpeak';
+import { useDraggableOrb } from './useDraggableOrb';
 
 function CoachMark({ size = 24 }: { size?: number }) {
   return (
@@ -52,13 +53,19 @@ function RecordEvidence({ evidence }: { evidence: CoachEvidence[] }) {
   );
 }
 
-export default function CoachPreview() {
+/**
+ * 我的教练。entry 决定入口长什么样：
+ * - orb：可拖动的悬浮圆钮（旧入口，保留给别的页面用）；
+ * - tile：记录页上的一块「我的教练」入口（11 月 24 日用户要求：记录和教练是两个功能，教练需要时再点开）。
+ */
+export default function CoachPreview({ entry = 'orb' }: { entry?: 'orb' | 'tile' }) {
   const trigger = useRef<HTMLButtonElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const layout = useRef<HTMLDivElement>(null);
   const latest = useRef<HTMLDivElement>(null);
   const running = useRef(false);
   const closing = useRef(false);
+  const orb = useDraggableOrb(52);
 
   const [draft, setDraft] = useState('');
   const [voiceNote, setVoiceNote] = useState('');
@@ -278,16 +285,31 @@ export default function CoachPreview() {
 
   return (
     <>
+      {entry === 'tile' ? (
+        <button ref={trigger} className="coach-tile" type="button" aria-haspopup="dialog" onClick={open}>
+          <span className="coach-tile-icon"><SparklesIcon /></span>
+          <span className="coach-tile-t"><b>我的教练</b><small>问饮食、训练，或者排下次训练</small></span>
+          <svg className="coach-tile-chev" viewBox="0 0 8 14" aria-hidden="true"><path d="m1.5 1.5 5 5.5-5 5.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </button>
+      ) : (
+      /* 可拖动：按住拖到别处，松手贴到最近的一边；轻点仍是打开教练 */
       <button
         ref={trigger}
         className="coach-orb"
         type="button"
-        aria-label="打开我的教练"
+        aria-label="打开我的教练（可拖动）"
         aria-haspopup="dialog"
-        onClick={open}
+        data-dragging={orb.dragging || undefined}
+        style={orb.style}
+        {...orb.handlers}
+        onClick={() => {
+          if (orb.consumeDragClick()) return;
+          open();
+        }}
       >
         <CoachMark size={24} />
       </button>
+      )}
 
       <dialog
         ref={dialog}
@@ -316,7 +338,7 @@ export default function CoachPreview() {
 
             <div className="coach-preview-identity">
               <span className={`coach-preview-mark${isSending ? ' is-thinking' : ''}`}>
-                <CoachMark size={18} />
+                <SparklesIcon />
               </span>
               <div className="coach-preview-title-wrap">
                 <h2 id="coach-preview-title">我的教练</h2>
@@ -406,7 +428,7 @@ export default function CoachPreview() {
                     >
                       <span className="coach-starter-title">{label}</span>
                       <span className="coach-starter-hint">{hint}</span>
-                      <Icon name="arrow-right" size={16} className="coach-starter-arrow" />
+                      <svg className="coach-starter-arrow" viewBox="0 0 8 14" aria-hidden="true"><path d="m1.5 1.5 5 5.5-5 5.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                     </button>
                   ))}
                 </div>
@@ -424,7 +446,7 @@ export default function CoachPreview() {
                     </div>
                     <div className="coach-msg-coach">
                       <span className="coach-msg-avatar" aria-hidden="true">
-                        <CoachMark size={15} />
+                        <SparklesIcon />
                       </span>
                       <div className="coach-msg-bubble">
                         <p className={isRevealing ? 'is-streaming' : undefined}>{displayReply}</p>
@@ -472,7 +494,7 @@ export default function CoachPreview() {
                   </div>
                   <div className="coach-msg-coach">
                     <span className="coach-msg-avatar is-thinking" aria-hidden="true">
-                      <CoachMark size={15} />
+                      <SparklesIcon />
                     </span>
                     <div className="coach-msg-bubble coach-msg-thinking" role="status">
                       <span className="coach-typing-dots" aria-hidden="true">
@@ -491,7 +513,7 @@ export default function CoachPreview() {
                   </div>
                   <div className="coach-msg-coach">
                     <span className="coach-msg-avatar" aria-hidden="true">
-                      <CoachMark size={15} />
+                      <SparklesIcon />
                     </span>
                     <div className="coach-msg-bubble coach-msg-error" role="alert">
                       <p>{failedAsk.message}</p>
@@ -572,7 +594,7 @@ export default function CoachPreview() {
                   disabled={isSending}
                   {...voice.bind}
                 >
-                  <MicIcon />
+                  <MicFillIcon />
                 </button>
               )}
             </form>

@@ -59,9 +59,11 @@
   gap: 2px;
   width: max-content;
   max-width: 100%;
-  padding: 5px;
+  --nav-pad: 5px;
+  padding: var(--nav-pad);
   border: 0;
-  border-radius: 999px;
+  /* 11 月 24 日：不再是胶囊，改成和回顾数据块同样圆角的长方形 */
+  border-radius: var(--tile-r);
   overflow: hidden;
   isolation: isolate;
   background: var(--dk-fill, var(--ink-0));
@@ -79,7 +81,8 @@
   height: 44px;
   padding: 0 12px;
   border: 0;
-  border-radius: 999px;
+  /* 选中的白底（::before）继承这个圆角：导航条圆角减去内边距，和外框同心 */
+  border-radius: calc(var(--tile-r) - var(--nav-pad, 5px));
   color: var(--tab-ink-off);
   font-size: 14px;
   letter-spacing: 0.025em;
@@ -534,7 +537,8 @@
 .big-num {
   font-family: var(--font-num);
   font-weight: 700;
-  letter-spacing: -.05em;
+  /* SF Pro Display 自带大字号字距，再压太多数字会挤在一起；-.05em 是给 Helvetica Neue 调的 */
+  letter-spacing: -.03em;
   line-height: .88;
   font-variant-numeric: tabular-nums;
   color: var(--ink-0);
@@ -548,7 +552,7 @@
   gap: 16px;
   margin: 10px 0 22px;
 }
-.big-date { font-size: clamp(76px, 22vw, 96px); }
+.big-date { font-size: clamp(76px, 22vw, 96px); font-variant-numeric: proportional-nums; }
 .big-date-side { display: grid; justify-items: end; gap: 6px; padding-bottom: 6px; text-align: right; }
 .big-date-side b { font-size: 16px; font-weight: 600; }
 .big-date-side small { font-size: 13px; color: var(--gray-1); letter-spacing: .02em; }

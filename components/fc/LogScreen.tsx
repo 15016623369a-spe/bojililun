@@ -4,14 +4,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import AskSheet from './AskSheet';
-import { CameraIcon, KeyboardIcon, MicIcon } from './icons';
+import { CameraIcon } from './icons';
+import { RECORD_EVENT, type RecordIntent } from './record-intent';
 import TabBar from './TabBar';
 import Timeline from './Timeline';
 import { createRecordDraft, keepRecordDraft, recordDrafts, removeRecordDraft, sendRecordDraft, type RecordDraft } from '@/lib/record-drafts';
-
-/* ------------------------------ 语音识别（Web Speech API） ------------------------------ */
-
-import { getRecognizerCtor, type Recognizer } from '@/lib/browser-recognition';
 
 const EXAMPLES = [
   '高位下拉 4 组 12 次 60 公斤，划船 4 组 12 次 50 公斤',
@@ -47,30 +44,36 @@ function compressImage(file: File): Promise<string> {
   });
 }
 
-export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: boolean }) {
+export default function LogScreen({ ledgerHasRecords, empty = false }: { ledgerHasRecords: boolean; /** 今天还没有记录：话筒放大放在页面中间 */ empty?: boolean }) {
   const router = useRouter();
 
-  const [phase, setPhase] = useState<'idle' | 'listening' | 'busy' | 'done'>('idle');
-  const [heard, setHeard] = useState('');
+  const [phase, setPhase] = useState<'idle' | 'busy'>('idle');
   const [toast, setToast] = useState('');
   const [ask, setAsk] = useState<string | null>(null);
 
   const [sheet, setSheet] = useState<'compose' | 'edit' | null>(null);
+  // 收起时先播完下滑动画再卸载，面板不会一下子消失
+  const [sheetClosing, setSheetClosing] = useState(false);
+  const closeTimer = useRef(0);
+  const closeSheet = useCallback(() => {
+    window.clearTimeout(closeTimer.current);
+    setSheetClosing(true);
+    closeTimer.current = window.setTimeout(() => { setSheet(null); setSheetClosing(false); setPhoto(null); }, 280);
+  }, []);
+  const showSheet = useCallback(() => {
+    window.clearTimeout(closeTimer.current);
+    setSheetClosing(false);
+    setSheet('compose');
+  }, []);
   const [text, setText] = useState('');
   const [drafts, setDrafts] = useState<RecordDraft[]>([]);
   const [recordError, setRecordError] = useState('');
   const [activeRequest, setActiveRequest] = useState('');
   const [editingDraft, setEditingDraft] = useState<RecordDraft | null>(null);
-  const [listening, setListening] = useState(false);
+  // 右上角拍照选好的图：先放进「记一条」面板，可以补一句再记下来
+  const [photo, setPhoto] = useState<string | null>(null);
   const working = phase === 'busy';
-  const composeSource = useRef<'manual' | 'voice'>('manual');
-  const recRef = useRef<Recognizer | null>(null);
-  const downAt = useRef(0);
-  const abortRef = useRef(false);
-  const finalRef = useRef('');
-  const heardRef = useRef('');
   const busyRef = useRef(false);
-  const modeRef = useRef<'record' | 'compose'>('record');
 
   useEffect(() => {
     if (!toast) return;
@@ -92,7 +95,7 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
     setRecordError('');
     setActiveRequest(draft.request_id);
     setPhase('busy');
-    setSheet(null);
+    closeSheet();
     try {
       const result = await sendRecordDraft(draft);
       if (result.route === 'qa' && result.question) setAsk(result.question);
@@ -110,163 +113,32 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
       setActiveRequest('');
       busyRef.current = false;
     }
-  }, [router]);
-
-  const handleInput = useCallback((value: string) => void submit(createRecordDraft('voice', value)), [submit]);
-
-  const stopRec = useCallback(() => {
-    abortRef.current = false;
-    const rec = recRef.current;
-    if (rec) {
-      try {
-        rec.stop();
-      } catch {
-        /* 已经停了 */
-      }
-    }
-  }, []);
-
-  const abortRec = useCallback(() => {
-    abortRef.current = true;
-    const rec = recRef.current;
-    if (rec) {
-      try {
-        rec.abort();
-      } catch {
-        /* ignore */
-      }
-    }
-    recRef.current = null;
-    setPhase('idle');
-    setListening(false);
-    setHeard('');
-  }, []);
+  }, [router, closeSheet]);
 
   const photoInput = useRef<HTMLInputElement>(null);
 
-  const openComposer = useCallback(() => {
-    setSheet('compose');
-  }, []);
+  const openComposer = showSheet;
 
-  const startRec = useCallback(
-    (mode: 'record' | 'compose') => {
-      const Ctor = getRecognizerCtor();
-      if (!Ctor) {
-        if (mode === 'record') openComposer();
-        else setToast('这个浏览器不支持语音，先打字吧');
-        return;
-      }
-      modeRef.current = mode;
-      finalRef.current = '';
-      heardRef.current = '';
-
-      if (mode === 'record') {
-        setHeard('');
-
-        setPhase('listening');
-      } else {
-        setListening(true);
-      }
-
-      try {
-        const rec = new Ctor();
-        rec.lang = 'zh-CN';
-        rec.continuous = true;
-        rec.interimResults = true;
-
-        rec.onresult = (ev) => {
-          let interim = '';
-          for (let i = ev.resultIndex; i < ev.results.length; i += 1) {
-            const r = ev.results[i];
-            const t = r[0]?.transcript ?? '';
-            if (r.isFinal) finalRef.current += t;
-            else interim += t;
-          }
-          const value = `${finalRef.current}${interim}`;
-          heardRef.current = value;
-          if (modeRef.current === 'record') setHeard(value);
-          else {
-            composeSource.current = 'voice';
-            setText(value);
-          }
-        };
-
-        rec.onerror = (ev: { error?: string }) => {
-          abortRef.current = true;
-          if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
-            setToast('没有麦克风权限，先打字记一条');
-            if (modeRef.current === 'record') openComposer();
-          } else if (ev.error === 'no-speech') {
-            setToast('没听到声音，再说一次');
-          }
-          setPhase('idle');
-          setListening(false);
-        };
-
-        rec.onend = () => {
-          recRef.current = null;
-          setListening(false);
-          if (abortRef.current) return;
-          const value = (finalRef.current || heardRef.current).trim();
-          if (modeRef.current === 'record') {
-            if (value) handleInput(value);
-            else setPhase('idle');
-          }
-        };
-
-        recRef.current = rec;
-        rec.start();
-      } catch {
-        setPhase('idle');
-        setListening(false);
-        setToast('语音识别没启动成功，先打字记一条');
-        if (mode === 'record') openComposer();
-      }
-    },
-    [handleInput, openComposer],
-  );
-
+  // 右上角的打字、拍照按钮发来的请求（见 RecordHeadButtons / record-intent）
   useEffect(() => {
-    const onUp = () => {
-      if (!recRef.current) return;
-      const held = Date.now() - downAt.current;
-      const mode = modeRef.current;
-      if (held < 300) {
-        abortRec();
-        if (mode === 'record') openComposer();
-        return;
-      }
-      stopRec();
+    const onRecord = (event: Event) => {
+      const intent = (event as CustomEvent<RecordIntent>).detail;
+      event.preventDefault();
+      if (intent === 'photo') {
+        if (!busyRef.current) photoInput.current?.click();
+      } else openComposer();
     };
-    window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', abortRec);
-    return () => {
-      window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('pointercancel', abortRec);
-    };
-  }, [abortRec, openComposer, stopRec]);
-
-  const onDown = (e: React.PointerEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    if (phase === 'busy') return;
-    downAt.current = Date.now();
-    startRec('record');
-  };
-
-  const onComposeDown = (e: React.PointerEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    downAt.current = Date.now();
-    startRec('compose');
-  };
+    window.addEventListener(RECORD_EVENT, onRecord);
+    return () => window.removeEventListener(RECORD_EVENT, onRecord);
+  }, [openComposer]);
 
   const onFile = async (file: File | undefined) => {
     if (!file) return;
     try {
-      const image = await compressImage(file);
-      const caption = text.trim();
-      setText('');
+      // 选好照片后打开「记一条」，照片放在里面，可以补一句说明再记下来
+      setPhoto(await compressImage(file));
       setEditingDraft(null);
-      void submit(createRecordDraft('photo', caption, image));
+      showSheet();
     } catch (e) {
       setToast((e as Error).message);
     }
@@ -276,32 +148,24 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
   const submitComposer = async () => {
     const value = text.trim();
     if (working) return;
+    if (photo) {
+      setText('');
+      await submit(createRecordDraft('photo', value, photo));
+      return;
+    }
     if (!value) {
       setToast('说点什么，或者加张照片');
       return;
     }
     setText('');
     setEditingDraft(null);
-    await submit(editingDraft ? { ...editingDraft, text: value } : createRecordDraft(composeSource.current, value));
+    await submit(editingDraft ? { ...editingDraft, text: value } : createRecordDraft('manual', value));
   };
 
-  const recording = phase === 'listening';
   const recoverySlot = drafts.length > 0 ? document.getElementById('record-recovery-slot') : null;
 
   return (
     <>
-      {recording && (
-        <div className="fc-pill">
-          <div className="fc-pill-hd">
-            <span>在听…</span>
-            <span className="fc-wave" aria-hidden>
-              <i /> <i /> <i /> <i /> <i /> <i /> <i /> <i /> <i />
-            </span>
-          </div>
-          <div className="fc-quote">{heard || '说一句话'}</div>
-        </div>
-      )}
-
       {recoverySlot && createPortal(<section className="record-recovery" aria-label="待保存的记录">
         {drafts.map((draft) => <article key={draft.request_id}>
           <header className="record-recovery-head">
@@ -316,7 +180,7 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
             <button type="button" className="record-retry" onClick={() => void submit(draft)}>重试保存</button>
             {draft.source !== 'photo' && <button type="button" onClick={() => {
               setText(draft.text);
-              setSheet('compose');
+              showSheet();
               setEditingDraft(draft);
             }}>编辑</button>}
             <button type="button" onClick={() => { void removeRecordDraft(draft.request_id); setRecordError(''); }}>移除草稿</button>
@@ -327,39 +191,14 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
 
       {!ledgerHasRecords && <Timeline entries={[]} />}
 
+      {/* 空的一天只放一句话；录音键就是底部导航中间那颗话筒 */}
+      {empty && <div className="record-empty">
+        <b>今天还没有记录</b>
+        <span>按住下方的话筒说一句<br />右上角可以打字或拍照</span>
+      </div>}
+
       <div className="fc-dock" aria-busy={working}>
         <div className="fc-dock-inner">
-          <div className="fc-record-controls">
-            <button
-              type="button"
-              className="fc-record-icon"
-              aria-label="打字"
-              title="打字"
-              onClick={openComposer}
-            >
-              <KeyboardIcon />
-            </button>
-            <button
-              type="button"
-              className={`fc-speak${recording ? ' rec' : ''}`}
-              onPointerDown={onDown}
-              onContextMenu={(e) => e.preventDefault()}
-              aria-label="按住说话记录"
-            >
-              <MicIcon />
-              {recording ? '松开结束' : phase === 'busy' ? '正在记…' : '按住说话'}
-            </button>
-            <button
-              type="button"
-              className="fc-record-icon"
-              aria-label="拍照或选照片"
-              title="拍照或选照片"
-              disabled={working}
-              onClick={() => photoInput.current?.click()}
-            >
-              <CameraIcon />
-            </button>
-          </div>
           <input
             ref={photoInput}
             type="file"
@@ -372,33 +211,39 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
             }}
             hidden
           />
+          {working && <p className="journal-status" role="status">正在记入手账…</p>}
+          {/* 导航中间那颗话筒就是「记录」：按住说话，在记录页上轻点直接进语音输入 */}
           <TabBar active="log" />
         </div>
       </div>
 
-      {/* 记录面板：文字 / 照片 / 语音 都能来 */}
+      {/* 记一条：只从右上角的打字、拍照打开；语音直接用导航中间的话筒 */}
       {sheet === 'compose' && (
-        <div className="fc-mask" onClick={() => !working && setSheet(null)}>
-          <div className="fc-sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="fc-mask record-sheet" data-closing={sheetClosing || undefined} onClick={() => !working && closeSheet()}>
+          <div className="fc-sheet" role="dialog" aria-modal="true" aria-label="记一条" onClick={(e) => e.stopPropagation()}>
+            <i className="record-sheet-grab" aria-hidden="true" />
             <h3>{editingDraft ? '继续编辑记录' : '记一条'}</h3>
 
-            <div className="fc-examples">
+            {!photo && <div className="fc-examples">
               {EXAMPLES.map((x) => (
                 <button key={x} type="button" onClick={() => setText(x)}>
                   {x}
                 </button>
               ))}
-            </div>
+            </div>}
+
+            {photo && <div className="record-sheet-photo">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={photo} alt="要记下的照片" />
+              <button type="button" aria-label="去掉这张照片" onClick={() => setPhoto(null)}>×</button>
+            </div>}
 
             <textarea
               className="fc-input"
-              placeholder="例如：高位下拉 4 组 12 次 60 公斤"
+              placeholder={photo ? '补一句说明，可以不写' : '例如：高位下拉 4 组 12 次 60 公斤'}
               value={text}
-              onChange={(e) => {
-                composeSource.current = 'manual';
-                setText(e.target.value);
-              }}
-              autoFocus
+              onChange={(e) => setText(e.target.value)}
+              autoFocus={!photo}
             />
 
             <div className="fc-compose-bar">
@@ -408,28 +253,19 @@ export default function LogScreen({ ledgerHasRecords }: { ledgerHasRecords: bool
                 disabled={working}
                 onClick={() => photoInput.current?.click()}
               >
-                <CameraIcon /> 照片
-              </button>
-              <button
-                type="button"
-                className={`fc-hold${listening ? ' on' : ''}`}
-                onPointerDown={onComposeDown}
-                onContextMenu={(e) => e.preventDefault()}
-              >
-                <MicIcon />
-                {listening ? '在听…' : '按住说话'}
+                <CameraIcon /> {photo ? '换一张照片' : '加一张照片'}
               </button>
             </div>
 
             <div className="fc-sheet-actions">
-              <button type="button" className="fc-btn ghost" onClick={() => setSheet(null)}>
+              <button type="button" className="fc-btn ghost" onClick={closeSheet}>
                 取消
               </button>
               <button
                 type="button"
                 className="fc-btn primary"
                 onClick={() => void submitComposer()}
-                disabled={working || listening}
+                disabled={working}
               >
                 {working ? '处理中…' : '记下来'}
               </button>

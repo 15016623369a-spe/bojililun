@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { getRecognizerCtor, type Recognizer } from '@/lib/browser-recognition';
 import AskSheet from './AskSheet';
 import { createRecordDraft, sendRecordDraft } from '@/lib/record-drafts';
-import { MicIcon } from './icons';
+import { MicFillIcon } from './icons';
 import VoiceOverlay, { type VoicePhase } from './VoiceOverlay';
 
 /** 长按判定：短于这个时间算「点一下，去记录页」 */
@@ -22,7 +22,9 @@ type Phase = 'idle' | VoicePhase;
 type VibratingNavigator = Navigator & { vibrate?: (pattern: number | number[]) => boolean };
 
 /**
- * 底部导航中间的「记录」：轻点进记录页，长按就地录音。
+ * 底部导航中间的「记录」，样子就是一颗话筒（11 月 25 日用户要求：不再另放录音键、不写「记录」两个字）。
+ * 按住就地录音、松手记下、上滑取消，在哪个页面都行；在别的页面轻点去记录页；
+ * 已经在记录页时轻点直接进语音输入（点「完成」记下、「取消」放弃），不再打开「记一条」面板。
  * 手势、麦克风、遮罩都在这里；页面不用关心。
  */
 export default function RecordTab({
@@ -49,7 +51,7 @@ export default function RecordTab({
   const [question, setQuestion] = useState<string | null>(null);
   const sendVoice = async (text: string) => {
     if (!text) {
-      showToast('没听清，再说一次，或者点进记录页打字');
+      showToast('没听清，再说一次，或者在记录页右上角打字');
       return;
     }
     try {
@@ -74,6 +76,8 @@ export default function RecordTab({
   const msTimer = useRef(0);
   const toastTimer = useRef(0);
   const longPress = useRef(false);
+  /** 轻点开始的语音输入：不靠松手结束，靠遮罩上的「完成 / 取消」 */
+  const [tapping, setTapping] = useState(false);
   const released = useRef(false);
   const startY = useRef(0);
   const startedAt = useRef(0);
@@ -223,7 +227,7 @@ export default function RecordTab({
       failed.current = true;
       cleanup();
       setPhase('idle');
-      showToast('没有麦克风权限，可到记录页打字');
+      showToast('没有麦克风权限，可以在记录页右上角打字');
       router.push('/log');
     }
   }, [cleanup, finalize, router, setPhase, showToast]);
@@ -264,7 +268,7 @@ export default function RecordTab({
     return x >= rect.left - pad && x <= rect.right + pad && y >= rect.top - pad && y <= rect.bottom + pad;
   };
 
-  const onPointerDown = (event: React.PointerEvent<HTMLAnchorElement>) => {
+  const onPointerDown = (event: React.PointerEvent<HTMLElement>) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     if (phaseRef.current !== 'idle') return;
     event.preventDefault();
@@ -279,17 +283,33 @@ export default function RecordTab({
     }, LONG_PRESS_MS);
   };
 
-  const onPointerMove = (event: React.PointerEvent<HTMLAnchorElement>) => {
+  const onPointerMove = (event: React.PointerEvent<HTMLElement>) => {
     if (!longPress.current) return;
     if (phaseRef.current !== 'recording' && phaseRef.current !== 'canceling') return;
     const pulledUp = startY.current - event.clientY > CANCEL_DISTANCE;
     setPhase(pulledUp || inCancelZone(event.clientX, event.clientY) ? 'canceling' : 'recording');
   };
 
+  /** 记录页上轻点：直接开始录音，遮罩上点「完成」记下、点「取消」放弃 */
+  const startTap = () => {
+    longPress.current = true;
+    released.current = false;
+    setTapping(true);
+    void start();
+  };
+
+  /** 结束轻点开始的那次录音 */
+  const endTap = (cancel: boolean) => {
+    setTapping(false);
+    finish(cancel);
+  };
+
   const onPointerUp = () => {
     window.clearTimeout(pressTimer.current);
+    if (tapping) return;
     if (!longPress.current) {
-      // 短按：保持原来的行为，去记录页
+      // 短按：已在记录页就直接进语音输入，否则去记录页
+      if (active) { startTap(); return; }
       onTapStart?.();
       router.push('/log');
       return;
@@ -303,6 +323,7 @@ export default function RecordTab({
 
   const onPointerCancel = () => {
     window.clearTimeout(pressTimer.current);
+    if (tapping) return;
     if (longPress.current) finish(true);
     else setPhase('idle');
   };
@@ -326,6 +347,9 @@ export default function RecordTab({
     [cleanup],
   );
 
+  // 录音结束（记下、取消、没拿到麦克风）后退出轻点模式
+  useEffect(() => { if (phase === 'idle') setTapping(false); }, [phase]);
+
   const recording = phase !== 'idle';
 
   return (
@@ -334,7 +358,8 @@ export default function RecordTab({
         href="/log"
         className={`fc-tab fc-rec-tab${active ? ' on' : ''}`}
         aria-current={active ? 'page' : undefined}
-        aria-label="记录：轻点进入记录页，按住说话"
+        aria-label={active ? '记录：轻点开始说话，按住说话、松手记下' : '记录：轻点进入记录页，按住说话'}
+        data-live={recording || undefined}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -345,13 +370,14 @@ export default function RecordTab({
           // 键盘 Enter / Space 的 click 没有指针事件，detail 是 0，补一次。
           event.preventDefault();
           if (event.detail === 0) {
+            if (active) { startTap(); return; }
             onTapStart?.();
             router.push('/log');
           }
         }}
       >
-        <MicIcon />
-        <span>记录</span>
+        <MicFillIcon className="fc-rec-glyph" />
+        <span className="sr-only">记录</span>
         <i className="u" />
       </a>
 
@@ -365,7 +391,8 @@ export default function RecordTab({
       {recording &&
         typeof document !== 'undefined' &&
         createPortal(
-          <VoiceOverlay phase={phase as VoicePhase} analyser={analyser} ms={ms} cancelRef={cancelRef} />,
+          <VoiceOverlay phase={phase as VoicePhase} analyser={analyser} ms={ms} cancelRef={cancelRef}
+            tap={tapping} onDone={() => endTap(false)} onCancel={() => endTap(true)} />,
           document.body,
         )}
     </>

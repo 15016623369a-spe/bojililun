@@ -2,19 +2,19 @@
 
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import Link from 'next/link';
-import type { RangeKey, WallData, WallDay } from '@/lib/review-wall';
+import type { HeroPeriod, RangeKey, WallData, WallDay } from '@/lib/review-wall';
 import type { SculptureVariant } from '@/lib/sculpture-groups';
 import { muscleLabel } from '../StatsBodyMap';
 import Icon from '../ui/Icon';
 import { Bars, CalloutMap, CountUp, DotCols, LineChart, Matrix, PickPlot, Rank, Xl, gapFor } from './charts';
 import { RANGE_WORD, STATS_PERIOD, avg, bucketsOf, changePill, fmt, haptic, present, previousDays, short, sum, weekday } from './wall-utils';
 
-export type SheetId = 'volume' | 'weight' | 'macro' | 'deficit' | 'metab' | 'pr' | 'body' | 'energy';
+export type SheetId = 'volume' | 'weight' | 'food' | 'macro' | 'deficit' | 'metab' | 'pr' | 'body' | 'energy';
 export const SHEET_TITLE: Record<SheetId, string> = {
-  volume: '训练容量', weight: '晨重', macro: '三大营养完成度', deficit: '热量缺口', metab: '代谢', pr: '个人纪录', body: '训练分布', energy: '能量收支',
+  volume: '训练容量', weight: '晨重', food: '饮食', macro: '三大营养完成度', deficit: '热量缺口', metab: '代谢', pr: '个人纪录', body: '训练分布', energy: '能量收支',
 };
 
-type P = { data: WallData; range: RangeKey; variant: SculptureVariant };
+type P = { data: WallData; range: RangeKey; variant: SculptureVariant; /** 打开抽屉时回顾页选的日／周／月 */ period?: HeroPeriod };
 type Vars = CSSProperties & Record<`--${string}`, string | number>;
 type Stat = [label: string, value: number | string, dec?: number, unit?: string];
 
@@ -418,6 +418,71 @@ function EnergySheet({ data, range }: P) {
   </>;
 }
 
+/* ---------------- 饮食 ---------------- */
+/**
+ * 整个抽屉跟着 7 天／30 天／1 年走：上面是这段时间的日均（或选中那天），中间每天的摄入柱，
+ * 点哪天就在下面列出那天吃了什么（近 30 天）。日视图打开时直接选中今天。
+ */
+function FoodSheet({ data, range, period }: P) {
+  const p = data.profile;
+  const b = bucketsOf(data.days, range);
+  const vals = b.map((x) => { const l = x.days.filter((d) => d.kcal !== null); return l.length ? Math.round(avg(l.map((d) => d.kcal!))) : null; });
+  const [pick, setPick] = useState<{ range: RangeKey; i: number } | null>(period === 'day' && range !== 'y1' ? { range, i: b.length - 1 } : null);
+  const picked = pick?.range === range ? pick.i : null;
+  const setPicked = (i: number | null) => setPick(i === null ? null : { range, i });
+  const sel = picked !== null ? b[picked] : null;
+  const win = windowDays(data.days, range);
+  const logged = win.filter((d) => d.kcal !== null);
+  const scope = sel ? sel.days : win;
+  const scopeLogged = scope.filter((d) => d.kcal !== null);
+  const kcal = scopeLogged.length ? Math.round(avg(scopeLogged.map((d) => d.kcal!))) : null;
+  const protein = scopeLogged.length ? avg(scopeLogged.map((d) => d.protein ?? 0)) : 0;
+  const burn = scope.length ? sum(scope.map((d) => d.burn)) / scope.length : 0;
+  const oneDay = sel?.date ?? null;
+  const dayWord = oneDay ? (oneDay === data.today ? '今天' : short(oneDay)) : null;
+  const meals = oneDay ? data.mealsByDay[oneDay] ?? [] : [];
+  const rows: { name: string; value: number; target: number | null; unit: string; color: string; approx?: boolean }[] = [
+    { name: '摄入', value: kcal ?? 0, target: p?.targetKcal ?? null, unit: 'kcal', color: 'var(--rw-ink)' },
+    { name: '蛋白质', value: protein, target: p?.protein ?? null, unit: 'g', color: 'var(--rw-ink)' },
+    { name: oneDay ? '运动消耗' : '日均运动', value: burn, target: p?.targetKcal ?? null, unit: 'kcal', color: 'var(--coral)', approx: true },
+  ];
+  return <>
+    <Big label={sel ? (oneDay ? `${sel.pick} 摄入` : `${sel.pick} 日均摄入`) : `${RANGE_WORD[range]}日均摄入`} value={kcal} unit="kcal"
+      pill={p ? `目标 ${fmt(p.targetKcal)}` : null} tone={p && kcal !== null && kcal > p.targetKcal * 1.1 ? 'coral' : ''} />
+    <div className="rw-progs rw-food-progs rw-rise" style={rise(2)}>
+      {rows.map((r) => <div key={r.name} className="rw-prog" style={{ '--c': r.color } as Vars}>
+        <div className="rw-prog-top"><b>{r.name}</b><span><em>{r.approx ? '≈' : ''}{fmt(Math.round(r.value))}</em>{r.target && !r.approx ? ` / ${fmt(r.target)}` : ''} {r.unit}</span></div>
+        <div className="rw-track"><i style={{ width: `${r.target ? Math.min(1, r.value / r.target) * 100 : 0}%` }} /></div>
+      </div>)}
+    </div>
+    <div className="rw-blocks rw-rise" style={rise(3)}>
+      <div>
+        <h3>{range === 'y1' ? '每个月的日均摄入' : `${RANGE_WORD[range]}每天的摄入`}</h3>
+        <Bars values={vals} labels={b.map((x) => x.label)} picked={picked} onPick={setPicked} def={vals.length - 1} tone={() => 'ok'}
+          band={p ? [p.targetKcal * 0.9, p.targetKcal * 1.1, '目标 ±10%'] : undefined} label="每天的摄入" />
+        <Hint>{range === 'y1' ? '按住柱子左右拖，看每个月的日均' : '按住柱子左右拖，看那天吃了什么'}</Hint>
+      </div>
+      {oneDay && <div>
+        <h3 className="rw-meals-h">{dayWord}吃了什么</h3>
+        {meals.length ? <ol className="rw-meals">
+          {meals.map((m) => <li key={m.id}><Link href={oneDay === data.today ? `/log?card=${m.id}` : `/log?date=${oneDay}&card=${m.id}`} onClick={() => haptic()}>
+            <span className="rw-meal-t">{m.time}</span>
+            <span className="rw-meal-n"><b>{m.title}</b>{m.items && m.items !== m.title && <small>{m.items}</small>}</span>
+            <span className="rw-meal-k">{m.kcal === null ? '—' : `≈${fmt(m.kcal)}`}<small>kcal</small></span>
+            <Icon name="chevron-right" size={15} stroke={2} />
+          </Link></li>)}
+        </ol> : <p className="rw-empty">这天没记饮食。</p>}
+      </div>}
+    </div>
+    <Stats items={[
+      ['日均摄入', logged.length ? Math.round(avg(logged.map((d) => d.kcal!))) : '—', 0, logged.length ? 'kcal' : undefined],
+      ['记了饮食', logged.length, 0, '天'],
+      ['日均蛋白', logged.length ? Math.round(avg(logged.map((d) => d.protein ?? 0))) : '—', 0, logged.length ? 'g' : undefined],
+    ]} />
+    <Note title="怎么算">摄入按记下的每一餐估算，日均只算记了饮食的日子；运动消耗按训练的部位、器械、容量和时长粗估，误差约 ±20%，只作参考，不计入每日总代谢。</Note>
+  </>;
+}
+
 export const SHEETS: Record<SheetId, (p: P) => ReactNode> = {
-  volume: VolumeSheet, weight: WeightSheet, macro: MacroSheet, deficit: DeficitSheet, metab: MetabSheet, pr: PrSheet, body: BodySheet, energy: EnergySheet,
+  volume: VolumeSheet, weight: WeightSheet, food: FoodSheet, macro: MacroSheet, deficit: DeficitSheet, metab: MetabSheet, pr: PrSheet, body: BodySheet, energy: EnergySheet,
 };

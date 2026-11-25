@@ -7,7 +7,7 @@ import { getBodyModelSettings } from '@/lib/core/body-model';
 import { parseBodyModel } from '@/lib/body-model-preference';
 import { sculptureGroup } from '@/lib/sculpture-groups';
 
-export const metadata = { title: '添加动作 · FitCheck' };
+export const metadata = { title: '训练 · FitCheck' };
 export const dynamic = 'force-dynamic';
 
 export default async function BodyPage({ searchParams }: { searchParams: Promise<{ body?: string; muscle?: string }> }) {

@@ -6,6 +6,7 @@ import { daySessions } from './core/workout';
 import { muscleActivity, trainingLog, trainingTimeByDay, type LoggedWorkout } from './training-log';
 import { getProfileRow } from './core/meals';
 import { dayExerciseBurn } from './exercise-burn';
+import { calcMealTotals } from './calculations';
 import type { MuscleId } from './muscles';
 
 /**
@@ -80,9 +81,14 @@ export type WallHero = {
   statsHref: string;
 };
 
+/** 今天记下的一餐：「今日饮食」块和抽屉里列出来，点开回到记录页那张卡 */
+export type WallMeal = { id: number; title: string; time: string; kcal: number | null; items: string };
+
 export type WallData = {
   today: string;
   days: WallDay[];
+  /** 近 30 天每天的每一餐（按时间先后），「饮食」抽屉里点哪天就列哪天 */
+  mealsByDay: Record<string, WallMeal[]>;
   prs: PrEvent[];
   prHistory: Record<string, { name: string; points: PrPoint[] }>;
   muscles: Record<RangeKey, MuscleSets[]>;
@@ -303,9 +309,29 @@ export function buildReviewWall(db: DatabaseSync, today: string, period: HeroPer
   }
   const hero = buildHero(period, today, days, [...moves.values()]);
 
+  // 近 30 天每天的每一餐（原来在训练页「今日营养」下面，11 月 24 日挪到回顾；抽屉里点哪天列哪天）
+  const clock = new Intl.DateTimeFormat('zh-CN', { timeZone: process.env.APP_TZ || 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  const mealsByDay: Record<string, WallMeal[]> = {};
+  for (const day of book.days) {
+    if (day.date < d30) continue;
+    const list = day.entries
+      .filter((c) => c.entry_type === 'meal')
+      .sort((a, b) => Date.parse(a.logged_at) - Date.parse(b.logged_at))
+      .map((c) => {
+        const kcal = calcMealTotals(c.items).kcal;
+        return {
+          id: c.id, title: c.summary_title, time: clock.format(new Date(c.logged_at)),
+          kcal: kcal === null || kcal === undefined ? null : Math.round(kcal),
+          items: c.items.map((i) => [i.food_name, i.portion_text].filter(Boolean).join(' ')).join('、'),
+        };
+      });
+    if (list.length) mealsByDay[day.date] = list;
+  }
+
   return { hero, wall: {
     today,
     days,
+    mealsByDay,
     prs: prs.events,
     prHistory: prs.history,
     muscles: { d7: muscleSets(log.filter((w) => w.date >= d7)), d30: muscleSets(log.filter((w) => w.date >= d30)), y1: muscleSets(log) },

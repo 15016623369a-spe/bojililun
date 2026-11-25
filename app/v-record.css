@@ -2,8 +2,9 @@
    新版视觉 · 记录：大字日期、时间刻度、横向记录卡、语音态
    ============================================================ */
 
-.journal-shell.is-record { padding-bottom: calc(196px + env(safe-area-inset-bottom)); }
-.is-record .journal-footer { background: rgb(226 227 223); padding-top: 4px; }
+/* 底部只剩导航（原来的「按住说话」一行已去掉，打字和拍照在右上角） */
+.journal-shell.is-record { padding-bottom: calc(124px + env(safe-area-inset-bottom)); }
+.is-record .journal-footer { padding-top: 4px; } /* 底色沿用 visual.css 的渐隐（原来写死浅灰，夜间回看某一天时底部有一条浅色带） */
 .hero-word { margin: 6px 0 0; font-size: 34px; font-weight: 700; letter-spacing: -.01em; line-height: 1.1; }
 .is-record .big-date-hero { margin: 8px 0 24px; }
 
@@ -277,7 +278,7 @@
 .record-recovery-actions button { min-height: 44px; padding-inline: 6px; text-decoration: underline; text-underline-offset: 4px; }
 .record-estimated { display: inline-block; margin-right: 8px; color: var(--gray-1); }
 .record-undo-notice {
-  position: fixed; z-index: 70; left: 16px; right: 16px; bottom: calc(156px + env(safe-area-inset-bottom));
+  position: fixed; z-index: 70; left: 16px; right: 16px; bottom: calc(100px + env(safe-area-inset-bottom));
   max-width: 480px; margin-inline: auto; padding: 4px 10px 4px 14px; border-radius: 16px;
   display: flex; align-items: center; flex-wrap: wrap; gap: 4px 9px; background: var(--dk-fill, var(--ink-0)); color: var(--silver-2);
 }
@@ -301,3 +302,188 @@
 }
 .record-recovery-actions button:last-child { margin-left: auto; color: var(--gray-1); font-size: 12px; }
 .record-recovery > p { margin: 0 4px; font-size: 13px; color: var(--ink-2); }
+
+/* ---------- 11 月 24 日：记录卡照回顾数据块的尺寸和圆角 ----------
+   卡片是正方形，大小和回顾的小块一样（屏宽减左右边距 26、中间间隔 22 再对半），横向滑动；
+   空状态是中号长方形（两块 + 间隔）。下方明细卡也用同一个圆角。 */
+.is-record .deck {
+  --sq: calc((min(100vw, 560px) - 74px) / 2);
+  gap: 22px; margin: 22px -24px 0; padding: 6px 26px 10px; scroll-padding-inline: 26px;
+}
+.is-record .deck-card { flex: 0 0 var(--sq); height: var(--sq); border-radius: var(--tile-r); overflow: hidden; }
+.is-record .deck-card-body { display: flex; flex-direction: column; height: 100%; min-height: 0; padding: 15px 16px 14px; }
+.is-record .deck-card strong { margin-top: 8px; font-size: 15px; line-height: 1.3; -webkit-line-clamp: 1; }
+.is-record .deck-card .big-num { margin: auto 0 0; font-size: 34px; line-height: 1; }
+.is-record .deck-card small { margin-top: 6px; font-size: 12px; -webkit-line-clamp: 1; }
+.is-record .deck-card.empty { flex: 0 0 calc(2 * var(--sq) + 22px); height: var(--sq); min-height: 0; display: flex; flex-direction: column; padding: 15px 16px 14px; }
+.is-record .deck-card.empty .big-num { margin: 10px 0 6px; }
+.is-record .deck-card.empty small { -webkit-line-clamp: 2; }
+.fc.ledger-detail .fc-ledger-card, .fc.ledger-detail .fc-ledger-card[data-kind], .ledger-moves, .ledger-metric { border-radius: var(--tile-r); }
+
+/* ---------- 底部导航外面包的一行（原来右边还有一颗录音键，11 月 25 日并进了中间的「记录」） ---------- */
+.fc-nav-row { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 14px; pointer-events: none; }
+.fc-nav-row .fc-tabs { margin: 0; }
+.fc-nav-row > * { pointer-events: auto; }
+
+/* ---------- 11 月 24 日（三）：记录页以语音为主角，「我的教练」是单独的入口 ----------
+   今天：大标题「今天」加一行小字；不放条形码时间轴，空的一天也不放大灰卡，大号话筒放中间。
+   回看某一天（is-past）保持原版式。 */
+.record-hero { margin: 2px 0 18px; }
+.record-hero .hero-word { margin: 0; font-size: 34px; letter-spacing: -.01em; }
+.record-hero-sub { margin: 6px 0 0; font-size: 14px; color: var(--gray-1); }
+.record-hero-sub b { font: 600 14px var(--font-num); color: var(--ink-0); }
+/* 条形码时间轴整页去掉（今天和回看某一天都不放，11 月 25 日用户要求）；记录卡左右滑动和下面的圆点照常 */
+.is-record :is(.day-ruler, .day-ruler-axis) { display: none; }
+.is-record.is-past .day-deck .deck { margin-top: 0; }
+.is-record:not(.is-past) .deck { margin-top: 0; }
+.is-record:not(.is-past) .day-deck:not(:has(.deck-card:not(.empty))) { display: none; }
+.is-record:not(.is-past) .day-deck { margin-top: 22px; }
+
+/* 我的教练入口：照 iOS 设置里的一行。平面、不加阴影；左边是 App 图标式的圆角方块（淡紫到雾蓝的上下渐变 + 白色星芒），
+   右边细灰箭头。11 月 25 日用户觉得黑圆底 + 阴影卡片太像安卓，改成这样。 */
+.coach-tile {
+  display: flex; align-items: center; gap: 14px; width: 100%; min-height: 64px; padding: 11px 16px 11px 12px; border: 0; border-radius: 18px;
+  background: rgb(255 255 255 / 62%); color: var(--ink-0); text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background-color .2s;
+}
+.coach-tile:active { background: rgb(255 255 255 / 40%); }
+.coach-tile:focus-visible { outline: 2px solid var(--ink-0); outline-offset: 2px; }
+.coach-tile-icon {
+  flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; color: #fff;
+  background: linear-gradient(180deg, #c7b9f5, #8fa9ec);
+  box-shadow: inset 0 0 0 .5px rgb(0 0 0 / 8%);
+}
+@supports (corner-shape: squircle) { .coach-tile-icon { corner-shape: squircle; border-radius: 30%; } }
+.coach-tile-icon svg { width: 23px; height: 23px; }
+.coach-tile-t { flex: 1; display: grid; gap: 2px; min-width: 0; }
+.coach-tile-t b { font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
+.coach-tile-t small { font-size: 13.5px; color: var(--gray-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.coach-tile-chev { flex: none; width: 8px; height: 14px; color: rgb(60 60 67 / 30%); }
+html[data-theme="dark"] .coach-tile { background: #1c1c1e; }
+html[data-theme="dark"] .coach-tile:active { background: #2c2c2e; }
+html[data-theme="dark"] .coach-tile-chev { color: rgb(235 235 245 / 30%); }
+
+
+/* 空的一天：只放一句话和一行小字，像 iOS 的空列表；录音键是导航中间的话筒 */
+.record-empty { display: grid; justify-items: center; gap: 6px; margin: 76px 0 24px; text-align: center; }
+.record-empty b { font-size: 17px; font-weight: 600; color: var(--ink-0); }
+.record-empty span { max-width: 260px; font-size: 14px; line-height: 1.5; color: var(--gray-1); }
+
+/* ---------- 11 月 25 日：「记一条」面板照 iOS 底部面板做 ----------
+   遮罩淡入、面板带弹簧从底部滑上来；收起时先滑下去再消失（LogScreen 里的 sheetClosing）。
+   面板是回顾抽屉那种毛玻璃，顶部一根抓手；示例、输入框、照片 / 按住说话都是没有描边的浅底块。 */
+.fc-mask.record-sheet { z-index: 60; background: rgb(0 0 0 / 24%); animation: rs-fade .28s ease both; }
+.fc-mask.record-sheet[data-closing] { animation: rs-fade-out .28s ease both; }
+@keyframes rs-fade { from { background: rgb(0 0 0 / 0%); } }
+@keyframes rs-fade-out { to { background: rgb(0 0 0 / 0%); } }
+.record-sheet .fc-sheet {
+  max-width: 560px; padding: 8px 20px calc(18px + env(safe-area-inset-bottom)); border-radius: 30px 30px 0 0;
+  background: linear-gradient(180deg, rgb(255 255 255 / 70%), rgb(244 244 241 / 88%) 40%, rgb(238 238 235 / 94%));
+  -webkit-backdrop-filter: blur(24px) saturate(1.5); backdrop-filter: blur(24px) saturate(1.5);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 90%), 0 -18px 40px -28px rgb(0 0 0 / 40%);
+  animation: rs-up .55s var(--spring, cubic-bezier(.2, .9, .25, 1)) both;
+}
+.record-sheet[data-closing] .fc-sheet { animation: rs-down .28s cubic-bezier(.4, 0, 1, 1) both; }
+@keyframes rs-up { from { transform: translateY(100%); } }
+@keyframes rs-down { to { transform: translateY(100%); } }
+.record-sheet-grab { display: block; width: 36px; height: 5px; margin: 0 auto 14px; border-radius: 3px; background: rgb(var(--dk-fg-rgb, 21 22 19) / 18%); }
+.record-sheet .fc-sheet h3 { margin: 0 0 12px; font-size: 20px; font-weight: 700; letter-spacing: -.01em; }
+.record-sheet .fc-examples { gap: 8px; margin: 0 0 12px; }
+.record-sheet .fc-examples button { padding: 8px 13px; border: 0; border-radius: 999px; background: rgb(var(--dk-fg-rgb, 21 22 19) / 7%); color: var(--ink-0); font-size: 13.5px; box-shadow: none; transition: background-color .2s, scale .4s var(--spring-bounce); }
+.record-sheet .fc-examples button:active { scale: .96; background: rgb(var(--dk-fg-rgb, 21 22 19) / 12%); }
+.record-sheet .fc-input, .record-sheet .fc-input:focus {
+  min-height: 92px; padding: 13px 15px; border: 0; border-radius: 16px; outline: none;
+  background: rgb(255 255 255 / 80%); box-shadow: inset 0 0 0 .5px rgb(21 22 19 / 8%); color: var(--ink-0); font-size: 16px;
+}
+.record-sheet .fc-input:focus { box-shadow: inset 0 0 0 1.5px rgb(21 22 19 / 22%); }
+.record-sheet .fc-compose-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0 14px; }
+.record-sheet .fc-compose-bar button { display: flex; align-items: center; justify-content: center; gap: 6px; height: 44px; border: 0; border-radius: 14px; background: rgb(var(--dk-fg-rgb, 21 22 19) / 6%); color: var(--ink-0); font-size: 15px; font-weight: 500; }
+.record-sheet .fc-compose-bar .fc-hold svg { width: 18px; height: 18px; color: var(--coral); }
+.record-sheet .fc-compose-bar .fc-hold.on { background: rgb(240 99 81 / 16%); }
+.record-sheet .fc-sheet-actions { gap: 10px; margin-top: 0; }
+.record-sheet .fc-btn { height: 50px; font-size: 17px; }
+.record-sheet .fc-btn.ghost { background: rgb(var(--dk-fg-rgb, 21 22 19) / 7%); color: var(--ink-0); }
+.record-sheet .fc-btn.primary { background: #151613; color: #f1f2ee; }
+html[data-theme="dark"] .record-sheet .fc-sheet { background: linear-gradient(180deg, rgb(34 36 39 / 72%), rgb(24 26 29 / 88%) 40%, rgb(18 19 21 / 96%)); box-shadow: inset 0 1px 0 rgb(255 255 255 / 10%), 0 -18px 40px -28px rgb(0 0 0 / 80%); }
+html[data-theme="dark"] .record-sheet .fc-input, html[data-theme="dark"] .record-sheet .fc-input:focus { background: #26272b; box-shadow: none; color: #eeefea; }
+html[data-theme="dark"] .record-sheet .fc-input:focus { box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 18%); }
+html[data-theme="dark"] .record-sheet .fc-btn.primary { background: #ecebe6; color: #151613; }
+html[data-theme="dark"] .record-sheet .fc-btn.ghost { background: rgb(255 255 255 / 9%); color: #eeefea; }
+@media (prefers-reduced-motion: reduce) { .record-sheet, .record-sheet .fc-sheet { animation-duration: .01ms !important; } }
+
+/* 点开的那张卡长成抽屉：原位的卡先隐去，收起时抽屉缩回到它的位置再显出来（和回顾数据块一样） */
+.is-record .deck-card { transition: transform .45s var(--ease-out), box-shadow .45s, opacity .25s ease; }
+.is-record .deck-card[data-lifted] { opacity: 0; transition-duration: .45s, .45s, .12s; }
+/* 抽屉里的明细：外面已经是毛玻璃，里面的块不再叠一层玻璃，用回顾抽屉里那种浅底 */
+.rw-layer .fc.ledger-detail { margin: 0; }
+.rw-layer .fc.ledger-detail .fc-ledger-card,
+.rw-layer .fc.ledger-detail .fc-ledger-card[data-kind],
+.rw-layer .ledger-moves,
+.rw-layer .ledger-metric { border: 0; background: rgb(var(--rw-rgb) / 6%); box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+
+/* ---------- 11 月 25 日：记录卡往下排成两列、点一下翻到背面 ----------
+   和回顾小块同尺寸同圆角（左右边距 26、间隔 22、正方形）；卡片本身是底板，正反两面贴在上面，背面转 180° 藏起来。 */
+.is-record .deck.deck-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px;
+  margin: 22px 2px 0; padding: 0; overflow: visible; scroll-snap-type: none;
+}
+.is-record .deck-grid .deck-card {
+  position: relative; flex: none; width: auto; height: auto; aspect-ratio: 1; overflow: visible; scroll-snap-align: none;
+  /* 翻面动画在 LedgerDeck 里用 Web Animations 做（转到侧面、换内容、再转回来），这里只留转轴在中间 */
+  transform: none; transform-origin: 50% 50%; /* 原来横排时是 left center，翻面会甩到左边 */
+  transition: opacity .25s ease;
+}
+.is-record .deck-grid .deck-card[data-lifted] { opacity: 0; transition-duration: .12s; }
+.is-record .deck-face { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; }
+.is-record .deck-back { display: flex; flex-direction: column; padding: 14px 16px 12px; color: var(--ink-0); cursor: pointer; }
+.is-record .deck-back:focus-visible { outline: 2px solid var(--ink-0); outline-offset: -2px; }
+.deck-back-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 26px; margin-top: -2px; }
+.deck-back-kind { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 12.5px var(--font-num); color: rgb(var(--dk-fg-rgb, 21 22 19) / 55%); }
+/* 训练：一个动作两行，名字在上、组次在下 */
+.deck-back-rows.stack li { display: grid; gap: 0; }
+.deck-back-rows.stack li b { max-width: 100%; font-weight: 500; color: rgb(var(--dk-fg-rgb, 21 22 19) / 62%); }
+.deck-back-rows.stack li span { font-weight: 600; }
+.deck-back-rows { display: grid; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; line-height: 1.3; }
+.deck-back-rows li { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; font-size: 13px; }
+.deck-back-rows li span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.deck-back-rows li b { flex: none; max-width: 58%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 12.5px var(--font-num); }
+.deck-back-rows li.more span { color: rgb(var(--dk-fg-rgb, 21 22 19) / 55%); }
+.deck-back-big { margin-top: auto; font: 700 40px/1 var(--font-num); letter-spacing: -.02em; }
+.deck-back-big small { margin-left: 3px; font-size: 14px; font-weight: 600; color: rgb(var(--dk-fg-rgb, 21 22 19) / 55%); }
+.deck-back-foot { margin: auto 0 0; padding-top: 4px; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; /* 合计放得下两行，蛋白克数不被截掉 */ font: 600 12.5px var(--font-num); color: rgb(var(--dk-fg-rgb, 21 22 19) / 62%); }
+.deck-back-edit { flex: none; padding: 4px 11px; border-radius: 999px; background: rgb(var(--dk-fg-rgb, 21 22 19) / 9%); color: var(--ink-0); font-size: 12.5px; font-weight: 600; transition: scale .4s var(--spring-bounce); }
+.deck-back-edit:active { scale: .94; }
+.is-record .deck-grid .deck-card.empty { grid-column: 1 / -1; aspect-ratio: auto; min-height: 150px; transform: none; }
+@media (prefers-reduced-motion: reduce) { .is-record .deck-grid .deck-card { transition: none; } }
+
+
+/* ---------- 11 月 25 日：「记录」就是导航中间那颗话筒 ----------
+   不写字，放一颗珊瑚色实心话筒（照 SF Symbols 的 mic.fill）；选中时白底胶囊里也是珊瑚话筒，录音时轻轻缩一下。 */
+.fc-tabs .fc-rec-tab svg.fc-rec-glyph { display: block; position: relative; z-index: 1; width: 22px; height: 22px; color: var(--coral); transition: scale .35s var(--spring-bounce); }
+.fc-tabs .fc-rec-tab[data-live] svg.fc-rec-glyph { scale: .86; }
+
+/* 记录页右上角：打字、拍照两颗圆钮，和回顾页头的圆钮一个样子 */
+.record-head-btns { display: flex; align-items: center; gap: 8px; }
+.record-head-btns button {
+  display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border: 0; border-radius: 50%;
+  background: rgb(var(--dk-fg-rgb, 21 22 19) / 7%); color: var(--ink-0); transition: scale .4s var(--spring-bounce), background-color .2s;
+}
+.record-head-btns button:active { scale: .92; background: rgb(var(--dk-fg-rgb, 21 22 19) / 12%); }
+.record-head-btns svg { width: 20px; height: 20px; }
+
+/* 轻点开始的语音输入：下方两颗按钮，「取消」浅底、「完成」珊瑚底 */
+.fc-rec-tap { position: absolute; left: 0; right: 0; bottom: calc(48px + env(safe-area-inset-bottom)); display: grid; justify-items: center; gap: 18px; }
+.fc-rec-tap p { margin: 0; font-size: 15px; color: rgb(255 255 255 / 80%); }
+.fc-rec-tap-btns { display: flex; gap: 14px; }
+.fc-rec-tap-btns button { min-width: 128px; height: 52px; padding: 0 22px; border: 0; border-radius: 999px; font-size: 17px; font-weight: 600; transition: scale .35s var(--spring-bounce), opacity .2s; }
+.fc-rec-tap-btns button:active { scale: .95; }
+.fc-rec-tap-btns button:disabled { opacity: .5; }
+.fc-rec-tap-cancel { background: rgb(255 255 255 / 16%); color: #fff; }
+.fc-rec-tap-done { background: var(--coral); color: #fff; }
+
+/* 「记一条」里选好的照片：一张小图，右上角 × 去掉 */
+.record-sheet-photo { position: relative; width: 96px; height: 96px; margin: 0 0 10px; }
+.record-sheet-photo img { width: 100%; height: 100%; object-fit: cover; border-radius: 14px; }
+.record-sheet-photo button { position: absolute; top: -6px; right: -6px; display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 50%; background: #151613; color: #f1f2ee; font-size: 15px; line-height: 1; }
+.record-sheet .fc-compose-bar { grid-template-columns: 1fr; }
+.deck-back-foot .nb { white-space: nowrap; }
