@@ -36,9 +36,8 @@ export default function RecordTab({
   /**
    * tab：底部导航中间的「记录」；
    * orb：记录页导航右边的四色光圈话筒（轻点打字 / 拍照，按住说话）；
-   * hero：空的一天放在页面中间的大号四色光圈话筒，下面带说法示例
    */
-  variant?: 'tab' | 'orb' | 'hero';
+  variant?: 'tab' | 'orb';
   /** 录完之后拿到音频；没接转写接口时先落成一句提示 */
   onAudioRecorded?: (blob: Blob, ms: number) => void;
   onTapStart?: () => void;
@@ -340,11 +339,10 @@ export default function RecordTab({
 
   return (
     <>
-      {variant !== 'tab' ? (() => {
-        const button = (
+      {variant === 'orb' ? (
           <button
             type="button"
-            className={`fc-rec-orb fc-voice-btn${variant === 'hero' ? ' is-hero' : ''}`}
+            className="fc-rec-orb fc-voice-btn"
             data-live={phase !== 'idle' || undefined}
             aria-label="记一条：按住说话，轻点打字或拍照"
             onPointerDown={onPointerDown}
@@ -359,16 +357,7 @@ export default function RecordTab({
           >
             <span className="fc-voice-disc"><MicFillIcon /></span>
           </button>
-        );
-        return variant === 'hero' ? (
-          <div className="fc-voice-hero">
-            {button}
-            <b>按住说话</b>
-            <span>「午饭吃了牛肉面」<br />「卧推 4 组 10 次 60 公斤」</span>
-            <small>轻点打字或拍照</small>
-          </div>
-        ) : button;
-      })() : <a
+      ) : <a
         href="/log"
         className={`fc-tab fc-rec-tab${active ? ' on' : ''}`}
         aria-current={active ? 'page' : undefined}

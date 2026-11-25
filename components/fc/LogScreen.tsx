@@ -6,7 +6,6 @@ import { createPortal } from 'react-dom';
 import AskSheet from './AskSheet';
 import { CameraIcon, MicFillIcon } from './icons';
 import { RECORD_EVENT, type RecordIntent } from './record-intent';
-import RecordTab from './RecordTab';
 import TabBar from './TabBar';
 import Timeline from './Timeline';
 import { createRecordDraft, keepRecordDraft, recordDrafts, removeRecordDraft, sendRecordDraft, type RecordDraft } from '@/lib/record-drafts';
@@ -302,8 +301,11 @@ export default function LogScreen({ ledgerHasRecords, empty = false }: { ledgerH
 
       {!ledgerHasRecords && <Timeline entries={[]} />}
 
-      {/* 空的一天：大号四色光圈话筒是页面主角；有记录后收成导航旁边的小号 */}
-      {empty && <RecordTab variant="hero" active />}
+      {/* 空的一天只放一句话（11 月 25 日用户觉得中间的大话筒太丑）；录音键在导航右边 */}
+      {empty && <div className="record-empty">
+        <b>今天还没有记录</b>
+        <span>按住右下角的话筒说一句<br />轻点可以打字或拍照</span>
+      </div>}
 
       <div className="fc-dock" aria-busy={working}>
         <div className="fc-dock-inner">
