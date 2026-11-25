@@ -86,7 +86,7 @@ export default async function LogPage({ searchParams }: { searchParams: Promise<
       {!past && <CoachPreview entry="tile" />}
       <div id="record-recovery-slot" />
       <LedgerDeck key={`${today}:${selectedCard ?? ''}`} items={items} cards={day.entries} picks={picks}
-        nowMinutes={past ? null : minutesOf(new Date().toISOString())} past={Boolean(past)} selectedCard={selectedCard} />
+        past={Boolean(past)} selectedCard={selectedCard} />
       {/* 录入面板、拍照和底部导航沿用手账的 LogScreen（入口是导航右边的话筒圆钮和底部「记录」）；空状态由上面的卡片承担。回看某一天时不显示录入 */}
       {!past && <div className="fc ledger-dock-scope">
         <LogScreen ledgerHasRecords empty={items.length === 0} />

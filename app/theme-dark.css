@@ -151,3 +151,7 @@ html[data-theme="dark"] .fc-sheet .fc-input:focus { border-color: #8a8d92; }
 html[data-theme="dark"] .fc-sheet .fc-examples button { border-color: #34363a; }
 html[data-theme="dark"] .fc-sheet .fc-btn.primary { background: #ecebe6; color: #151613; }
 html[data-theme="dark"] .fc-sheet .fc-btn.ghost { background: #26272b; color: #eeefea; }
+
+/* .fc 作用域（replica.css）里写死了白天的次级字色、细线和浅底，夜间看不清（记录明细的组次、「编辑」等）：夜间换成深色版 */
+html[data-theme="dark"] .fc { --ink-2: #c2c4be; --hair: #2a2d31; --hair-2: #34363a; --green-line: #464a4f; --sage: #222428; }
+html[data-theme="dark"] .fc.ledger-detail .fc-ledger-edit form > button { background: #ecebe6; color: #151613; }

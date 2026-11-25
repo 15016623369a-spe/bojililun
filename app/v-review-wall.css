@@ -196,13 +196,18 @@ html:not([data-theme="dark"]) .rw-legend b { color: color-mix(in srgb, var(--c, 
 
 /* ---------- 抽屉 ---------- */
 html.rw-lock { overflow: hidden; }
-.journal-shell.is-review > :is(.journal-head, .journal-content) { transition: scale .62s var(--spring), translate .62s var(--spring); }
-.journal-shell.is-review[data-rw-open] > :is(.journal-head, .journal-content) {
+/* 抽屉打开时跟着缩小的页面部分：GlassSheet 给它们打上 data-rw-part（回顾是页头和正文，记录页不含底部录音条） */
+[data-rw-part] { transition: scale .62s var(--spring), translate .62s var(--spring); }
+.journal-shell[data-rw-open] [data-rw-part] {
   scale: calc(.93 + .07 * var(--rw-p, 0)); translate: 0 calc(12px * (1 - var(--rw-p, 0))); transform-origin: 50% var(--rw-oy, 0px);
 }
-.journal-shell.is-review[data-rw-drag] > :is(.journal-head, .journal-content) { transition: none; }
-.journal-shell.is-review .journal-footer { transition: opacity .3s ease; }
-.journal-shell.is-review[data-rw-open] .journal-footer { opacity: 0; pointer-events: none; }
+.journal-shell[data-rw-drag] [data-rw-part] { transition: none; }
+:is(.journal-shell .journal-footer, .journal-shell .fc-dock) { transition: opacity .3s ease; }
+.journal-shell[data-rw-open] :is(.journal-footer, .fc-dock) { opacity: 0; pointer-events: none; }
+/* 标题上方一行小字（记录卡的「饮食 · 00:20」） */
+.rw-sheet-titles { min-width: 0; }
+.rw-sheet-kicker { margin: 0 0 2px; font: 600 12.5px var(--font-num); color: var(--rw-mute); }
+.rw-sheet-titles h2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .rw-layer { position: fixed; inset: 0; z-index: 80; pointer-events: none; color: var(--rw-ink); }
 .rw-scrim { position: absolute; inset: 0; pointer-events: auto; }
