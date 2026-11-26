@@ -2,6 +2,29 @@
 
 import { useEffect, useRef } from 'react';
 
+const MAX_CANVAS_CACHE = 36;
+const MAX_IMG_CACHE = 64;
+const canvasCache = new Map<string, HTMLCanvasElement>();
+const imgCache = new Map<string, HTMLImageElement>();
+
+function touchCache<V>(map: Map<string, V>, key: string, value: V, max: number) {
+  map.delete(key);
+  map.set(key, value);
+  if (map.size > max) {
+    const oldest = map.keys().next().value;
+    if (oldest !== undefined) map.delete(oldest);
+  }
+}
+
+/** 空闲时预解码动作示意图，切卡时零延迟出图 */
+export function preloadImage(src: string | undefined) {
+  if (!src || typeof window === 'undefined' || imgCache.has(src)) return;
+  const img = new Image();
+  img.decoding = 'async';
+  img.onload = () => touchCache(imgCache, src, img, MAX_IMG_CACHE);
+  img.src = src;
+}
+
 /**
  * 印刷网点插画：把动作示意图按格采样亮度，在深色底上画银灰圆点。
  * 受光越多点越大，白底和描边不画点，炭黑背景从点与点之间透出来。
@@ -24,7 +47,7 @@ export default function HalftoneImage({ src, cell = 4, color = '#cfd3d6', varian
     const el = canvas.current;
     if (!el || !src) return;
     let cancelled = false;
-    let loadedImg: HTMLImageElement | null = null;
+    let loadedImg: HTMLImageElement | null = imgCache.get(src) ?? null;
 
     const render = () => {
       const img = loadedImg;
@@ -36,6 +59,18 @@ export default function HalftoneImage({ src, cell = 4, color = '#cfd3d6', varian
       el.width = w; el.height = h;
       const ctx = el.getContext('2d');
       if (!ctx) return;
+
+      const isDark = document.documentElement.dataset.theme === 'dark';
+      const cacheKey = `${src}|${cell}|${color}|${variant}|${isDark ? 1 : 0}|${w}x${h}`;
+      const cached = canvasCache.get(cacheKey);
+      if (cached) {
+        touchCache(canvasCache, cacheKey, cached, MAX_CANVAS_CACHE);
+        ctx.clearRect(0, 0, w, h);
+        ctx.drawImage(cached, 0, 0);
+        el.dataset.ready = '';
+        return;
+      }
+
       const off = document.createElement('canvas');
       off.width = w; off.height = h;
       const octx = off.getContext('2d', { willReadFrequently: true });
@@ -48,10 +83,12 @@ export default function HalftoneImage({ src, cell = 4, color = '#cfd3d6', varian
       let data: Uint8ClampedArray;
       try { data = octx.getImageData(0, 0, w, h).data; } catch { el.dataset.failed = ''; return; }
       const step = cell * dpr;
-      ctx.clearRect(0, 0, w, h);
+      const out = document.createElement('canvas');
+      out.width = w; out.height = h;
+      const rctx = out.getContext('2d');
+      if (!rctx) return;
 
       if (variant === 'sculpture') {
-        const isDark = document.documentElement.dataset.theme === 'dark';
         const rgb = isDark ? '210,216,224' : '26,28,25';
         // 自动采样图片四角亮度，兼容纯白与浅灰底素材，彻底杜绝方形底框
         const ox = Math.max(0, Math.floor((w - dw) / 2) + 2);
@@ -88,37 +125,47 @@ export default function HalftoneImage({ src, cell = 4, color = '#cfd3d6', varian
             if (r < 0.28 * dpr) continue;
             const maxAlpha = isDark ? 0.64 : 0.54;
             const alpha = Math.min(maxAlpha, (0.16 + maxAlpha * tone) * edge);
-            ctx.fillStyle = `rgba(${rgb},${alpha.toFixed(3)})`;
-            ctx.beginPath();
-            ctx.arc(x, y, r, 0, Math.PI * 2);
-            ctx.fill();
+            rctx.fillStyle = `rgba(${rgb},${alpha.toFixed(3)})`;
+            rctx.beginPath();
+            rctx.arc(x, y, r, 0, Math.PI * 2);
+            rctx.fill();
           }
         }
-        el.dataset.ready = '';
-        return;
-      }
-
-      ctx.fillStyle = color;
-      for (let y = step / 2; y < h; y += step) {
-        for (let x = step / 2; x < w; x += step) {
-          const i = (Math.floor(y) * w + Math.floor(x)) * 4;
-          const lum = (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]) / 255;
-          if (lum > 0.975) continue;
-          const r = step * 0.5 * (0.25 + 0.75 * Math.pow(Math.min(1, lum / 0.92), 1.4));
-          if (r < 0.35 * dpr) continue;
-          ctx.beginPath();
-          ctx.arc(x, y, r, 0, Math.PI * 2);
-          ctx.fill();
+      } else {
+        rctx.fillStyle = color;
+        for (let y = step / 2; y < h; y += step) {
+          for (let x = step / 2; x < w; x += step) {
+            const i = (Math.floor(y) * w + Math.floor(x)) * 4;
+            const lum = (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]) / 255;
+            if (lum > 0.975) continue;
+            const r = step * 0.5 * (0.25 + 0.75 * Math.pow(Math.min(1, lum / 0.92), 1.4));
+            if (r < 0.35 * dpr) continue;
+            rctx.beginPath();
+            rctx.arc(x, y, r, 0, Math.PI * 2);
+            rctx.fill();
+          }
         }
       }
+
+      touchCache(canvasCache, cacheKey, out, MAX_CANVAS_CACHE);
+      ctx.clearRect(0, 0, w, h);
+      ctx.drawImage(out, 0, 0);
       el.dataset.ready = '';
     };
 
-    const img = new Image();
-    img.decoding = 'async';
-    img.onload = () => { loadedImg = img; render(); };
-    img.onerror = () => { el.dataset.failed = ''; };
-    img.src = src;
+    if (loadedImg) {
+      render();
+    } else {
+      const img = new Image();
+      img.decoding = 'async';
+      img.onload = () => {
+        touchCache(imgCache, src, img, MAX_IMG_CACHE);
+        loadedImg = img;
+        render();
+      };
+      img.onerror = () => { el.dataset.failed = ''; };
+      img.src = src;
+    }
 
     const mo = variant === 'sculpture'
       ? new MutationObserver(() => { if (loadedImg) render(); })

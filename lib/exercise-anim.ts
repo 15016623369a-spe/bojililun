@@ -3,17 +3,27 @@ import path from 'node:path';
 
 const SAFE_ID = /^[A-Za-z0-9_-]+$/;
 
+type SculptureMedia = { hasSculpture: boolean; mp4Url?: string; kfSheetUrl?: string };
+
+let cachedPublicSet: { mtimeMs: number; set: Set<string> } | null = null;
+const mediaCache = new Map<string, SculptureMedia>();
+
 function loadPublicSet(): Set<string> {
   const indexPath = path.join(process.cwd(), 'data', 'sculpture-exercises.json');
   try {
-    if (fs.existsSync(indexPath)) {
-      const list = JSON.parse(fs.readFileSync(indexPath, 'utf8'));
-      if (Array.isArray(list)) return new Set(list.map(String));
+    const stat = fs.statSync(indexPath);
+    if (cachedPublicSet && cachedPublicSet.mtimeMs === stat.mtimeMs) return cachedPublicSet.set;
+    const list = JSON.parse(fs.readFileSync(indexPath, 'utf8'));
+    if (Array.isArray(list)) {
+      const set = new Set(list.map(String));
+      cachedPublicSet = { mtimeMs: stat.mtimeMs, set };
+      mediaCache.clear();
+      return set;
     }
   } catch {
     /* ignore broken index */
   }
-  return new Set();
+  return cachedPublicSet?.set ?? new Set();
 }
 
 function localAnimRoot(): string {
@@ -43,27 +53,30 @@ export function hasLocalDevSculptureAnim(id: string): boolean {
 }
 
 export function hasSculptureAnim(id: string): boolean {
-  return inPublicSculptureSet(id) || hasLocalDevSculptureAnim(id);
+  return sculptureMediaUrls(id).hasSculpture;
 }
 
-export function sculptureMediaUrls(id: string): {
-  hasSculpture: boolean;
-  mp4Url?: string;
-  kfSheetUrl?: string;
-} {
+export function sculptureMediaUrls(id: string): SculptureMedia {
+  if (!isValidExerciseId(id)) return { hasSculpture: false };
+  loadPublicSet(); // 若索引文件更新则自动失效缓存
+  const hit = mediaCache.get(id);
+  if (hit) return hit;
+  let result: SculptureMedia;
   if (inPublicSculptureSet(id)) {
-    return {
+    result = {
       hasSculpture: true,
       mp4Url: `/sculpture-exercises/mp4/${id}.mp4`,
       kfSheetUrl: `/sculpture-exercises/kf/${id}.jpg`,
     };
-  }
-  if (hasLocalDevSculptureAnim(id)) {
-    return {
+  } else if (hasLocalDevSculptureAnim(id)) {
+    result = {
       hasSculpture: true,
       mp4Url: `/api/exercise-anim/${id}?kind=mp4`,
       kfSheetUrl: `/api/exercise-anim/${id}?kind=kf`,
     };
+  } else {
+    result = { hasSculpture: false };
   }
-  return { hasSculpture: false };
+  mediaCache.set(id, result);
+  return result;
 }

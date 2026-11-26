@@ -31,6 +31,42 @@ interface Row {
   gif_url?: string;
 }
 
+interface IndexedRow extends Row {
+  _name: string;
+  _zh: string;
+  _target: string;
+  _stretch: boolean;
+}
+
+let catalogCache: { key: string; rows: IndexedRow[]; counts: Record<string, number> } | null = null;
+
+function getExerciseCatalog(withSteps: boolean) {
+  const db = getDb();
+  const dbKey = `${process.env.FITCHECK_DB_PATH || 'default'}:${withSteps ? 1 : 0}`;
+  if (catalogCache && catalogCache.key === dbKey) return catalogCache;
+  const raw = db
+    .prepare(
+      `SELECT id, name, zh_name, equipment, target, body_part, image, mechanic, movement_pattern, metabolic_demand, met_range, fatigue_level, recommended_rep_range${withSteps ? ", secondary_muscles, zh, zh_steps, gif_url" : ""} FROM exercise`,
+    )
+    .all() as unknown as Row[];
+  const counts: Record<string, number> = {};
+  for (const g of MUSCLES) counts[g.id] = 0;
+  const rows: IndexedRow[] = raw.map((r) => {
+    for (const g of MUSCLES) {
+      if (muscleMatchesExercise(g, r)) counts[g.id] += 1;
+    }
+    return {
+      ...r,
+      _name: r.name.toLowerCase(),
+      _zh: r.zh_name.toLowerCase(),
+      _target: r.target.toLowerCase(),
+      _stretch: /stretch|mobility|yoga|foam roll/i.test(r.name),
+    };
+  });
+  catalogCache = { key: dbKey, rows, counts };
+  return catalogCache;
+}
+
 export async function GET(req: Request) {
   const sp = new URL(req.url).searchParams;
   const muscleId = sp.get("muscle") ?? "";
@@ -52,40 +88,27 @@ export async function GET(req: Request) {
   // steps=1：字典页要动作要点（数据集里的中文分步说明）
   const withSteps = sp.get("steps") === "1";
 
-  const db = getDb();
   const preferences = showPreferences ? getExercisePreferences() : undefined;
-  const rows = db
-    .prepare(
-      `SELECT id, name, zh_name, equipment, target, body_part, image, mechanic, movement_pattern, metabolic_demand, met_range, fatigue_level, recommended_rep_range${withSteps ? ", secondary_muscles, zh, zh_steps, gif_url" : ""} FROM exercise`,
-    )
-    .all() as unknown as Row[];
-
-  const counts: Record<string, number> = {};
-  for (const g of MUSCLES) counts[g.id] = 0;
+  const { rows, counts } = getExerciseCatalog(withSteps);
 
   const region = atlasRegions.find((entry) => entry.id === sp.get("region"));
   const def = muscleById(region?.group ?? muscleId);
   const regionalIds = region?.exerciseIds ? new Set(region.exerciseIds) : null;
   // 口语别名（蝴蝶机夹胸…）映射到动作库标准名，搜索别名也能命中真实动作
-  const aliasTerms = Object.entries(EXERCISE_ALIASES)
-    .filter(
-      ([alias]) => query && (alias.includes(query) || query.includes(alias)),
-    )
-    .map(([, canonical]) => canonical.toLowerCase());
-  const matches: Row[] = [];
+  const aliasTerms = query
+    ? Object.entries(EXERCISE_ALIASES)
+        .filter(([alias]) => alias.includes(query) || query.includes(alias))
+        .map(([, canonical]) => canonical.toLowerCase())
+    : [];
+  const matches: IndexedRow[] = [];
 
   for (const r of rows) {
-    for (const g of MUSCLES) {
-      if (muscleMatchesExercise(g, r)) {
-        counts[g.id] += 1;
-      }
-    }
     const matchesQuery =
       !query ||
-      r.name.toLowerCase().includes(query) ||
-      r.zh_name.toLowerCase().includes(query) ||
-      r.target.toLowerCase().includes(query) ||
-      aliasTerms.some((term) => r.zh_name.toLowerCase().includes(term));
+      r._name.includes(query) ||
+      r._zh.includes(query) ||
+      r._target.includes(query) ||
+      aliasTerms.some((term) => r._zh.includes(term));
     const matchesScope = group
       ? sculptureGroupMatches(group.id, r)
       : regionalIds
@@ -94,12 +117,7 @@ export async function GET(req: Request) {
           ? muscleMatchesExercise(def, r)
           : !muscleId && !sp.get("region");
     if (!matchesQuery || !matchesScope) continue;
-    if (
-      planOrder &&
-      preferences?.get(r.id) !== "liked" &&
-      /stretch|mobility|yoga|foam roll/i.test(r.name)
-    )
-      continue;
+    if (planOrder && preferences?.get(r.id) !== "liked" && r._stretch) continue;
     if (parts.length && !parts.includes(r.body_part)) continue;
     if (equipment.length && !equipment.includes(r.equipment)) continue;
     if (
