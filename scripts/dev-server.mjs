@@ -18,7 +18,7 @@ const child = spawn(
   process.execPath,
   [
     path.join(root, 'node_modules/next/dist/bin/next'),
-    'dev', '-p', String(INTERNAL_PORT),
+    'dev', '--turbopack', '-p', String(INTERNAL_PORT),
     '--experimental-https',
     '--experimental-https-key', 'certificates/localhost-key.pem',
     '--experimental-https-cert', 'certificates/localhost.pem',

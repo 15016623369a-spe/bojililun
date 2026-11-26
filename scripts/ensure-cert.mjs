@@ -14,12 +14,21 @@ const dir = path.join(root, 'certificates');
 const cert = path.join(dir, 'localhost.pem');
 const key = path.join(dir, 'localhost-key.pem');
 
-if (fs.existsSync(cert) && fs.existsSync(key)) process.exit(0);
-
 const ips = Object.values(os.networkInterfaces())
   .flat()
   .filter((i) => i && i.family === 'IPv4' && !i.internal)
   .map((i) => i.address);
+
+if (fs.existsSync(cert) && fs.existsSync(key)) {
+  try {
+    const ext = execFileSync('openssl', ['x509', '-in', cert, '-noout', '-ext', 'subjectAltName'], { encoding: 'utf8' });
+    if (ips.every((ip) => ext.includes(`IP Address:${ip}`))) process.exit(0);
+    console.log('[ensure-cert] 检测到局域网 IP 变化，正在更新自签证书…');
+  } catch {
+    process.exit(0);
+  }
+}
+
 const san = ['DNS:localhost', 'IP:127.0.0.1', ...ips.map((ip) => `IP:${ip}`)].join(',');
 
 fs.mkdirSync(dir, { recursive: true });

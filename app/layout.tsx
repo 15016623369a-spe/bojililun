@@ -22,6 +22,15 @@ import './theme-dark.css';
 export const metadata: Metadata = {
   title: 'FitCheck · 健身记录',
   description: '用语音记下饮食和训练，回顾自己的记录。',
+  appleWebApp: {
+    capable: true,
+    title: 'FitCheck',
+    statusBarStyle: 'default',
+  },
+  icons: {
+    icon: '/icons/icon-192.png',
+    apple: '/icons/apple-touch-icon.png',
+  },
 };
 
 export async function generateViewport(): Promise<Viewport> {
