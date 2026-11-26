@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { cookies } from 'next/headers';
 import RecordUndoNotice from '@/components/RecordUndoNotice';
+import OfflineRuntime from '@/components/OfflineRuntime';
 import './globals.css';
 import './journal.css';
 import './replica.css';
@@ -43,7 +44,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const theme = (await cookies()).get('fc-theme')?.value === 'dark' ? 'dark' : 'light';
   return (
     <html lang="zh-CN" data-theme={theme}>
-      <body>{children}<RecordUndoNotice /></body>
+      <body>{children}<RecordUndoNotice /><OfflineRuntime /></body>
     </html>
   );
 }

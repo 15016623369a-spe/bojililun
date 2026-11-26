@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'FitCheck',
     short_name: 'FitCheck',
     description: '给认真举铁的人，一块干净的力量训练仪表。',
-    start_url: '/',
+    start_url: '/train',
     display: 'standalone',
     orientation: 'portrait',
     background_color: '#0e0f10',

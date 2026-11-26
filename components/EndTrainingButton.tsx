@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { offlineFetch } from '@/lib/offline-api';
 import HoldToEndTraining from './HoldToEndTraining';
 import Icon from './ui/Icon';
 
@@ -23,7 +24,7 @@ export default function EndTrainingButton({ sessionId, completedSets, disabled, 
     setBusy(true);
     setError(null);
     try {
-      const response = await fetch('/api/session', {
+      const response = await offlineFetch('/api/session', {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ id: sessionId }),

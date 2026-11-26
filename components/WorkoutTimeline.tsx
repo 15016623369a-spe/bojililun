@@ -6,6 +6,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PlanItem, SetRow } from '@/lib/types';
 import { buildHorizontalSlots, buildWorkoutTimeline, formatClock, formatHHMM } from '@/lib/timeline';
 import { playCheckClick, playChime, playStepTick, unlockChime, useWakeLock } from '@/lib/rest-alert';
+import { offlineFetch } from '@/lib/offline-api';
+import { readOfflineSnapshot, readOutbox } from '@/lib/offline-store';
 import EndTrainingButton from './EndTrainingButton';
 import Icon from './ui/Icon';
 import { preloadImage } from './ui/HalftoneImage';
@@ -65,6 +67,26 @@ export default function WorkoutTimeline({
   useEffect(() => { setSets(initialSets); }, [initialSets]);
   useEffect(() => { setDemoMap((c) => ({ ...demonstrations, ...c })); }, [demonstrations]);
 
+  // 离线打开或存在未同步的本地记录时，立即用手机本地数据库覆盖缓存页里的旧快照
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const [outbox, snap] = await Promise.all([readOutbox(), readOfflineSnapshot()]);
+      if (cancelled || !snap) return;
+      if (!navigator.onLine || outbox.length > 0) {
+        setPlan(snap.plan);
+        setSession(snap.activeSession);
+        setSets(snap.currentSets);
+        setDemoMap((c) => ({ ...c, ...snap.demoMap }));
+        setActivePlanId((cur) => {
+          if (cur && snap.plan.some((p) => p.id === cur)) return cur;
+          return snap.currentSets.at(-1)?.plan_item_id ?? snap.plan[0]?.id ?? null;
+        });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   useEffect(() => {
     setNowMs(Date.now());
     try {
@@ -94,7 +116,7 @@ export default function WorkoutTimeline({
     if (!addOpen) return;
     const ctrl = new AbortController();
     const t = window.setTimeout(() => {
-      fetch(`/api/exercises?order=plan&limit=24&q=${encodeURIComponent(addQuery.trim())}`, { signal: ctrl.signal })
+      offlineFetch(`/api/exercises?order=plan&limit=24&q=${encodeURIComponent(addQuery.trim())}`, { signal: ctrl.signal })
         .then((r) => r.json())
         .then((d: { items?: { id: string; zh_name: string; name: string }[] }) => setAddResults(d.items ?? []))
         .catch(() => {});
@@ -126,7 +148,7 @@ export default function WorkoutTimeline({
 
   async function ensureSession(firstPlanItemId: number): Promise<{ id: number; startedAt: string; date?: string }> {
     if (session) return session;
-    const res = await fetch('/api/session', {
+    const res = await offlineFetch('/api/session', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ guided: true, firstPlanItemId }),
@@ -227,7 +249,7 @@ export default function WorkoutTimeline({
       try { sessionStorage.removeItem(liftKey); } catch { /* ignore */ }
       setNowMs(now);
 
-      const res = await fetch('/api/session/set', {
+      const res = await offlineFetch('/api/session/set', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -252,7 +274,7 @@ export default function WorkoutTimeline({
       if (!res.ok || !result.sets) throw new Error(result.error || '保存失败，请重试');
       setSets(result.sets);
       setNowMs(Date.now());
-      router.refresh();
+      if (navigator.onLine) router.refresh();
     } catch (e) {
       setSets(prevSets);
       setLifting(prevLifting);
@@ -264,7 +286,7 @@ export default function WorkoutTimeline({
   }
 
   async function handleEditSet(id: number, weight: number, reps: number) {
-    const res = await fetch('/api/session/set', {
+    const res = await offlineFetch('/api/session/set', {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ id, weight, reps }),
@@ -276,7 +298,7 @@ export default function WorkoutTimeline({
   }
 
   async function handleDeleteSet(id: number) {
-    const res = await fetch(`/api/session/set?id=${id}&live=1`, { method: 'DELETE' });
+    const res = await offlineFetch(`/api/session/set?id=${id}&live=1`, { method: 'DELETE' });
     const data = (await res.json()) as { allSets?: SetRow[]; error?: string };
     if (!res.ok) { setErr(data.error || '删除失败'); return; }
     setSets(data.allSets ?? sets.filter((s) => s.id !== id));
@@ -291,8 +313,8 @@ export default function WorkoutTimeline({
       setActivePlanId(neighbor);
     }
     setPlan((cur) => cur.filter((p) => p.id !== id));
-    await fetch(`/api/plan?id=${id}`, { method: 'DELETE' });
-    router.refresh();
+    await offlineFetch(`/api/plan?id=${id}`, { method: 'DELETE' });
+    if (navigator.onLine) router.refresh();
   }
 
   async function addExercise(exerciseId: string) {
@@ -301,7 +323,7 @@ export default function WorkoutTimeline({
     setErr('');
     try {
       const planDate = session?.date ?? plan[0]?.date ?? today;
-      const res = await fetch('/api/plan', {
+      const res = await offlineFetch('/api/plan', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ exerciseId, date: planDate }),
@@ -322,7 +344,7 @@ export default function WorkoutTimeline({
   }
 
   function persistOrder(next: PlanItem[]) {
-    void fetch('/api/plan', {
+    void offlineFetch('/api/plan', {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ reorder: next.map((p) => p.id), date: session?.date ?? next[0]?.date ?? today }),
@@ -406,7 +428,7 @@ export default function WorkoutTimeline({
               setLifting(null);
               try { sessionStorage.removeItem(liftKey); } catch { /* ignore */ }
               haptic(12);
-              router.refresh();
+              if (navigator.onLine) router.refresh();
             }}
           />
         </div>
