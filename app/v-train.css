@@ -37,11 +37,29 @@
   color: var(--gray-1);
 }
 .free-live-strip .runner-quiet {
-  padding: 4px 0;
-  font-size: 13px;
-  color: var(--gray-1);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 11px;
+  border-radius: 999px;
+  background: rgb(var(--dk-fg-rgb, 21 22 19) / 8%);
+  box-shadow: inset 0 0 0 1px rgb(var(--dk-fg-rgb, 21 22 19) / 10%);
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--ink-0);
   text-decoration: none;
+  transition: transform .14s var(--ease-spring), opacity .14s ease;
 }
+.free-live-strip .runner-quiet::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 1.5px;
+  background: var(--min-coral, #c2412d);
+  opacity: .85;
+}
+.free-live-strip .runner-quiet:active { transform: scale(.94); opacity: .75; }
 .free-live-strip .finish-inline { flex-basis: 100%; }
 .free-plan-bar {
   display: flex;
@@ -2445,6 +2463,7 @@ html[data-theme="dark"] .finish-inline { background: #1a1c1f; border-color: #2a2
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 9px;
   margin-top: 6px;
 }
 .wt-action-pill {
@@ -2478,16 +2497,22 @@ html[data-theme="dark"] .finish-inline { background: #1a1c1f; border-color: #2a2
 .wt-action-pill:active { transform: scale(.94); }
 .wt-action-pill:disabled { opacity: .45; }
 .wt-side-ghost {
-  position: absolute;
-  left: calc(100% + 12px);
-  white-space: nowrap;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--gray-1);
-  padding: 6px 8px;
+  height: 44px;
+  padding: 0 15px;
   border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  font: 550 13.5px/1 var(--font-num);
+  color: var(--ink-0);
+  background: rgb(var(--dk-fg-rgb, 21 22 19) / 8%);
+  box-shadow: inset 0 0 0 1px rgb(var(--dk-fg-rgb, 21 22 19) / 11%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: transform .15s var(--ease-spring), opacity .15s ease;
 }
-.wt-side-ghost:active { opacity: .6; }
+.wt-side-ghost:active { transform: scale(.94); opacity: .75; }
 .wt-segs.is-apple-laps {
   margin: 4px 0 0;
   padding: 0;
@@ -2538,10 +2563,20 @@ html[data-theme="dark"] .finish-inline { background: #1a1c1f; border-color: #2a2
 .wt-lap-rest.is-live[data-phase="ready"] > span { color: var(--min-green); }
 .wt-lap-rest[data-phase="long"] small,
 .wt-lap-rest.is-live[data-phase="long"] > span { color: var(--min-coral); }
-.wt-segs .rn-min-edit { flex-wrap: nowrap; gap: 4px; padding: 6px 0 8px; }
+.wt-segs .rn-min-edit { flex-wrap: nowrap; gap: 5px; padding: 6px 0 8px; }
 .wt-segs .rn-min-edit label { padding: 5px 6px; gap: 2px; }
-.wt-segs .rn-min-edit input { width: 3.4ch; font-size: 13.5px; }
-.wt-segs .rn-min-edit button { white-space: nowrap; flex: none; font-size: 12px; padding-inline: 7px; }
+.wt-segs .rn-min-edit input { width: 3.3ch; font-size: 13.5px; }
+.wt-segs .rn-min-edit button {
+  white-space: nowrap;
+  flex: none;
+  height: 28px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 550;
+}
+.wt-segs .rn-min-edit .rn-min-del { background: rgb(240 99 81 / 14%); color: var(--min-coral); }
+.wt-segs .rn-min-edit .rn-edit-cancel { background: rgb(var(--dk-fg-rgb, 21 22 19) / 8%); color: var(--ink-0); }
 .wt-lap-rest[data-phase="long"] small { color: var(--min-coral); }
 
 .ht-dock {
@@ -2740,16 +2775,20 @@ html[data-theme="dark"] .finish-inline { background: #1a1c1f; border-color: #2a2
 /* ---------- 3D Cover Flow 横向透视时间轴 + Apple Wallet 纵深叠放 ---------- */
 .ht-bar-actions { display: inline-flex; align-items: center; gap: 7px; }
 .ht-mini-add {
-  padding: 4px 9px;
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 11px;
   border-radius: 999px;
-  background: rgb(var(--dk-fg-rgb, 21 22 19) / 9%);
+  background: rgb(var(--dk-fg-rgb, 21 22 19) / 8%);
+  box-shadow: inset 0 0 0 1px rgb(var(--dk-fg-rgb, 21 22 19) / 10%);
   color: var(--ink-0);
-  font-size: 11.5px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 550;
   text-decoration: none;
+  transition: transform .14s var(--ease-spring), opacity .14s ease;
 }
-.ht-mini-add.is-ghost { background: transparent; color: var(--gray-1); padding-inline: 5px; }
-.ht-mini-add:active { opacity: .65; }
+.ht-mini-add:active { transform: scale(.94); opacity: .75; }
 
 .ht-ruler {
   position: relative;
