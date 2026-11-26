@@ -64,7 +64,10 @@ export default function TimelineBlockActive({
   const weightNum = Number(weight) || 0;
   const repsNum = Number(reps) || 10;
   // 超过 1 小时静默归零待命，避免隔夜未结束训练挂着十几个小时的大数字
-  const isRestingNow = !isLiftingThis && !isLiftingOther && hasPriorSet && liveRestSec < STALE_REST_SEC;
+  const hasActiveRestWindow = hasPriorSet && liveRestSec < STALE_REST_SEC;
+  const isRestingNow = !isLiftingThis && !isLiftingOther && hasActiveRestWindow;
+  // 开组瞬间立刻定格刚结束的那段休息行（绝不消失再等完组后才补出来）
+  const lockedRestBeforeLift = isLiftingThis && hasActiveRestWindow && liveRestSec > 0;
   const phase: RestPhase = isLiftingThis
     ? 'lifting'
     : isRestingNow
@@ -82,7 +85,7 @@ export default function TimelineBlockActive({
   useEffect(() => {
     const el = lapsRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [block.segments.length, isLiftingThis, isRestingNow]);
+  }, [block.segments.length, isLiftingThis, isRestingNow, lockedRestBeforeLift]);
 
   function stepWeight(delta: number) {
     haptic(5);
@@ -218,7 +221,10 @@ export default function TimelineBlockActive({
                   <button
                     type="button"
                     className="wt-seg-row is-3col"
-                    onClick={() => setEditing((cur) => (cur?.id === seg.set.id ? null : { id: seg.set.id, weight: String(seg.set.weight), reps: String(seg.set.reps) }))}
+                    onClick={() => {
+                      if (seg.set.id < 0) return;
+                      setEditing((cur) => (cur?.id === seg.set.id ? null : { id: seg.set.id, weight: String(seg.set.weight), reps: String(seg.set.reps) }));
+                    }}
                   >
                     <span className="wt-seg-idx">第 {seg.setIndex} 组</span>
                     <b className="wt-lap-mid">{seg.set.weight > 0 ? `${seg.set.weight} kg × ${seg.set.reps} 次` : `自重 × ${seg.set.reps} 次`}</b>
@@ -236,6 +242,12 @@ export default function TimelineBlockActive({
                 </li>
               </Fragment>
             ),
+          )}
+          {lockedRestBeforeLift && (
+            <li className="wt-lap-rest" data-phase={restPhase(liveRestSec, block.restSec, false)}>
+              <span>{isSwitching ? '换项休息' : '休息'}</span>
+              <small>{formatClock(liveRestSec)}</small>
+            </li>
           )}
           {isLiftingThis && (
             <li className="wt-seg-lift is-live">

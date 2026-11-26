@@ -178,16 +178,43 @@ export default function WorkoutTimeline({
     const isPr = prior > 0 && e1rm(wVal, rVal) > prior + 0.05;
     playCheckClick(isPr);
     haptic(isPr ? [16, 45, 26] : 14);
+    const prevSets = sets;
+    const prevLifting = lifting;
     try {
       const active = await ensureSession(planItemId);
       const now = Date.now();
       const prev = timeline.lastSet;
       const prevEndMs = prev ? Date.parse(prev.created_at) : Date.parse(active.startedAt);
-      const isThisLift = lifting?.planItemId === planItemId;
-      const liftStart = isThisLift ? lifting.startedAtMs : null;
+      const isThisLift = prevLifting?.planItemId === planItemId;
+      const liftStart = isThisLift ? prevLifting.startedAtMs : null;
       const actualRest = prev ? Math.max(0, Math.round(((liftStart ?? now) - prevEndMs) / 1000)) : undefined;
       const durationSec = liftStart ? Math.max(1, Math.round((now - liftStart) / 1000)) : 0;
-      const setIndex = sets.filter((s) => s.plan_item_id === planItemId).length + 1;
+      const setIndex = prevSets.filter((s) => s.plan_item_id === planItemId).length + 1;
+
+      // 完组瞬间乐观落组并立刻切入组间休息，零等待延迟
+      const optimistic: SetRow = {
+        id: -now,
+        session_id: active.id,
+        plan_item_id: p.id,
+        exercise_id: p.exercise_id,
+        exercise_name: p.name,
+        body_part: p.body_part,
+        target: p.target,
+        set_index: setIndex,
+        weight: wVal,
+        reps: rVal,
+        duration_sec: durationSec,
+        rest_sec: p.rest_sec,
+        actual_rest_sec: null,
+        created_at: new Date(now).toISOString(),
+      };
+      const nextOptimisticSets = prev && actualRest != null
+        ? [...prevSets.map((s) => (s.id === prev.id ? { ...s, actual_rest_sec: actualRest } : s)), optimistic]
+        : [...prevSets, optimistic];
+      setSets(nextOptimisticSets);
+      setLifting(null);
+      try { sessionStorage.removeItem(liftKey); } catch { /* ignore */ }
+      setNowMs(now);
 
       const res = await fetch('/api/session/set', {
         method: 'POST',
@@ -213,11 +240,11 @@ export default function WorkoutTimeline({
       const result = (await res.json()) as { sets?: SetRow[]; error?: string };
       if (!res.ok || !result.sets) throw new Error(result.error || '保存失败，请重试');
       setSets(result.sets);
-      setLifting(null);
-      try { sessionStorage.removeItem(liftKey); } catch { /* ignore */ }
       setNowMs(Date.now());
       router.refresh();
     } catch (e) {
+      setSets(prevSets);
+      setLifting(prevLifting);
       setErr((e as Error).message);
     } finally {
       lock.current = false;
