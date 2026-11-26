@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PlanItem, SetRow } from '@/lib/types';
 import { buildHorizontalSlots, buildWorkoutTimeline, formatClock, formatHHMM } from '@/lib/timeline';
 import { playCheckClick, playChime, playStepTick, unlockChime, useWakeLock } from '@/lib/rest-alert';
 import EndTrainingButton from './EndTrainingButton';
 import Icon from './ui/Icon';
+import { preloadImage } from './ui/HalftoneImage';
 import TimelineBlockActive, { type DemoMedia } from './TimelineBlockActive';
 import HorizontalTimelineDock from './HorizontalTimelineDock';
 
@@ -76,8 +77,17 @@ export default function WorkoutTimeline({
         }
       }
     } catch { /* ignore */ }
-    const id = window.setInterval(() => setNowMs(Date.now()), 250);
-    return () => window.clearInterval(id);
+    const onVis = () => {
+      if (!document.hidden) setNowMs(Date.now());
+    };
+    const id = window.setInterval(() => {
+      if (!document.hidden) setNowMs(Date.now());
+    }, 1000);
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', onVis);
+    };
   }, [liftKey]);
 
   useEffect(() => {
@@ -94,13 +104,14 @@ export default function WorkoutTimeline({
 
   useWakeLock(Boolean(session || lifting));
 
-  const timeline = buildWorkoutTimeline({
+  const clockMs = nowMs ?? Date.parse(`${today}T12:00:00`);
+  const timeline = useMemo(() => buildWorkoutTimeline({
     plan,
     sets,
     activePlanItemId: activePlanId,
     liftingState: lifting,
-    nowMs: nowMs ?? Date.parse(`${today}T12:00:00`),
-  });
+    nowMs: clockMs,
+  }), [plan, sets, activePlanId, lifting, clockMs]);
 
   // 组间歇到达目标时长轻响一次
   useEffect(() => {
@@ -318,7 +329,30 @@ export default function WorkoutTimeline({
     }).catch(() => {});
   }
 
-  const { slots } = buildHorizontalSlots(timeline, null, nowMs ?? Date.parse(`${today}T12:00:00`));
+  const { slots } = useMemo(
+    () => buildHorizontalSlots(timeline, null, clockMs),
+    [timeline, clockMs],
+  );
+
+  // 空闲时预热当前卡左右相邻动作的雕塑示意图，切卡瞬间零延迟出图
+  useEffect(() => {
+    const idx = slots.findIndex((s) => s.cards[0]?.planItemId === activePlanId);
+    const center = idx >= 0 ? idx : 0;
+    const neighbors = [slots[center - 1], slots[center + 1], slots[center + 2]]
+      .map((s) => s?.cards[0]?.exerciseId)
+      .filter((id): id is string => Boolean(id));
+    if (neighbors.length === 0) return;
+    const run = () => {
+      for (const exId of neighbors) preloadImage(demoMap[exId]?.image);
+    };
+    const win = window as Partial<Window>;
+    if (typeof win.requestIdleCallback === 'function') {
+      const id = win.requestIdleCallback(run, { timeout: 500 });
+      return () => win.cancelIdleCallback?.(id);
+    }
+    const t = window.setTimeout(run, 150);
+    return () => window.clearTimeout(t);
+  }, [slots, activePlanId, demoMap]);
 
   function handleReorderCard(draggedId: number, targetIdx: number) {
     const firstFutureIdx = slots.findIndex((s) => s.isProjected && s.cards[0]?.planItemId !== lifting?.planItemId);

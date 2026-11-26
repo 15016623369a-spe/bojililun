@@ -68,6 +68,18 @@ const FILTERS: { key: string; label: string; equip: string[] }[] = [
   { key: "body", label: "自重", equip: ["body weight"] },
 ];
 
+const MAX_SHEET_CACHE = 40;
+const sheetCache = new Map<string, DictResult>();
+
+function cacheSheet(url: string, result: DictResult) {
+  sheetCache.delete(url);
+  sheetCache.set(url, result);
+  if (sheetCache.size > MAX_SHEET_CACHE) {
+    const oldest = sheetCache.keys().next().value;
+    if (oldest !== undefined) sheetCache.delete(oldest);
+  }
+}
+
 async function fetchExercises(
   url: string,
   signal: AbortSignal,
@@ -177,6 +189,7 @@ export default function ExerciseSheet({
       body: JSON.stringify({ exerciseId: item.id, preference: liked ? "liked" : null }),
     });
     if (!res.ok) throw new Error();
+    sheetCache.clear();
     setData((current) => current && {
       ...current,
       total: liked || browseAll ? current.total : Math.max(0, current.total - 1),
@@ -215,16 +228,23 @@ export default function ExerciseSheet({
     if (!muscle) return;
     const request = new AbortController();
     listRequest.current = request;
-    setBusyList(true);
+    const cached = sheetCache.get(listUrl);
     setBusyMore(false);
     setListError("");
-    setData(null);
+    if (cached) {
+      setData(cached);
+      setBusyList(false);
+    } else {
+      setBusyList(true);
+      setData(null);
+    }
     fetchExercises(listUrl, request.signal)
       .then((json) => {
+        cacheSheet(listUrl, json);
         if (!request.signal.aborted) setData(json);
       })
       .catch(() => {
-        if (!request.signal.aborted) setListError("动作列表加载失败，请重试");
+        if (!request.signal.aborted && !cached) setListError("动作列表加载失败，请重试");
       })
       .finally(() => {
         if (!request.signal.aborted) setBusyList(false);

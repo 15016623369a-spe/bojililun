@@ -119,16 +119,21 @@ export default function HorizontalTimelineDock({
 
   useEffect(() => {
     if (!drag) return;
-    const onWinMove = (event: PointerEvent) => {
+    let moveRaf: number | null = null;
+    let pendingPt: { x: number; y: number } | null = null;
+
+    const flushMove = () => {
+      moveRaf = null;
+      const pt = pendingPt;
       const cur = dragRef.current;
-      if (!cur) return;
+      if (!pt || !cur) return;
       const now = performance.now();
-      const dx = event.clientX - startPt.current.x;
-      const dy = event.clientY - startPt.current.y;
-      const vx = (event.clientX - lastMove.current.x) / Math.max(8, now - lastMove.current.t);
-      lastMove.current = { x: event.clientX, t: now };
+      const dx = pt.x - startPt.current.x;
+      const dy = pt.y - startPt.current.y;
+      const vx = (pt.x - lastMove.current.x) / Math.max(8, now - lastMove.current.t);
+      lastMove.current = { x: pt.x, t: now };
       const nextTilt = Math.max(-11, Math.min(11, vx * 12));
-      updateEdgeAutoStep(event.clientX);
+      updateEdgeAutoStep(pt.x);
       if (tiltTimer.current) window.clearTimeout(tiltTimer.current);
       tiltTimer.current = window.setTimeout(() => {
         setDrag((c) => (c ? { ...c, tilt: 0 } : null));
@@ -148,7 +153,13 @@ export default function HorizontalTimelineDock({
         return { ...c, dx, dy, tilt: c.tilt * 0.45 + nextTilt * 0.55, currentIdx: nextIdx };
       });
     };
+
+    const onWinMove = (event: PointerEvent) => {
+      pendingPt = { x: event.clientX, y: event.clientY };
+      if (moveRaf === null) moveRaf = window.requestAnimationFrame(flushMove);
+    };
     const onWinUp = () => {
+      if (moveRaf !== null) { window.cancelAnimationFrame(moveRaf); moveRaf = null; }
       clearTimers();
       const cur = dragRef.current;
       if (!cur) return;
@@ -164,6 +175,7 @@ export default function HorizontalTimelineDock({
     window.addEventListener('pointerup', onWinUp);
     window.addEventListener('pointercancel', onWinUp);
     return () => {
+      if (moveRaf !== null) window.cancelAnimationFrame(moveRaf);
       window.removeEventListener('pointermove', onWinMove);
       window.removeEventListener('pointerup', onWinUp);
       window.removeEventListener('pointercancel', onWinUp);

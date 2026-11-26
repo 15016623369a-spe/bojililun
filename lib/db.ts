@@ -370,6 +370,9 @@ function initialize(db: DatabaseSync): void {
   db.exec("PRAGMA busy_timeout = 5000");
   try {
     db.exec("PRAGMA journal_mode = WAL");
+    db.exec("PRAGMA synchronous = NORMAL");
+    db.exec("PRAGMA temp_store = MEMORY");
+    db.exec("PRAGMA cache_size = -16000");
   } catch {
     /* 内存/只读文件系统上可能不支持，忽略 */
   }
