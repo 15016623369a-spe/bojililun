@@ -251,7 +251,8 @@ export function sessionPlan(session: SessionRow): PlanItem[] {
   const snapshot = session.plan_json ? (JSON.parse(session.plan_json) as PlanItem[]) : null;
   if (!snapshot) return getPlan(session.date);
   if (session.ended_at) return snapshot;
-  // 进行中的训练实时同步当日计划：中途在计划页/模型页/训练内新增的动作立即可见，已练组所属动作始终保留
+  // 进行中的训练实时同步当日计划；若跨日继续未结束的训练，一并纳入今天新加的动作，避免刷新后消失
+  const today = todayStr();
   const liveItems = getPlan(session.date);
   const liveById = new Map(liveItems.map((entry) => [entry.id, entry]));
   const loggedIds = new Set(
@@ -261,14 +262,17 @@ export function sessionPlan(session: SessionRow): PlanItem[] {
   );
   const merged: PlanItem[] = [];
   const seen = new Set<number>();
+  const seenExercise = new Set<string>();
   for (const item of snapshot) {
     const fresh = liveById.get(item.id);
     if (fresh) {
       merged.push(fresh);
       seen.add(item.id);
+      seenExercise.add(fresh.exercise_id);
     } else if (loggedIds.has(item.id)) {
       merged.push(item);
       seen.add(item.id);
+      seenExercise.add(item.exercise_id);
     }
   }
   for (const entry of liveItems) {
@@ -276,9 +280,20 @@ export function sessionPlan(session: SessionRow): PlanItem[] {
     if (!entry.done || entry.created_at >= session.started_at || loggedIds.has(entry.id)) {
       merged.push(entry);
       seen.add(entry.id);
+      seenExercise.add(entry.exercise_id);
     }
   }
-  return merged.sort((a, b) => (a.position - b.position) || (a.id - b.id));
+  if (today > session.date) {
+    for (const entry of getPlan(today)) {
+      if (seen.has(entry.id) || seenExercise.has(entry.exercise_id)) continue;
+      if (!entry.done || entry.created_at >= session.started_at || loggedIds.has(entry.id)) {
+        merged.push(entry);
+        seen.add(entry.id);
+        seenExercise.add(entry.exercise_id);
+      }
+    }
+  }
+  return merged.sort((a, b) => a.date.localeCompare(b.date) || (a.position - b.position) || (a.id - b.id));
 }
 
 export function startSession({

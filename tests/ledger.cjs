@@ -575,6 +575,12 @@ test('自由秒表模式可超出计划组数继续加组、不强制结束，�
   assert.equal(extraRes.sets.at(-1).duration_sec, 25);
   workout.reorderPlanItems([extra.id, item.id]);
   assert.deepEqual(workout.sessionPlan(workout.getSession(session.id)).map((entry) => entry.id), [extra.id, item.id]);
+  // 跨日继续未结束的训练时，今天新加的动作不会在刷新或完组后消失，且排在原队列之后
+  db.prepare("UPDATE session SET date = '2026-01-01' WHERE id = ?").run(session.id);
+  db.prepare("UPDATE plan_item SET date = '2026-01-01' WHERE id IN (?, ?)").run(item.id, extra.id);
+  const crossDayAdded = workout.addPlanItem(getExercise('0043'), { sets: 4, reps: 10, weight: 0, date: workout.todayStr() });
+  const crossDayPlan = workout.sessionPlan(workout.getSession(session.id));
+  assert.deepEqual(crossDayPlan.map((entry) => entry.id), [extra.id, item.id, crossDayAdded.id]);
   db.close();
   fs.rmSync(tmp, { recursive: true });
 });

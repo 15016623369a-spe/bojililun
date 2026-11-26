@@ -71,7 +71,7 @@ export default function TrainPage() {
         key={`${today}:${activeSession?.id ?? 0}`}
         today={today}
         initialPlan={plan}
-        initialSession={activeSession ? { id: activeSession.id, startedAt: activeSession.started_at } : null}
+        initialSession={activeSession ? { id: activeSession.id, startedAt: activeSession.started_at, date: activeSession.date } : null}
         initialSets={activeSets}
         demonstrations={demonstrations}
         priorBest={priorBest}

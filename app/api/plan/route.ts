@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getExercise } from '@/lib/exercise';
 import { imageUrl } from '@/lib/exercise-label';
 import { sculptureMediaUrls } from '@/lib/exercise-anim';
-import { addPlanExercises, addPlanItem, completePlannedExercise, deletePlanItem, getPlan, reorderPlanItems, updatePlanItem } from '@/lib/core/workout';
+import { activeTraining, addPlanExercises, addPlanItem, completePlannedExercise, deletePlanItem, getPlan, reorderPlanItems, todayStr, updatePlanItem } from '@/lib/core/workout';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -39,19 +39,22 @@ export async function POST(req: Request) {
     const ex = getExercise(body.exerciseId);
     if (!ex) return NextResponse.json({ error: '动作不存在' }, { status: 404 });
 
+    const today = todayStr();
+    const active = activeTraining();
+    const targetDate = (!body.date || body.date === today) && active ? active.date : body.date;
     const item = addPlanItem(ex, {
       sets: body.sets,
       reps: body.reps,
       weight: body.weight,
       restSec: body.restSec,
-      date: body.date,
+      date: targetDate,
     });
     const demonstration = {
       image: ex.image ? imageUrl(ex.image) : undefined,
       hasAnimation: Boolean(ex.gif_url),
       ...sculptureMediaUrls(ex.id),
     };
-    return NextResponse.json({ item, demonstration, items: getPlan(body.date) });
+    return NextResponse.json({ item, demonstration, items: getPlan(targetDate) });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 400 });
   }
