@@ -193,6 +193,22 @@ export function deletePlanItem(id: number): string | undefined {
   return deleted?.date;
 }
 
+/** 按时间轴上安排的新顺序更新今日计划位置 */
+export function reorderPlanItems(ids: number[]): void {
+  const clean = ids.filter((id) => Number.isSafeInteger(id) && id > 0);
+  if (!clean.length) return;
+  const db = getDb();
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const stmt = db.prepare('UPDATE plan_item SET position = ? WHERE id = ?');
+    clean.forEach((id, index) => stmt.run(index + 1, id));
+    db.exec('COMMIT');
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
+}
+
 export function clearPlan(date = todayStr()): void {
   getDb().prepare('DELETE FROM plan_item WHERE date = ?').run(date);
 }
@@ -232,7 +248,37 @@ function closeFinishedTraining() {
 }
 
 export function sessionPlan(session: SessionRow): PlanItem[] {
-  return session.plan_json ? JSON.parse(session.plan_json) as PlanItem[] : getPlan(session.date);
+  const snapshot = session.plan_json ? (JSON.parse(session.plan_json) as PlanItem[]) : null;
+  if (!snapshot) return getPlan(session.date);
+  if (session.ended_at) return snapshot;
+  // 进行中的训练实时同步当日计划：中途在计划页/模型页/训练内新增的动作立即可见，已练组所属动作始终保留
+  const liveItems = getPlan(session.date);
+  const liveById = new Map(liveItems.map((entry) => [entry.id, entry]));
+  const loggedIds = new Set(
+    getSessionSets(session.id)
+      .map((s) => s.plan_item_id)
+      .filter((id): id is number => id != null),
+  );
+  const merged: PlanItem[] = [];
+  const seen = new Set<number>();
+  for (const item of snapshot) {
+    const fresh = liveById.get(item.id);
+    if (fresh) {
+      merged.push(fresh);
+      seen.add(item.id);
+    } else if (loggedIds.has(item.id)) {
+      merged.push(item);
+      seen.add(item.id);
+    }
+  }
+  for (const entry of liveItems) {
+    if (seen.has(entry.id)) continue;
+    if (!entry.done || entry.created_at >= session.started_at || loggedIds.has(entry.id)) {
+      merged.push(entry);
+      seen.add(entry.id);
+    }
+  }
+  return merged.sort((a, b) => (a.position - b.position) || (a.id - b.id));
 }
 
 export function startSession({
@@ -388,8 +434,11 @@ export function appendSessionSet(
   );
 }
 
-/** 删除一组，并把同一动作剩下的组号重新编号；返回该动作剩余的组。 */
-export function deleteSessionSet(id: number): { sets: SetRow[]; exerciseId: string; sessionId: number; undoToken: string } {
+/** 删除一组，并把同一动作剩下的组号重新编号；返回该动作剩余的组与整节最新组列表。 */
+export function deleteSessionSet(
+  id: number,
+  { allowActive = false }: { allowActive?: boolean } = {},
+): { sets: SetRow[]; allSets: SetRow[]; exerciseId: string; sessionId: number; undoToken: string } {
   const db = getDb();
   db.exec('BEGIN IMMEDIATE');
   try {
@@ -397,14 +446,15 @@ export function deleteSessionSet(id: number): { sets: SetRow[]; exerciseId: stri
     if (!row) throw new Error('训练组不存在');
     const sessionId = Number(row.session_id);
     const exerciseId = String(row.exercise_id);
-    if (!getSession(sessionId)?.ended_at) throw new Error('请在训练结束后移除训练组');
+    if (!allowActive && !getSession(sessionId)?.ended_at) throw new Error('请在训练结束后移除训练组');
     const undoToken = archiveRemoval(db, [{ table: 'session_set', rows: [row] }]);
     db.prepare('DELETE FROM session_set WHERE id = ?').run(id);
     renumberTrainingSets(db, sessionId, exerciseId);
     syncRemovedPlanItems(db, [row]);
-    const sets = getSessionSets(sessionId).filter((set) => set.exercise_id === exerciseId);
+    const allSets = getSessionSets(sessionId);
+    const sets = allSets.filter((set) => set.exercise_id === exerciseId);
     db.exec('COMMIT');
-    return { sets, exerciseId, sessionId, undoToken };
+    return { sets, allSets, exerciseId, sessionId, undoToken };
   } catch (error) {
     db.exec('ROLLBACK');
     throw error;
@@ -423,6 +473,8 @@ export function saveGuidedSet(
     previousSetId?: number;
     previousRestSec?: number;
     chooseExercise?: boolean;
+    /** 自由秒表模式：允许超出计划组数继续加组、任意切换动作，且不强制自动结束训练 */
+    freeMode?: boolean;
   },
 ): { ended: boolean; sets: SetRow[] } {
   const db = getDb();
@@ -439,9 +491,11 @@ export function saveGuidedSet(
       for (const set of sets) {
         if (set.plan_item_id !== null) completed.set(set.plan_item_id, (completed.get(set.plan_item_id) ?? 0) + 1);
       }
-      const item = plan.find((entry) => (completed.get(entry.id) ?? 0) < entry.sets
-        && (!data.chooseExercise || entry.id === data.planItemId));
-      if (item?.id !== data.planItemId || data.setIndex !== (completed.get(item.id) ?? 0) + 1) {
+      const item = data.freeMode
+        ? plan.find((entry) => entry.id === data.planItemId)
+        : plan.find((entry) => (completed.get(entry.id) ?? 0) < entry.sets
+            && (!data.chooseExercise || entry.id === data.planItemId));
+      if (!item || item.id !== data.planItemId || data.setIndex !== (completed.get(item.id) ?? 0) + 1) {
         throw new Error('训练进度已更新，请刷新后继续');
       }
       const previous = sets.at(-1);
@@ -459,8 +513,8 @@ export function saveGuidedSet(
       // 实练的重量写回今日计划：训练页显示实际重量，下次开练也从这里起
       if (data.weight > 0) db.prepare('UPDATE plan_item SET weight = ? WHERE id = ?').run(data.weight, item.id);
       completed.set(item.id, data.setIndex);
-      if (data.setIndex === item.sets) markPlanDone(item.id);
-      if (plan.every((entry) => (completed.get(entry.id) ?? 0) >= entry.sets)) finishSession(sessionId);
+      if (data.setIndex >= item.sets) markPlanDone(item.id);
+      if (!data.freeMode && plan.every((entry) => (completed.get(entry.id) ?? 0) >= entry.sets)) finishSession(sessionId);
     }
     const result = { ended: Boolean(getSession(sessionId)?.ended_at), sets: getSessionSets(sessionId) };
     db.exec('COMMIT');

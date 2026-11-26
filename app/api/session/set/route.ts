@@ -37,6 +37,7 @@ export async function POST(req: Request) {
       previousSetId?: number;
       chooseExercise?: boolean;
       previousRestSec?: number;
+      freeMode?: boolean;
       /** 回顾页追加一组：只追加，不走引导式训练进度校验 */
       append?: boolean;
     };
@@ -61,6 +62,7 @@ export async function POST(req: Request) {
         restSec: Math.min(600, clampNumber(b.restSec)),
         previousSetId: b.previousSetId,
         chooseExercise: b.chooseExercise === true,
+        freeMode: b.freeMode === true,
         previousRestSec: b.previousRestSec === undefined ? undefined : Math.min(86400, clampNumber(b.previousRestSec)),
       }));
     }
@@ -104,9 +106,11 @@ export async function PATCH(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
-    const id = Number(new URL(req.url).searchParams.get('id'));
+    const url = new URL(req.url);
+    const id = Number(url.searchParams.get('id'));
+    const live = url.searchParams.get('live') === '1';
     if (!Number.isSafeInteger(id) || id < 1) throw new Error('未找到这一组记录，请刷新重试');
-    return NextResponse.json({ ok: true, ...deleteSessionSet(id) });
+    return NextResponse.json({ ok: true, ...deleteSessionSet(id, { allowActive: live }) });
   } catch (e) {
     const error = e as Error;
     return NextResponse.json({ error: error.message }, { status: error.message === '训练组不存在' ? 404 : 400 });
