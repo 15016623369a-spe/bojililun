@@ -10,6 +10,7 @@ import ExerciseMetricsCard from "@/components/exercise/ExerciseMetricsCard";
 import ExerciseStage from "@/components/exercise/ExerciseStage";
 import type { ExercisePreference } from "@/lib/core/exercise-preferences";
 import { formatExerciseMetrics } from "@/lib/exercise-metrics";
+import { offlineFetch } from "@/lib/offline-api";
 
 interface DictItem {
   id: string;
@@ -84,7 +85,7 @@ async function fetchExercises(
   url: string,
   signal: AbortSignal,
 ): Promise<DictResult> {
-  const res = await fetch(url, { signal, cache: "no-store" });
+  const res = await offlineFetch(url, { signal, cache: "no-store" });
   if (!res.ok) throw new Error("动作列表加载失败，请重试");
   return res.json();
 }
@@ -183,7 +184,7 @@ export default function ExerciseSheet({
   }
 
   async function setLiked(item: DictItem, liked: boolean) {
-    const res = await fetch("/api/exercise-preferences", {
+    const res = await offlineFetch("/api/exercise-preferences", {
       method: "PUT",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ exerciseId: item.id, preference: liked ? "liked" : null }),

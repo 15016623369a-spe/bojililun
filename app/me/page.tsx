@@ -10,6 +10,7 @@ import { listMemories } from '@/lib/memory';
 import { cookies } from 'next/headers';
 import ThemeSwitch from '@/components/ThemeSwitch';
 import BackdropSettings from '@/components/BackdropSettings';
+import OfflineSettingsCard from '@/components/OfflineSettingsCard';
 import { readBackdropSettings } from '@/lib/core/backdrop';
 
 export const runtime = 'nodejs';
@@ -35,6 +36,7 @@ export default async function MePage() {
       nutrition={nutrition ? { ...nutrition } : null} today={todayStr()}
       preferences={{ liked: prefs.filter((p) => p === 'liked').length, disliked: prefs.filter((p) => p === 'disliked').length }} />
     <ThemeSwitch initial={theme} />
+    <OfflineSettingsCard />
     <BackdropSettings initialUrl={backdrop.url} initialGlass={backdrop.glass} />
   </JournalShell>;
 }

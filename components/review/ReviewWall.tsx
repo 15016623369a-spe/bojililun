@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties, type Keyb
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { WallData, WallHero, RangeKey } from '@/lib/review-wall';
+import { readOfflineSnapshot } from '@/lib/offline-store';
 import type { SculptureVariant } from '@/lib/sculpture-groups';
 import { muscleLabel } from '../StatsBodyMap';
 import Icon from '../ui/Icon';
@@ -19,11 +20,34 @@ type Vars = CSSProperties & Record<`--${string}`, string | number>;
  * 背后的页面缩到 0.93，不压暗、不虚化；下拉、点背后、返回键或 Esc 收起。
  * 交互原型见 docs/design/2026-11-23/review-tiles-prototype.html。
  */
-export default function ReviewWall({ hero, data, variant }: { hero: WallHero; data: WallData; variant: SculptureVariant }) {
+export default function ReviewWall({ hero: initialHero, data, variant }: { hero: WallHero; data: WallData; variant: SculptureVariant }) {
+  const [hero, setHero] = useState(initialHero);
   const [open, setOpen] = useState<SheetId | null>(null);
   const [lifted, setLifted] = useState<SheetId | null>(null);
   const origin = useRef<{ el: HTMLElement; rect: DOMRect; keyboard: boolean } | null>(null);
   const router = useRouter();
+
+  useEffect(() => { setHero(initialHero); }, [initialHero]);
+
+  // 离线期间新记的组（负数本地 ID）实时叠加到回顾页容量与组数读数里
+  useEffect(() => {
+    let cancelled = false;
+    void readOfflineSnapshot().then((snap) => {
+      if (cancelled || !snap) return;
+      const offlineSets = snap.recentSets.filter((s) => s.id < 0);
+      if (offlineSets.length === 0) return;
+      const extraVol = offlineSets.reduce((sum, s) => sum + (s.weight > 0 ? s.weight * s.reps : 0), 0);
+      const bars = initialHero.bars.map((b, idx) => (idx === initialHero.sel ? { ...b, value: b.value + extraVol } : b));
+      const reads = initialHero.reads.map((r) => (r.label === '总组数' || r.unit === '组' ? { ...r, value: r.value + offlineSets.length } : r));
+      setHero({
+        ...initialHero,
+        total: initialHero.total + extraVol,
+        bars,
+        reads,
+      });
+    });
+    return () => { cancelled = true; };
+  }, [initialHero]);
 
   const openSheet = useCallback((id: SheetId, el: HTMLElement, keyboard = false) => {
     if (open) return;

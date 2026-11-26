@@ -11,6 +11,7 @@ import { BODY_MODEL_COOKIE } from '@/lib/body-model-preference';
 import type { MuscleId } from '@/lib/muscles';
 import { canonicalMuscle, sculptureGroup, type SculptureVariant } from '@/lib/sculpture-groups';
 import { PLAN_POSES, planPoseFor } from '@/lib/plan-poses';
+import { offlineFetch } from '@/lib/offline-api';
 
 function haptic(ms = 8) {
   try { navigator.vibrate?.(ms); } catch { /* iOS Safari 没有振动接口 */ }
@@ -153,7 +154,7 @@ export default function PlanBody({ variant = 'male', profileModel, modelChoice =
     setSaving(true);
     setError('');
     try {
-      const response = await fetch('/api/plan', {
+      const response = await offlineFetch('/api/plan', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ date: todayPlan.date, exerciseIds: [...selected], supplemental: mode === 'extra' }),
