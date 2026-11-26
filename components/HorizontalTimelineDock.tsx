@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { TARGET_LABEL } from '@/lib/exercise-label';
 import { formatClock, formatHHMM, type HorizontalSlot } from '@/lib/timeline';
@@ -223,7 +222,6 @@ export default function HorizontalTimelineDock({
         <span>{drag ? `待练第 ${drag.currentIdx - firstEditableIdx + 1} 位 · 松手落位` : '时间轴'}</span>
         <div className="ht-bar-actions">
           <button type="button" className="ht-mini-add" onClick={onOpenAdd}>+ 加动作</button>
-          <Link href="/body" prefetch={true} className="ht-mini-add is-ghost">部位</Link>
         </div>
       </div>
 
