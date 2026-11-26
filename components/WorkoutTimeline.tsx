@@ -30,7 +30,7 @@ export default function WorkoutTimeline({
 }: {
   today: string;
   initialPlan: PlanItem[];
-  initialSession: { id: number; startedAt: string } | null;
+  initialSession: { id: number; startedAt: string; date?: string } | null;
   initialSets: SetRow[];
   demonstrations: Record<string, DemoMedia>;
   priorBest?: Record<string, number>;
@@ -113,16 +113,16 @@ export default function WorkoutTimeline({
     }
   }, [timeline.lastSet, timeline.liveRestSec, lifting, nowMs]);
 
-  async function ensureSession(firstPlanItemId: number): Promise<{ id: number; startedAt: string }> {
+  async function ensureSession(firstPlanItemId: number): Promise<{ id: number; startedAt: string; date?: string }> {
     if (session) return session;
     const res = await fetch('/api/session', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ guided: true, firstPlanItemId }),
     });
-    const data = (await res.json()) as { session?: { id: number; started_at: string }; error?: string };
+    const data = (await res.json()) as { session?: { id: number; started_at: string; date?: string }; error?: string };
     if (!res.ok || !data.session) throw new Error(data.error ?? '开始训练失败');
-    const created = { id: data.session.id, startedAt: data.session.started_at };
+    const created = { id: data.session.id, startedAt: data.session.started_at, date: data.session.date };
     setSession(created);
     return created;
   }
@@ -253,9 +253,7 @@ export default function WorkoutTimeline({
       setActivePlanId(neighbor);
     }
     setPlan((cur) => cur.filter((p) => p.id !== id));
-    const res = await fetch(`/api/plan?id=${id}`, { method: 'DELETE' });
-    const data = (await res.json().catch(() => ({}))) as { items?: PlanItem[] };
-    if (res.ok && data.items) setPlan(data.items);
+    await fetch(`/api/plan?id=${id}`, { method: 'DELETE' });
     router.refresh();
   }
 
@@ -264,10 +262,11 @@ export default function WorkoutTimeline({
     setAddBusyId(exerciseId);
     setErr('');
     try {
+      const planDate = session?.date ?? plan[0]?.date ?? today;
       const res = await fetch('/api/plan', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ exerciseId, date: today }),
+        body: JSON.stringify({ exerciseId, date: planDate }),
       });
       const data = (await res.json()) as { item?: PlanItem; demonstration?: DemoMedia; error?: string };
       if (!res.ok || !data.item) throw new Error(data.error || '添加失败');
@@ -288,7 +287,7 @@ export default function WorkoutTimeline({
     void fetch('/api/plan', {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ reorder: next.map((p) => p.id), date: next[0]?.date ?? today }),
+      body: JSON.stringify({ reorder: next.map((p) => p.id), date: session?.date ?? next[0]?.date ?? today }),
     }).catch(() => {});
   }
 
