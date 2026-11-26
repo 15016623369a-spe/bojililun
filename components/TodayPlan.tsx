@@ -4,13 +4,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import type { PlanItem } from '@/lib/types';
-import { EQUIPMENT_LABEL, TARGET_LABEL } from '@/lib/exercise-label';
+import { TARGET_LABEL } from '@/lib/exercise-label';
 import SupplementalMark from './SupplementalMark';
-import Stepper from './ui/Stepper';
 import Icon from './ui/Icon';
 import EndTrainingButton from './EndTrainingButton';
-
-const REST_CHOICES = [60, 90, 120, 180];
 
 function haptic(ms = 6) { try { navigator.vibrate?.(ms); } catch { /* iOS 网页无振动 */ } }
 
@@ -20,18 +17,22 @@ export type TrainedRow = { key: string; title: string; sub: string; href: string
 export default function TodayPlan({
   initialItems,
   images,
+  completedByPlan = {},
+  lastWeightByPlan = {},
   activeSession,
   trained,
 }: {
   initialItems: PlanItem[];
   images: Record<string, string>;
+  completedByPlan?: Record<number, number>;
+  lastWeightByPlan?: Record<number, number>;
   activeSession: { id: number; startedAt: string; next?: { name: string; setsLeft: number }; completedSets?: number } | null;
   /** 今天已练的汇总（容量 · 组数 · 时长）和计划以外的训练 */
   trained?: { summary: string | null; rows: TrainedRow[] };
 }) {
   const router = useRouter();
   const [items, setItems] = useState<PlanItem[]>(initialItems);
-  const [open, setOpen] = useState<number | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -45,7 +46,7 @@ export default function TodayPlan({
       try {
         const res = await fetch(url, options);
         const data = (await res.json()) as { items?: PlanItem[]; error?: string };
-        if (!res.ok || !data.items) throw new Error(data.error ?? '保存计划失败');
+        if (!res.ok || !data.items) throw new Error(data.error ?? '更新列表失败');
         savedItems.current = data.items;
       } catch (e) {
         setErr((e as Error).message);
@@ -60,25 +61,19 @@ export default function TodayPlan({
     });
   }
 
-  function patch(id: number, body: Record<string, number>) {
-    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...mapPatch(body) } : it)));
-    save('/api/plan', {
-      method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ id, ...body }),
-    });
-  }
-
   function remove(id: number) {
+    haptic(6);
     setItems((prev) => prev.filter((it) => it.id !== id));
-    setOpen(null);
+    setConfirmRemove(null);
     save(`/api/plan?id=${id}`, { method: 'DELETE' });
   }
 
-  async function start() {
+  async function start(firstPlanItemId?: number) {
     if (busy || saving) return;
+    const query = firstPlanItemId ? `?item=${firstPlanItemId}` : '';
     if (activeSession) {
-      router.push(`/train/${activeSession.id}`);
+      haptic(8);
+      router.push(`/train/${activeSession.id}${query}`);
       return;
     }
     setBusy(true);
@@ -87,32 +82,37 @@ export default function TodayPlan({
       const res = await fetch('/api/session', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ guided: true }),
+        body: JSON.stringify({ guided: true, ...(firstPlanItemId ? { firstPlanItemId } : {}) }),
       });
       const data = (await res.json()) as { session?: { id: number }; error?: string };
       if (!res.ok || !data.session) throw new Error(data.error ?? '开始训练失败');
       haptic(14);
-      router.push(`/train/${data.session.id}`);
+      router.push(`/train/${data.session.id}${query}`);
     } catch (e) {
       setErr((e as Error).message);
       setBusy(false);
     }
   }
 
-  const totalSets = items.reduce((a, x) => a + x.sets, 0);
+  const totalLogged = Object.values(completedByPlan).reduce((a, b) => a + b, 0);
   const doneCount = items.filter((x) => x.done === 1).length;
-  // 计划里的动作都练完了：不再显示一张待办清单，主按钮改成加练
   const allDone = items.length > 0 && doneCount === items.length && !activeSession;
-  const remainingSets = items.filter((x) => x.done !== 1).reduce((a, x) => a + x.sets, 0);
-  const minutes = Math.round(items.reduce((a, x) => a + x.sets * (40 + x.rest_sec), 0) / 60);
   const startedAt = activeSession ? new Date(activeSession.startedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '';
-  // 练完的动作不和没练的排在一起：上面只留待练（可展开改组次），练完的挪到下面「今日已练」并标灰
   const pending = items.filter((x) => x.done !== 1);
   const finished = items.filter((x) => x.done === 1);
   const extraRows = trained?.rows ?? [];
 
+  function rowSub(it: PlanItem, logged: number) {
+    const target = TARGET_LABEL[it.target] ?? it.target;
+    const w = lastWeightByPlan[it.id] ?? it.weight;
+    if (logged > 0) return `已练 ${logged} 组${w > 0 ? ` · ${w} kg` : ''}`;
+    return w > 0 ? `${target} · ${w} kg` : target;
+  }
+
   return (
-    <section className="today-plan" data-done={allDone || undefined}>
+    <section className="today-plan is-free-plan" data-done={allDone || undefined}>
+      {err && <p className="start-err" role="alert">{err}</p>}
+
       {allDone ? (
         <div className="plan-done" role="status">
           <span className="plan-done-mark" aria-hidden="true">
@@ -121,28 +121,30 @@ export default function TodayPlan({
           </span>
           <span className="plan-done-text">
             <b>今日计划已完成</b>
-            <small>{items.length} 个动作 · {totalSets} 组</small>
+            <small>{items.length} 个动作{totalLogged ? ` · ${totalLogged} 组` : ''}</small>
           </span>
+          <Link href="/train/extra" className="plan-done-toggle">去加练</Link>
         </div>
-      ) : (
-        <div className="readouts">
-          <div className="readout"><b className="big-num">{items.length}</b><span>个</span><em>{doneCount ? `动作 · 已练 ${doneCount}` : '动作'}</em></div>
-          <div className="readout"><b className="big-num">{totalSets}</b><span>组</span><em>计划组数</em></div>
-          <div className="readout"><b className="big-num">{minutes ? `≈${minutes}` : '—'}</b><span>分钟</span><em>含休息</em></div>
+      ) : activeSession ? (
+        <div className="free-live-strip">
+          <div className="free-live-info">
+            <i aria-hidden="true" />
+            <span>训练中 · {startedAt} 开始</span>
+            {(activeSession.completedSets ?? 0) > 0 && <small>已记 {activeSession.completedSets} 组</small>}
+          </div>
+          <EndTrainingButton
+            sessionId={activeSession.id}
+            completedSets={activeSession.completedSets ?? 0}
+            disabled={busy}
+            onEnded={() => { haptic(12); router.refresh(); }}
+          />
         </div>
-      )}
-
-      {activeSession && (
-        <Link href={`/train/${activeSession.id}`} className="live-banner">
-          <i aria-hidden="true" />训练进行中 · {startedAt} 开始<span>继续 <Icon name="arrow-right" size={16} stroke={2} /></span>
-        </Link>
-      )}
-      {activeSession && (
-        <div className="live-end">
-          <EndTrainingButton sessionId={activeSession.id} completedSets={activeSession.completedSets ?? 0} disabled={busy}
-            onEnded={() => { haptic(12); router.refresh(); }} />
+      ) : items.length > 0 ? (
+        <div className="free-plan-bar">
+          <span>今日 {items.length} 个动作</span>
+          <small>点任意动作直接开练</small>
         </div>
-      )}
+      ) : null}
 
       {allDone ? null : items.length === 0 ? (
         <div className="empty-plan">
@@ -153,41 +155,47 @@ export default function TodayPlan({
       ) : (
         <ol className="plan-rows">
           {pending.map((it) => {
-            const expanded = open === it.id;
+            const logged = completedByPlan[it.id] ?? 0;
+            const confirming = confirmRemove === it.id;
             return (
-              <li key={it.id} className="plan-item" data-open={expanded || undefined} data-done={it.done === 1 || undefined}>
-                <button type="button" className="plan-item-head" aria-expanded={expanded} onClick={() => { haptic(4); setOpen(expanded ? null : it.id); }}>
-                  <span className="thumb">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    {images[it.exercise_id] ? <img src={images[it.exercise_id]} alt="" loading="lazy" /> : null}
-                  </span>
-                  <span className="plan-item-main">
-                    <b>{it.supplemental ? <SupplementalMark /> : null}{it.name}</b>
-                    <small>{it.sets} × {it.reps} · {it.weight ? `${it.weight} kg` : it.equipment === 'body weight' ? '自重' : '重量待定'}<span className="sep">·</span>{TARGET_LABEL[it.target] ?? it.target}</small>
-                  </span>
-                  <span className="set-dots" aria-label={`${it.sets} 组`}>
-                    {Array.from({ length: Math.min(it.sets, 8) }, (_, i) => <i key={i} />)}
-                  </span>
-                </button>
-                <div className="plan-item-editor" aria-hidden={!expanded}>
-                  <div className="plan-item-editor-inner">
-                    <div className="steppers">
-                      <Stepper label="组数" value={it.sets} unit="组" step={1} min={1} max={20} onChange={(v) => patch(it.id, { sets: v })} />
-                      <Stepper label="次数" value={it.reps} unit="次" step={1} min={1} max={50} onChange={(v) => patch(it.id, { reps: v })} />
-                      <Stepper label="重量" value={it.weight} unit="kg" step={2.5} min={0} max={500} onChange={(v) => patch(it.id, { weight: v })} />
-                    </div>
-                    <div className="rest-seg" role="radiogroup" aria-label="组间休息">
-                      <span>组间休息</span>
-                      {REST_CHOICES.map((r) => (
-                        <button key={r} type="button" role="radio" aria-checked={it.rest_sec === r} className={it.rest_sec === r ? 'on' : ''}
-                          onClick={() => { haptic(4); patch(it.id, { restSec: r }); }}>{r}<em>s</em></button>
-                      ))}
-                    </div>
-                    <div className="plan-item-foot">
-                      <span>{EQUIPMENT_LABEL[it.equipment] ?? it.equipment}</span>
-                      <button type="button" className="text-danger" onClick={() => remove(it.id)}>从计划移除</button>
-                    </div>
-                  </div>
+              <li key={it.id} className="plan-item" data-logged={logged > 0 || undefined}>
+                <div className="plan-item-row">
+                  <button
+                    type="button"
+                    className="plan-item-head"
+                    disabled={busy}
+                    onClick={() => { setConfirmRemove(null); void start(it.id); }}
+                  >
+                    <span className="thumb">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      {images[it.exercise_id] ? <img src={images[it.exercise_id]} alt="" loading="lazy" /> : null}
+                    </span>
+                    <span className="plan-item-main">
+                      <b>{it.supplemental ? <SupplementalMark /> : null}{it.name}</b>
+                      <small>{rowSub(it, logged)}</small>
+                    </span>
+                    {logged > 0 ? (
+                      <span className="plan-logged-pill">{logged} 组</span>
+                    ) : (
+                      <Icon name="chevron-right" size={16} stroke={1.8} className="plan-row-chev" />
+                    )}
+                  </button>
+                  {logged === 0 && (
+                    confirming ? (
+                      <button type="button" className="plan-rm-confirm" onClick={() => remove(it.id)}>移除</button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="plan-item-more"
+                        aria-label={`移出${it.name}`}
+                        onClick={() => { haptic(4); setConfirmRemove(it.id); }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                          <path d="M18 6 6 18M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )
+                  )}
                 </div>
               </li>
             );
@@ -195,63 +203,62 @@ export default function TodayPlan({
         </ol>
       )}
 
-      {!allDone && <Link href="/body" prefetch={true} className="add-row">
-        <span className="add-row-icon" aria-hidden="true"><Icon name="plus" size={18} /></span>从动作库添加 · 也可以按住「记录」说「再加一个飞鸟」
-      </Link>}
+      {!allDone && (
+        <Link href="/body" prefetch={true} className="add-row">
+          <span className="add-row-icon" aria-hidden="true"><Icon name="plus" size={18} /></span>
+          添加动作
+        </Link>
+      )}
 
       {(finished.length > 0 || extraRows.length > 0) && (
         <section className="done-section" aria-label="今日已练">
           <h2 className="v-section-title"><span>今日已练</span>{trained?.summary && <small>{trained.summary}</small>}</h2>
           <ol className="plan-rows done-rows">
-            {finished.map((it) => (
-              <li key={it.id} className="plan-item" data-done>
-                <div className="plan-item-head">
-                  <span className="thumb">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    {images[it.exercise_id] ? <img src={images[it.exercise_id]} alt="" loading="lazy" /> : null}
-                  </span>
-                  <span className="plan-item-main">
-                    <b>{it.supplemental ? <SupplementalMark /> : null}{it.name}</b>
-                    <small>{it.sets} × {it.reps} · {it.weight ? `${it.weight} kg` : it.equipment === 'body weight' ? '自重' : '重量待定'}<span className="sep">·</span>{TARGET_LABEL[it.target] ?? it.target}</small>
-                  </span>
-                  <span className="done-check" aria-label="已练"><Icon name="check" size={15} stroke={2.6} /></span>
-                </div>
-              </li>
-            ))}
+            {finished.map((it) => {
+              const logged = completedByPlan[it.id] ?? it.sets;
+              return (
+                <li key={it.id} className="plan-item" data-done>
+                  {activeSession ? (
+                    <button type="button" className="plan-item-head" disabled={busy} onClick={() => void start(it.id)}>
+                      <span className="thumb">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        {images[it.exercise_id] ? <img src={images[it.exercise_id]} alt="" loading="lazy" /> : null}
+                      </span>
+                      <span className="plan-item-main">
+                        <b>{it.supplemental ? <SupplementalMark /> : null}{it.name}</b>
+                        <small>{rowSub(it, logged)}</small>
+                      </span>
+                      <span className="done-check" aria-label="已练，点按可继续加组"><Icon name="check" size={15} stroke={2.6} /></span>
+                    </button>
+                  ) : (
+                    <div className="plan-item-head">
+                      <span className="thumb">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        {images[it.exercise_id] ? <img src={images[it.exercise_id]} alt="" loading="lazy" /> : null}
+                      </span>
+                      <span className="plan-item-main">
+                        <b>{it.supplemental ? <SupplementalMark /> : null}{it.name}</b>
+                        <small>{rowSub(it, logged)}</small>
+                      </span>
+                      <span className="done-check" aria-label="已练"><Icon name="check" size={15} stroke={2.6} /></span>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ol>
-          {extraRows.length > 0 && <div className="v-rows">
-            {extraRows.map((row) => (
-              <Link key={row.key} href={row.href} className="v-row">
-                <span><b>{row.title}</b><small>{row.sub}</small></span>
-                <Icon name="chevron-right" size={18} className="row-chev" />
-              </Link>
-            ))}
-          </div>}
+          {extraRows.length > 0 && (
+            <div className="v-rows">
+              {extraRows.map((row) => (
+                <Link key={row.key} href={row.href} className="v-row">
+                  <span><b>{row.title}</b><small>{row.sub}</small></span>
+                  <Icon name="chevron-right" size={18} className="row-chev" />
+                </Link>
+              ))}
+            </div>
+          )}
         </section>
-      )}
-
-      {items.length > 0 && (
-        <div className="start-dock">
-          {err && <p className="start-err" role="alert">{err}</p>}
-          <button type="button" className="ink-btn" data-extra={allDone || undefined} disabled={busy || saving}
-            onClick={allDone ? () => { haptic(10); router.push('/train/extra'); } : start}>
-            <span>{busy ? '正在开始…' : activeSession ? '继续训练' : allDone ? '去加练' : doneCount ? '接着练' : '开始训练'}</span>
-            <span className="ink-btn-meta">{activeSession?.next ? `${activeSession.next.name} · 剩 ${activeSession.next.setsLeft} 组`
-              : allDone ? '今日计划已完成' : doneCount ? `剩 ${remainingSets} 组` : `${totalSets} 组`}
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6" /></svg>
-            </span>
-          </button>
-        </div>
       )}
     </section>
   );
-}
-
-function mapPatch(body: Record<string, number>): Partial<PlanItem> {
-  const out: Record<string, number> = {};
-  if (body.sets !== undefined) out.sets = body.sets;
-  if (body.reps !== undefined) out.reps = body.reps;
-  if (body.weight !== undefined) out.weight = body.weight;
-  if (body.restSec !== undefined) out.rest_sec = body.restSec;
-  return out as Partial<PlanItem>;
 }

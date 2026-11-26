@@ -543,3 +543,38 @@ test('回顾与统计共用手账训练：训练页和语音同一天，不重�
   db.close();
   fs.rmSync(tmp, { recursive: true });
 });
+test('自由秒表模式可超出计划组数继续加组、不强制结束，且训练中可撤回误记组', () => {
+  freshModules();
+  const tmp = fs.mkdtempSync(require('node:os').tmpdir() + '/fit-free-');
+  process.env.FITCHECK_DB_PATH = path.join(tmp, 'free.db');
+  const { getDb } = require('../lib/db.ts');
+  const workout = require('../lib/core/workout.ts');
+  const { getExercise } = require('../lib/exercise.ts');
+  const db = getDb();
+  const item = workout.addPlanItem(getExercise('0025'), { sets: 2, reps: 8, weight: 60 });
+  const session = workout.startSession({ guided: true });
+  for (let i = 1; i <= 3; i++) {
+    const res = workout.saveGuidedSet(session.id, {
+      planItemId: item.id, setIndex: i, weight: 60, reps: 8, durationSec: 30, restSec: 90, chooseExercise: true, freeMode: true,
+    });
+    assert.equal(res.ended, false);
+    assert.equal(res.sets.length, i);
+  }
+  const latest = workout.getSessionSets(session.id).at(-1);
+  const removed = workout.deleteSessionSet(latest.id, { allowActive: true });
+  assert.equal(removed.allSets.length, 2);
+  assert.equal(workout.getSession(session.id).ended_at, null);
+  // 训练中途往当日计划新加一个动作，正在进行的训练应立即可见并可直接记组
+  const extra = workout.addPlanItem(getExercise('0047'), { sets: 3, reps: 10, weight: 20 });
+  const livePlan = workout.sessionPlan(workout.getSession(session.id));
+  assert.ok(livePlan.some((entry) => entry.id === extra.id));
+  const extraRes = workout.saveGuidedSet(session.id, {
+    planItemId: extra.id, setIndex: 1, weight: 20, reps: 10, durationSec: 25, restSec: 90, chooseExercise: true, freeMode: true,
+  });
+  assert.equal(extraRes.sets.length, 3);
+  assert.equal(extraRes.sets.at(-1).duration_sec, 25);
+  workout.reorderPlanItems([extra.id, item.id]);
+  assert.deepEqual(workout.sessionPlan(workout.getSession(session.id)).map((entry) => entry.id), [extra.id, item.id]);
+  db.close();
+  fs.rmSync(tmp, { recursive: true });
+});

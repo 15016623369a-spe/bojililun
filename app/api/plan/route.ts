@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getExercise } from '@/lib/exercise';
-import { addPlanExercises, addPlanItem, completePlannedExercise, deletePlanItem, getPlan, updatePlanItem } from '@/lib/core/workout';
+import { imageUrl } from '@/lib/exercise-label';
+import { sculptureMediaUrls } from '@/lib/exercise-anim';
+import { addPlanExercises, addPlanItem, completePlannedExercise, deletePlanItem, getPlan, reorderPlanItems, updatePlanItem } from '@/lib/core/workout';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -42,8 +44,14 @@ export async function POST(req: Request) {
       reps: body.reps,
       weight: body.weight,
       restSec: body.restSec,
+      date: body.date,
     });
-    return NextResponse.json({ item, items: getPlan() });
+    const demonstration = {
+      image: ex.image ? imageUrl(ex.image) : undefined,
+      hasAnimation: Boolean(ex.gif_url),
+      ...sculptureMediaUrls(ex.id),
+    };
+    return NextResponse.json({ item, demonstration, items: getPlan(body.date) });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 400 });
   }
@@ -59,7 +67,13 @@ export async function PATCH(req: Request) {
       restSec?: number;
       done?: number;
       complete?: boolean;
+      reorder?: number[];
+      date?: string;
     };
+    if (Array.isArray(body.reorder)) {
+      reorderPlanItems(body.reorder);
+      return NextResponse.json({ ok: true, items: getPlan(body.date) });
+    }
     if (!body.id) return NextResponse.json({ error: '未找到对应的计划动作，请刷新重试' }, { status: 400 });
     if (body.complete === true) {
       if (!Number.isSafeInteger(body.id) || body.id < 1) throw new Error('计划动作无效');
