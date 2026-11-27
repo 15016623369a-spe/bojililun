@@ -85,7 +85,7 @@ export default function PlanDetail({ muscle, muscleLabel, region, pose, variant,
 
   async function start() {
     if (starting) return;
-    if (activeSession) { router.push(`/train/${activeSession}`); return; }
+    if (activeSession) { router.push('/train'); return; }
     if (planDone) { router.push('/train/extra'); return; }
     if (extra) { onOpenLibrary('liked'); return; }
     if (planCount === 0) { onOpenLibrary('liked'); return; }
@@ -100,7 +100,7 @@ export default function PlanDetail({ muscle, muscleLabel, region, pose, variant,
       const data = (await res.json()) as { session?: { id: number }; error?: string };
       if (!res.ok || !data.session) throw new Error(data.error ?? '开始训练失败');
       try { navigator.vibrate?.(14); } catch { /* 无振动接口 */ }
-      router.push(`/train/${data.session.id}`);
+      router.push('/train');
     } catch (err) {
       setError((err as Error).message);
       setStarting(false);

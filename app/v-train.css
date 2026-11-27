@@ -3043,3 +3043,11 @@ html[data-theme="dark"] .finish-inline { background: #1a1c1f; border-color: #2a2
   transition: width .24s var(--ease-spring), background-color .2s ease;
 }
 .ht-cf-dots i[data-on] { width: 16px; background: var(--ink-0); }
+
+.rn-library-controls { display: flex; align-items: center; gap: 6px; }
+.rn-library-controls [aria-pressed="true"] { background: var(--ink-0); color: var(--paper); }
+.rn-library-controls select { margin-left: auto; max-width: 35%; padding: 6px; color: var(--ink-0); background: var(--dk-card, #ededeb); border: 0; border-radius: 10px; }
+.rn-library-name { display: grid; gap: 3px; }
+.rn-library-name small { font-weight: 400; }
+.ht-cf-stage, .ht-ruler { touch-action: pan-y; }
+.ht-deck-card[data-dragging] { transition: box-shadow .18s ease; }
