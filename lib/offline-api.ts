@@ -50,6 +50,7 @@ async function queryOfflineExercises(url: URL) {
   const q = (url.searchParams.get('q') ?? '').trim().toLowerCase();
   const groupId = url.searchParams.get('group');
   const muscleId = url.searchParams.get('muscle');
+  const parts = url.searchParams.getAll('part');
   const pref = url.searchParams.get('preference');
   const equipments = url.searchParams.getAll('equipment').filter(Boolean);
   const limit = Math.min(200, Math.max(1, Number(url.searchParams.get('limit') || 100)));
@@ -73,6 +74,7 @@ async function queryOfflineExercises(url: URL) {
   }
 
   let filtered = all.filter((ex) => {
+    if (parts.length && !parts.includes(ex.body_part)) return false;
     if (pref === 'liked' && ex.preference !== 'liked') return false;
     if (equipments.length > 0 && !equipments.includes(ex.equipment)) return false;
     if (matchGroups && !matchGroups.some((g) => muscleMatchesExercise(g, ex))) return false;
@@ -213,7 +215,7 @@ async function handleOfflineMutation(method: string, url: URL, rawBody?: string)
           body_part: ex.body_part,
           target: ex.target,
           equipment: ex.equipment,
-          sets: Number(body.sets || 3),
+          sets: Number(body.sets || 4),
           reps: Number(body.reps || 10),
           weight: Number(body.weight || 0),
           rest_sec: Number(body.restSec || 90),
@@ -296,9 +298,15 @@ async function handleOfflineMutation(method: string, url: URL, rawBody?: string)
       }
       snap.currentSets = [...snap.currentSets, row];
       snap.recentSets = [...snap.recentSets, row];
+      const item = snap.plan.find(p => p.id === row.plan_item_id);
+      if (item && snap.recentSets.filter(s => s.plan_item_id === item.id).length >= item.sets) item.done = 1;
+      const completedPlanIds = snap.plan.filter(p => p.done).map(p => p.id);
+      const ended = !body.freeMode && !!item && snap.plan.every(p => p.done);
+      const sets = snap.currentSets;
+      if (ended) { snap.activeSession = null; snap.currentSets = []; }
       await writeOfflineSnapshot(snap);
       await appendOutbox({ method: 'POST', url: url.pathname, body: { ...body, _localId: localId } });
-      return jsonRes({ sets: snap.currentSets });
+      return jsonRes({ sets, ended, completedPlanIds });
     }
     if (method === 'PATCH') {
       const id = Number(body.id);

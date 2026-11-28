@@ -210,7 +210,7 @@ export function buildWorkoutTimeline({
   // 2. 尚未开练的计划大项按用户排好的顺序接在时间轴下方，动态推算每段时间窗
   let cursorMs = Math.max(nowMs, blocks.at(-1)?.endMs ?? nowMs);
   for (const p of plan) {
-    if (usedPlanIds.has(p.id)) continue;
+    if (p.done || usedPlanIds.has(p.id)) continue;
     const isActive = activePlanItemId === p.id;
     const isLiftingThis = liftingState?.planItemId === p.id;
     const spanMs = estimateBlockSpanMs(p.sets, p.rest_sec);

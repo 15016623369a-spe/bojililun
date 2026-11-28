@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { TARGET_LABEL } from '@/lib/exercise-label';
 import { formatClock, formatHHMM, type HorizontalSlot } from '@/lib/timeline';
 import { playStepTick } from '@/lib/rest-alert';
@@ -45,6 +45,16 @@ function deckMetrics(rel: number) {
   };
 }
 
+// Interpolate between the actual stacked positions so cards and ruler share one playhead.
+function cardAt(rel: number) {
+  const lo = Math.floor(rel);
+  const a = deckMetrics(lo);
+  const b = deckMetrics(lo + 1);
+  const mix = (v: number, w: number) => v + (w - v) * (rel - lo);
+  return { x: mix(a.x, b.x), y: mix(a.y, b.y), rotY: mix(a.rotY, b.rotY),
+    scale: mix(a.scale, b.scale), opacity: mix(a.opacity, b.opacity), zIndex: Math.round(mix(a.zIndex, b.zIndex)) };
+}
+
 export default function HorizontalTimelineDock({
   slots,
   activePlanId,
@@ -70,7 +80,13 @@ export default function HorizontalTimelineDock({
 }) {
   const [drag, setDrag] = useState<DragState | null>(null);
   const [settledId, setSettledId] = useState<number | null>(null);
-  const [swipeDx, setSwipeDx] = useState(0);
+  const [preview, setPreview] = useState<number | null>(null);
+  const dockRef = useRef<HTMLElement>(null);
+  const scrub = useRef<{ x: number; index: number; pointer: number } | null>(null);
+  const frame = useRef(0);
+  const pendingIndex = useRef(0);
+  const wheelEnd = useRef(0);
+  const wheelIndex = useRef<number | null>(null);
   const [confirmRmId, setConfirmRmId] = useState<number | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const longPressTimer = useRef<number | null>(null);
@@ -79,8 +95,6 @@ export default function HorizontalTimelineDock({
   const startPt = useRef({ x: 0, y: 0 });
   const lastMove = useRef({ x: 0, t: 0 });
   const edgeOffset = useRef(0);
-  const swipeStart = useRef<number | null>(null);
-  const rulerScrub = useRef<{ startX: number; stepAnchorX: number } | null>(null);
   const didDrag = useRef(false);
 
   const rawItems = slots
@@ -104,7 +118,10 @@ export default function HorizontalTimelineDock({
     if (moved) next.splice(drag.currentIdx, 0, moved);
     return next;
   })();
-  const activeIdx = drag ? drag.currentIdx : baseActiveIdx;
+  const playhead = drag?.currentIdx ?? preview ?? baseActiveIdx;
+  const activeIdx = Math.round(playhead);
+  const baseIndexRef = useRef(baseActiveIdx);
+  baseIndexRef.current = baseActiveIdx;
 
   const dragRef = useRef<DragState | null>(null);
   dragRef.current = drag;
@@ -158,12 +175,13 @@ export default function HorizontalTimelineDock({
       pendingPt = { x: event.clientX, y: event.clientY };
       if (moveRaf === null) moveRaf = window.requestAnimationFrame(flushMove);
     };
-    const onWinUp = () => {
+    const onWinUp = (event: PointerEvent) => {
       if (moveRaf !== null) { window.cancelAnimationFrame(moveRaf); moveRaf = null; }
       clearTimers();
       const cur = dragRef.current;
       if (!cur) return;
       setDrag(null);
+      if (event.type === 'pointercancel') return;
       setSettledId(cur.planItemId);
       window.setTimeout(() => setSettledId((c) => (c === cur.planItemId ? null : c)), 340);
       playStepTick();
@@ -195,13 +213,82 @@ export default function HorizontalTimelineDock({
     if (edgeTimer.current) { window.clearInterval(edgeTimer.current); edgeTimer.current = null; }
   }
 
-  function stepCard(delta: number) {
-    const nextIdx = Math.max(0, Math.min(rawItems.length - 1, baseActiveIdx + delta));
-    if (nextIdx === baseActiveIdx) return;
-    playStepTick();
-    onSelect(rawItems[nextIdx].card.planItemId);
+  function showPreview(index: number) {
+    pendingIndex.current = index;
+    if (frame.current) return;
+    frame.current = window.requestAnimationFrame(() => {
+      frame.current = 0;
+      setPreview(pendingIndex.current);
+    });
   }
 
+  function finishPreview(index?: number) {
+    window.cancelAnimationFrame(frame.current);
+    frame.current = 0;
+    setPreview(null);
+    if (index === undefined) return;
+    const item = rawItemsRef.current[Math.round(index)];
+    if (item) onSelectRef.current(item.card.planItemId);
+  }
+
+  function startScrub(e: ReactPointerEvent<HTMLDivElement>) {
+    if (!e.isPrimary || e.button !== 0 || dragRef.current || (e.target as HTMLElement).closest('.ht-rm-btn,.ht-rm-ok')) return;
+    window.clearTimeout(wheelEnd.current);
+    const index = wheelIndex.current ?? baseActiveIdx;
+    wheelIndex.current = null;
+    didDrag.current = false;
+    scrub.current = { x: e.clientX, index, pointer: e.pointerId };
+    // Capture on the original element to preserve ordinary taps on a card or time label.
+    (e.target as Element).setPointerCapture(e.pointerId);
+  }
+
+  function scrubPosition(x: number) {
+    const start = scrub.current!;
+    return Math.max(0, Math.min(rawItemsRef.current.length - 1, start.index + (start.x - x) / 112));
+  }
+
+  function moveScrub(e: ReactPointerEvent<HTMLDivElement>) {
+    if (scrub.current?.pointer !== e.pointerId || dragRef.current) return;
+    if (!didDrag.current && Math.abs(e.clientX - scrub.current.x) < 6) return;
+    didDrag.current = true;
+    clearTimers();
+    showPreview(scrubPosition(e.clientX));
+  }
+
+  function endScrub(e: ReactPointerEvent<HTMLDivElement>) {
+    if (scrub.current?.pointer !== e.pointerId) return;
+    const index = didDrag.current && e.type === 'pointerup' ? scrubPosition(e.clientX) : undefined;
+    scrub.current = null;
+    clearTimers();
+    finishPreview(index);
+  }
+
+  useEffect(() => {
+    const node = dockRef.current;
+    if (!node) return;
+    function wheel(e: WheelEvent) {
+      if (dragRef.current || scrub.current || e.ctrlKey || rawItemsRef.current.length < 2) return;
+      if (!e.shiftKey && Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+      e.preventDefault();
+      const delta = (e.deltaX || e.deltaY) * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 112 : 1);
+      const index = (wheelIndex.current ?? baseIndexRef.current) + delta / 112;
+      wheelIndex.current = Math.max(0, Math.min(rawItemsRef.current.length - 1, index));
+      showPreview(wheelIndex.current);
+      window.clearTimeout(wheelEnd.current);
+      wheelEnd.current = window.setTimeout(() => {
+        finishPreview(wheelIndex.current ?? undefined);
+        wheelIndex.current = null;
+      }, 110);
+    }
+    node.addEventListener('wheel', wheel, { passive: false });
+    return () => {
+      node.removeEventListener('wheel', wheel);
+      window.clearTimeout(wheelEnd.current);
+      window.cancelAnimationFrame(frame.current);
+    };
+  }, []);
+
+  const scrubHandlers = { onPointerDown: startScrub, onPointerMove: moveScrub, onPointerUp: endScrub, onPointerCancel: endScrub };
   function updateEdgeAutoStep(clientX: number) {
     const rect = stageRef.current?.getBoundingClientRect();
     const dir = !rect ? 0 : clientX < rect.left + 44 ? -1 : clientX > rect.right - 44 ? 1 : 0;
@@ -225,11 +312,13 @@ export default function HorizontalTimelineDock({
   }
 
   // 刻度尺与卡片同频移动：切卡、跟手横滑、长按拖拽或直接拨动刻度尺都实时咬合
-  const tapeOffsetPx = -activeIdx * 134 + (drag ? -rubberBand(drag.dx, 148) * 0.65 : swipeDx * 1.15);
-  const liveTrackShift = drag ? -rubberBand(drag.dx, 148) * 0.25 : swipeDx * 0.55;
+  const tapeOffsetPx = -playhead * 134;
 
   return (
-    <section className="ht-dock is-cf" aria-label="横向透视时间轴" data-dragging={drag !== null || undefined}>
+    <section ref={dockRef} className="ht-dock is-cf" aria-label="横向透视时间轴" data-dragging={drag !== null || undefined}
+      onClickCapture={e => {
+        if (didDrag.current && e.detail !== 0) { e.preventDefault(); e.stopPropagation(); didDrag.current = false; }
+      }} onPointerDownCapture={() => { didDrag.current = false; }}>
       <div className="ht-bar-head">
         <span>{drag ? `待练第 ${drag.currentIdx - firstEditableIdx + 1} 位 · 松手落位` : '时间轴'}</span>
         <div className="ht-bar-actions">
@@ -240,26 +329,8 @@ export default function HorizontalTimelineDock({
       {/* 精密横向时间刻度尺（支持双向拨动、时长色带、与下方卡片同频咬合） */}
       <div
         className="ht-ruler"
-        data-scrubbing={Boolean(drag || swipeDx !== 0) || undefined}
-        onPointerDown={(e) => {
-          if (drag || (e.target as HTMLElement).closest('button')) return;
-          try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* ignore */ }
-          rulerScrub.current = { startX: e.clientX, stepAnchorX: e.clientX };
-        }}
-        onPointerMove={(e) => {
-          const s = rulerScrub.current;
-          if (!s || drag) return;
-          const delta = e.clientX - s.stepAnchorX;
-          setSwipeDx(rubberBand(delta, 72) * 0.45);
-          if (Math.abs(delta) >= 48) {
-            stepCard(delta < 0 ? 1 : -1);
-            haptic(5);
-            s.stepAnchorX = e.clientX;
-            setSwipeDx(0);
-          }
-        }}
-        onPointerUp={() => { rulerScrub.current = null; setSwipeDx(0); }}
-        onPointerCancel={() => { rulerScrub.current = null; setSwipeDx(0); }}
+        data-scrubbing={Boolean(drag || preview !== null) || undefined}
+        {...scrubHandlers}
       >
         <div
           className="ht-ruler-ticks"
@@ -269,10 +340,10 @@ export default function HorizontalTimelineDock({
         <div className="ht-ruler-labels">
           {items.map(({ slot, card }, idx) => {
             const rel = idx - activeIdx;
-            if (Math.abs(rel) > 1) return null;
+            if (Math.abs(idx - playhead) > 2) return null;
             const isLift = card.planItemId === liftingPlanId;
             const t = isLift ? '现在' : slot.isProjected ? (nowReady ? `~${formatHHMM(slot.startMs)}` : '') : formatHHMM(slot.startMs);
-            const x = (rel === 0 ? 0 : rel * 134) + liveTrackShift;
+            const x = (idx - playhead) * 134;
             const spanSec = isLift
               ? Math.max(30, card.liftTotalSec + card.restTotalSec + liveLiftSec)
               : Math.max(45, Math.round((slot.endMs - slot.startMs) / 1000));
@@ -309,20 +380,7 @@ export default function HorizontalTimelineDock({
       <div
         ref={stageRef}
         className="ht-cf-stage"
-        onPointerDown={(e) => { if (!drag) swipeStart.current = e.clientX; }}
-        onPointerMove={(e) => {
-          if (drag || swipeStart.current === null) return;
-          const dx = e.clientX - swipeStart.current;
-          if (Math.abs(dx) > 6) setSwipeDx(rubberBand(dx, 90) * 0.34);
-        }}
-        onPointerUp={(e) => {
-          if (drag || swipeStart.current === null) { swipeStart.current = null; setSwipeDx(0); return; }
-          const dx = e.clientX - swipeStart.current;
-          swipeStart.current = null;
-          setSwipeDx(0);
-          if (Math.abs(dx) > 38) stepCard(dx < 0 ? 1 : -1);
-        }}
-        onPointerCancel={() => { swipeStart.current = null; setSwipeDx(0); }}
+        {...scrubHandlers}
       >
         {drag && <div className="ht-drop-well" aria-hidden="true" />}
 
@@ -339,16 +397,16 @@ export default function HorizontalTimelineDock({
             ? `${card.setCount} 组${card.weight > 0 ? ` · ${card.weight} kg` : ''}`
             : (card.weight > 0 ? `${target} · ${card.weight} kg` : target);
           const canRemove = card.setCount === 0 && !isLifting && isActive && !drag;
-          const m = deckMetrics(rel);
+          const m = cardAt(idx - playhead);
           const dimOther = Boolean(drag && !isDragging);
           const tx = isDragging
             ? drag.startX + rubberBand(drag.dx, 148)
-            : m.x + (swipeDx ? swipeDx * (isActive ? 1 : 0.45) : 0);
+            : m.x;
           const ty = isDragging
             ? drag.startY - 20 + rubberBand(drag.dy * 0.45, 26)
             : m.y;
           const rotY = isDragging ? 0 : m.rotY;
-          const rotZ = isDragging ? drag.tilt : swipeDx && isActive ? swipeDx * 0.08 : 0;
+          const rotZ = isDragging ? drag.tilt : 0;
           const scale = isDragging ? 1.08 : m.scale * (dimOther ? 0.94 : 1);
           const opacity = isDragging ? 1 : m.opacity * (dimOther ? 0.82 : 1);
           const zIndex = isDragging ? 100 : m.zIndex;
@@ -368,7 +426,7 @@ export default function HorizontalTimelineDock({
               data-lifting={isLifting || undefined}
               data-done={card.setCount > 0 || undefined}
               data-dragging={isDragging || undefined}
-              data-swiping={(!drag && swipeDx !== 0) || undefined}
+              data-swiping={(!drag && preview !== null) || undefined}
               data-settled={settledId === card.planItemId || undefined}
               style={{
                 transform: `translate3d(calc(-50% + ${tx}px), ${ty}px, 0px) rotateY(${rotY}deg) rotateZ(${rotZ.toFixed(2)}deg) scale(${scale.toFixed(3)})`,
@@ -391,21 +449,21 @@ export default function HorizontalTimelineDock({
                 }
               }}
               onPointerDown={(event) => {
-                if ((event.target as HTMLElement).closest('button')) return;
+                if (!event.isPrimary || event.button !== 0 || (event.target as HTMLElement).closest('button')) return;
                 if (event.pointerType === 'mouse') event.preventDefault();
                 const originIdx = rawItems.findIndex((it) => it.card.planItemId === card.planItemId);
                 didDrag.current = false;
                 clearTimers();
                 // 已练过的历史动作不能拖动改顺序，只能排期当前时间点之后的待练动作
-                if (originIdx < firstEditableIdx) return;
+                if (!slot.isProjected || card.planItemId === liftingPlanId || originIdx < firstEditableIdx) return;
                 const startM = deckMetrics(originIdx - baseActiveIdx);
                 startPt.current = { x: event.clientX, y: event.clientY };
                 lastMove.current = { x: event.clientX, t: performance.now() };
                 edgeOffset.current = 0;
                 longPressTimer.current = window.setTimeout(() => {
                   didDrag.current = true;
-                  swipeStart.current = null;
-                  setSwipeDx(0);
+                  scrub.current = null;
+                  finishPreview();
                   setDrag({
                     planItemId: card.planItemId,
                     originIdx,

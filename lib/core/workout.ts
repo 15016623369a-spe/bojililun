@@ -491,7 +491,7 @@ export function saveGuidedSet(
     /** 自由秒表模式：允许超出计划组数继续加组、任意切换动作，且不强制自动结束训练 */
     freeMode?: boolean;
   },
-): { ended: boolean; sets: SetRow[] } {
+): { ended: boolean; sets: SetRow[]; completedPlanIds: number[] } {
   const db = getDb();
   db.exec('BEGIN IMMEDIATE');
   try {
@@ -508,7 +508,7 @@ export function saveGuidedSet(
       }
       const item = data.freeMode
         ? plan.find((entry) => entry.id === data.planItemId)
-        : plan.find((entry) => (completed.get(entry.id) ?? 0) < entry.sets
+        : plan.find((entry) => !entry.done && (completed.get(entry.id) ?? 0) < entry.sets
             && (!data.chooseExercise || entry.id === data.planItemId));
       if (!item || item.id !== data.planItemId || data.setIndex !== (completed.get(item.id) ?? 0) + 1) {
         throw new Error('训练进度已更新，请刷新后继续');
@@ -528,10 +528,15 @@ export function saveGuidedSet(
       // 实练的重量写回今日计划：训练页显示实际重量，下次开练也从这里起
       if (data.weight > 0) db.prepare('UPDATE plan_item SET weight = ? WHERE id = ?').run(data.weight, item.id);
       completed.set(item.id, data.setIndex);
-      if (data.setIndex >= item.sets) markPlanDone(item.id);
-      if (!data.freeMode && plan.every((entry) => (completed.get(entry.id) ?? 0) >= entry.sets)) finishSession(sessionId);
+      const logged = db.prepare('SELECT COUNT(*) AS count FROM session_set WHERE plan_item_id = ?').get(item.id) as { count: number };
+      if (logged.count >= item.sets) markPlanDone(item.id);
+      if (!data.freeMode && plan.every(entry => entry.id === item.id ? logged.count >= item.sets : entry.done)) finishSession(sessionId);
     }
-    const result = { ended: Boolean(getSession(sessionId)?.ended_at), sets: getSessionSets(sessionId) };
+    const result = {
+      ended: Boolean(getSession(sessionId)?.ended_at),
+      sets: getSessionSets(sessionId),
+      completedPlanIds: sessionPlan(session).filter(entry => entry.done).map(entry => entry.id),
+    };
     db.exec('COMMIT');
     return result;
   } catch (error) {

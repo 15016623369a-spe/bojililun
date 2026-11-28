@@ -16,6 +16,7 @@ export default function TimelineBlockActive({
   media,
   weight,
   reps,
+  completed,
   nextSetNumber,
   isLiftingThis,
   isLiftingOther,
@@ -38,6 +39,7 @@ export default function TimelineBlockActive({
   media?: DemoMedia;
   weight: string;
   reps: string;
+  completed: boolean;
   nextSetNumber: number;
   isLiftingThis: boolean;
   isLiftingOther: boolean;
@@ -65,7 +67,7 @@ export default function TimelineBlockActive({
   const repsNum = Number(reps) || 10;
   // 超过 1 小时静默归零待命，避免隔夜未结束训练挂着十几个小时的大数字
   const hasActiveRestWindow = hasPriorSet && liveRestSec < STALE_REST_SEC;
-  const isRestingNow = !isLiftingThis && !isLiftingOther && hasActiveRestWindow;
+  const isRestingNow = !completed && !isLiftingThis && !isLiftingOther && hasActiveRestWindow;
   // 开组瞬间立刻定格刚结束的那段休息行（绝不消失再等完组后才补出来）
   const lockedRestBeforeLift = isLiftingThis && hasActiveRestWindow && liveRestSec > 0;
   const phase: RestPhase = isLiftingThis
@@ -125,7 +127,7 @@ export default function TimelineBlockActive({
 
   return (
     <div className="wt-active is-apple-stage">
-      <div className="wt-hero" data-phase={phase}>
+      {completed ? <p className="rn-add-empty">已完成 · {block.setCount} 组</p> : <div className="wt-hero" data-phase={phase}>
         {media?.image || (media?.hasSculpture && media.mp4Url) || media?.hasAnimation ? (
           <div className="rn-min-bg wt-bg is-sculptural" aria-hidden="true">
             {media?.image ? (
@@ -186,9 +188,9 @@ export default function TimelineBlockActive({
             </>
           )}
         </div>
-      </div>
+      </div>}
 
-      {adjustOpen && (
+      {!completed && adjustOpen && (
         <div className="rn-min-adjust wt-adjust">
           {adjustOpen === 'weight' ? (
             <>
@@ -208,7 +210,12 @@ export default function TimelineBlockActive({
       )}
 
       {(block.segments.length > 0 || isLiftingThis || isRestingNow) && (
-        <ol ref={lapsRef} className="wt-segs is-apple-laps">
+        <>
+          <div className="tn-log-head">
+            <b>本次记录</b>
+            <span>{block.setCount} 组{block.liftTotalSec > 0 ? ` · 力训 ${formatClock(block.liftTotalSec)}` : ''}</span>
+          </div>
+          <ol ref={lapsRef} className="wt-segs is-apple-laps">
           {block.segments.map((seg) =>
             seg.kind === 'rest' ? (
               <li key={seg.key} className="wt-lap-rest" data-phase={seg.phase}>
@@ -265,6 +272,7 @@ export default function TimelineBlockActive({
             </li>
           )}
         </ol>
+        </>
       )}
     </div>
   );
