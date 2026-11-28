@@ -3043,3 +3043,18 @@ html[data-theme="dark"] .finish-inline { background: #1a1c1f; border-color: #2a2
   transition: width .24s var(--ease-spring), background-color .2s ease;
 }
 .ht-cf-dots i[data-on] { width: 16px; background: var(--ink-0); }
+
+/* 今日训练改成独立屏：不再渲染底部 TabBar，底部只留安全区 */
+.journal-shell.is-train.is-standalone { padding-bottom: calc(32px + env(safe-area-inset-bottom)); }
+
+/* 独立训练页空态：文字与按钮各自成行，不再挤在一行 */
+.empty-plan {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 46px 10px;
+  text-align: center;
+}
+.empty-plan b { font-size: 17px; line-height: 1.4; }
+.empty-plan .ghost-pill { margin-top: 2px; }

@@ -51,7 +51,9 @@ export default function TrainPage() {
       active="plan"
       title="今日训练"
       today={today}
-      className="is-train"
+      className="is-train is-standalone"
+      hideNav
+      headBack={{ href: '/log', label: '返回今天的记录' }}
       headerAction={
         <div className="journal-head-actions">
           <time className="journal-head-label train-head-date" dateTime={today}>

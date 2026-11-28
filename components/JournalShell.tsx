@@ -8,7 +8,7 @@ import Icon from './ui/Icon';
 
 const TAB: Record<'plan' | 'record' | 'review', TabKey> = { plan: 'body', record: 'log', review: 'review' };
 
-export default function JournalShell({ active, title, subtitle, subtitleAside, children, footer, back, headerAction, navigation, today = todayStr(), className, hero, hideNav = false, backdrop }: {
+export default function JournalShell({ active, title, subtitle, subtitleAside, children, footer, back, headBack, headerAction, navigation, today = todayStr(), className, hero, hideNav = false, backdrop }: {
   active: 'plan' | 'record' | 'review';
   title: string;
   subtitle?: string;
@@ -16,6 +16,8 @@ export default function JournalShell({ active, title, subtitle, subtitleAside, c
   children: ReactNode;
   footer?: ReactNode;
   back?: { href: string; label: string };
+  /** 独立屏（无底栏）左上角的圆形返回键 */
+  headBack?: { href: string; label: string };
   headerAction?: ReactNode;
   /** 替换默认的 TabBar */
   navigation?: ReactNode;
@@ -33,7 +35,14 @@ export default function JournalShell({ active, title, subtitle, subtitleAside, c
     {backdrop && <div className="fc-backdrop" aria-hidden="true" style={{ backgroundImage: `url("${backdrop.url}")` }} />}
     <DailyRefresh date={today} timeZone={WORKOUT_TIME_ZONE} />
     <header className="journal-head">
-      <div className="journal-brand"><JournalIcon name="brand" />FitCheck</div>
+      <div className="journal-head-left">
+        {headBack && (
+          <Link className="journal-head-back" href={headBack.href} aria-label={headBack.label}>
+            <Icon name="chevron-left" size={17} stroke={2.2} />
+          </Link>
+        )}
+        <div className="journal-brand"><JournalIcon name="brand" />FitCheck</div>
+      </div>
       {headerAction}
     </header>
     <main className="journal-content">
