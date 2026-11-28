@@ -2,7 +2,7 @@ import Link from 'next/link';
 import JournalShell from '@/components/JournalShell';
 import WorkoutTimeline from '@/components/WorkoutTimeline';
 import { weekdayOf } from '@/components/ui/BigDate';
-import { activeTraining, daySessions, exercisePerformance, getPlan, getSessionSets, sessionPlan, todayStr } from '@/lib/core/workout';
+import { liveTraining, daySessions, exercisePerformance, getPlan, getSessionSets, sessionPlan, todayStr } from '@/lib/core/workout';
 import { journalForDate } from '@/lib/core/journal';
 import { hasRecordedData } from '@/lib/journal';
 import { getExercise } from '@/lib/exercise';
@@ -15,7 +15,7 @@ export const metadata = { title: '今日训练 · FitCheck' };
 
 export default function TrainPage() {
   const today = todayStr();
-  const activeSession = activeTraining();
+  const activeSession = liveTraining()?.session ?? null;
   const plan = activeSession ? sessionPlan(activeSession) : getPlan(today);
   const activeSets = activeSession ? getSessionSets(activeSession.id) : [];
   const details = daySessions(today);

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import TrainingExercisePicker from './TrainingExercisePicker';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PlanItem, SetRow } from '@/lib/types';
@@ -46,7 +47,8 @@ export default function WorkoutTimeline({
   const [demoMap, setDemoMap] = useState(demonstrations);
   const [activePlanId, setActivePlanId] = useState<number | null>(() => {
     const lastPid = initialSets.at(-1)?.plan_item_id;
-    return lastPid ?? initialPlan[0]?.id ?? null;
+    const last = initialPlan.find(p => p.id === lastPid && !p.done);
+    return last?.id ?? initialPlan.find(p => !p.done)?.id ?? null;
   });
   const [lifting, setLifting] = useState<{ planItemId: number; startedAtMs: number } | null>(null);
   const [drafts, setDrafts] = useState<Record<number, { weight: string; reps: string }>>({});
@@ -54,8 +56,7 @@ export default function WorkoutTimeline({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [addOpen, setAddOpen] = useState(false);
-  const [addQuery, setAddQuery] = useState('');
-  const [addResults, setAddResults] = useState<{ id: string; zh_name: string; name: string }[]>([]);
+  const [planOpen, setPlanOpen] = useState(false);
   const [addBusyId, setAddBusyId] = useState<string | null>(null);
 
   const lock = useRef(false);
@@ -79,8 +80,8 @@ export default function WorkoutTimeline({
         setSets(snap.currentSets);
         setDemoMap((c) => ({ ...c, ...snap.demoMap }));
         setActivePlanId((cur) => {
-          if (cur && snap.plan.some((p) => p.id === cur)) return cur;
-          return snap.currentSets.at(-1)?.plan_item_id ?? snap.plan[0]?.id ?? null;
+          if (snap.plan.some(p => p.id === cur && !p.done)) return cur;
+          return snap.plan.find(p => !p.done)?.id ?? null;
         });
       }
     })();
@@ -111,18 +112,6 @@ export default function WorkoutTimeline({
       document.removeEventListener('visibilitychange', onVis);
     };
   }, [liftKey]);
-
-  useEffect(() => {
-    if (!addOpen) return;
-    const ctrl = new AbortController();
-    const t = window.setTimeout(() => {
-      offlineFetch(`/api/exercises?order=plan&limit=24&q=${encodeURIComponent(addQuery.trim())}`, { signal: ctrl.signal })
-        .then((r) => r.json())
-        .then((d: { items?: { id: string; zh_name: string; name: string }[] }) => setAddResults(d.items ?? []))
-        .catch(() => {});
-    }, addQuery ? 120 : 0);
-    return () => { window.clearTimeout(t); ctrl.abort(); };
-  }, [addOpen, addQuery]);
 
   useWakeLock(Boolean(session || lifting));
 
@@ -158,6 +147,13 @@ export default function WorkoutTimeline({
     const created = { id: data.session.id, startedAt: data.session.started_at, date: data.session.date };
     setSession(created);
     return created;
+  }
+
+  function leaveTraining() {
+    try { sessionStorage.removeItem(liftKey); } catch { /* ignore */ }
+    setLifting(null);
+    router.replace('/body');
+    router.refresh();
   }
 
   async function handleStartLift(planItemId: number) {
@@ -255,7 +251,7 @@ export default function WorkoutTimeline({
         body: JSON.stringify({
           sessionId: active.id,
           chooseExercise: true,
-          freeMode: true,
+          freeMode: false,
           planItemId: p.id,
           setIndex,
           exerciseId: p.exercise_id,
@@ -270,14 +266,23 @@ export default function WorkoutTimeline({
           previousRestSec: actualRest,
         }),
       });
-      const result = (await res.json()) as { sets?: SetRow[]; error?: string };
+      const result = (await res.json()) as { sets?: SetRow[]; ended?: boolean; completedPlanIds: number[]; error?: string };
       if (!res.ok || !result.sets) throw new Error(result.error || '保存失败，请重试');
       setSets(result.sets);
       setNowMs(Date.now());
-      if (navigator.onLine) router.refresh();
+      const completed = new Set(result.completedPlanIds);
+      setPlan(cur => cur.map(item => completed.has(item.id) ? { ...item, done: 1 } : item));
+      if (result.ended) leaveTraining();
+      else if (completed.has(p.id)) {
+        const next = plan.find(item => !item.done && !completed.has(item.id));
+        if (next) setActivePlanId(next.id);
+      }
     } catch (e) {
       setSets(prevSets);
       setLifting(prevLifting);
+      if (prevLifting) {
+        try { sessionStorage.setItem(liftKey, JSON.stringify(prevLifting)); } catch { /* ignore */ }
+      }
       setErr((e as Error).message);
     } finally {
       lock.current = false;
@@ -333,7 +338,6 @@ export default function WorkoutTimeline({
       setPlan((cur) => (cur.some((p) => p.id === data.item!.id) ? cur : [...cur, data.item!]));
       if (data.demonstration) setDemoMap((cur) => ({ ...cur, [data.item!.exercise_id]: data.demonstration! }));
       setAddOpen(false);
-      setAddQuery('');
       setActivePlanId(data.item.id);
       haptic(8);
     } catch (e) {
@@ -386,13 +390,15 @@ export default function WorkoutTimeline({
     const clampedTarget = Math.max(firstFutureIdx, Math.min(ids.length - 1, targetIdx));
     if (clampedTarget === fromIdx) return;
     const nextIds = [...ids];
+    if (!slots[fromIdx].isProjected || draggedId === lifting?.planItemId) return;
     const [moved] = nextIds.splice(fromIdx, 1);
     nextIds.splice(clampedTarget, 0, moved);
     const byId = new Map(plan.map((p) => [p.id, p]));
     const reordered = nextIds.map((id) => byId.get(id)).filter((p): p is PlanItem => Boolean(p));
     if (reordered.length > 0) {
-      setPlan(reordered);
-      persistOrder(reordered);
+      const arranged = [...plan.filter(item => !nextIds.includes(item.id)), ...reordered];
+      setPlan(arranged);
+      persistOrder(arranged);
       setActivePlanId(draggedId);
     }
     haptic(10);
@@ -400,6 +406,13 @@ export default function WorkoutTimeline({
 
   const allCards = slots.flatMap((s) => s.cards);
   const focusedCard = allCards.find((c) => c.planItemId === activePlanId) ?? allCards[0] ?? null;
+  const activeIdx = Math.max(0, plan.findIndex((p) => p.id === focusedCard?.planItemId));
+  const nextItem = focusedCard
+    ? plan.slice(activeIdx + 1).find((p) => !p.done)
+      ?? plan.find((p) => !p.done && p.id !== focusedCard.planItemId)
+      ?? null
+    : plan.find((p) => !p.done) ?? null;
+  const nextMedia = nextItem ? demoMap[nextItem.exercise_id] : undefined;
   const focusedVals = focusedCard ? valuesFor(focusedCard.planItemId, focusedCard.weight, focusedCard.reps) : { weight: '0', reps: '10' };
   const focusedMedia = focusedCard ? demoMap[focusedCard.exerciseId] : undefined;
   const focusedCount = focusedCard ? sets.filter((s) => s.plan_item_id === focusedCard.planItemId).length : 0;
@@ -410,7 +423,7 @@ export default function WorkoutTimeline({
   const totalLiftText = timeline.totalLiftSec > 0 ? ` · 力训 ${formatClock(timeline.totalLiftSec)}` : '';
 
   return (
-    <section className="wt-shell">
+    <section className={focusedCard ? 'wt-shell is-focus' : 'wt-shell'}>
       {err && <p className="start-err" role="alert">{err}</p>}
 
       {session ? (
@@ -423,68 +436,85 @@ export default function WorkoutTimeline({
             sessionId={session.id}
             completedSets={timeline.totalSets}
             disabled={busy}
-            onEnded={() => {
-              setSession(null);
-              setLifting(null);
-              try { sessionStorage.removeItem(liftKey); } catch { /* ignore */ }
-              haptic(12);
-              if (navigator.onLine) router.refresh();
-            }}
+            onEnded={leaveTraining}
           />
         </div>
       ) : null}
 
       {focusedCard ? (
-        <div className="wt-stage-box">
-          <div className="wt-stage-head is-centered">
-            <h2>{focusedCard.name}</h2>
+        <>
+          <div className="tn-head">
+            <span className="tn-count">动作 <b>{activeIdx + 1}</b> / {Math.max(1, plan.length)}</span>
+            <button type="button" className="tn-plan-btn" onClick={() => { setPlanOpen(true); haptic(4); }}>计划</button>
           </div>
-          <TimelineBlockActive
-            key={focusedCard.planItemId}
-            block={focusedCard}
-            media={focusedMedia}
-            weight={focusedVals.weight}
-            reps={focusedVals.reps}
-            nextSetNumber={focusedCount + 1}
-            isLiftingThis={isLiftingFocused}
-            isLiftingOther={Boolean(lifting && !isLiftingFocused)}
-            liftingExerciseName={liftingCard?.name}
-            hasPriorSet={Boolean(timeline.lastSet)}
-            isSwitching={isSwitching}
-            liveRestSec={timeline.liveRestSec}
-            liveLiftSec={timeline.liveLiftSec}
-            busy={busy}
-            onWeightChange={(w) => setDrafts((c) => ({ ...c, [focusedCard.planItemId]: { ...focusedVals, weight: w } }))}
-            onRepsChange={(r) => setDrafts((c) => ({ ...c, [focusedCard.planItemId]: { ...focusedVals, reps: r } }))}
-            onStartLift={() => void handleStartLift(focusedCard.planItemId)}
-            onCancelLift={handleCancelLift}
-            onFinishSet={() => void handleFinishSet(focusedCard.planItemId, focusedCard.weight, focusedCard.reps)}
-            onJumpToLifting={() => { if (lifting) setActivePlanId(lifting.planItemId); }}
-            onEditSet={handleEditSet}
-            onDeleteSet={handleDeleteSet}
-          />
-        </div>
+          <div className="tn-segs" aria-label="动作进度">
+            {plan.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className="tn-seg"
+                data-state={p.done ? 'done' : p.id === focusedCard.planItemId ? 'now' : 'next'}
+                aria-label={`${p.name}${p.done ? ' 已完成' : ''}`}
+                onClick={() => { setActivePlanId(p.id); haptic(4); }}
+              />
+            ))}
+          </div>
+
+          <div className="wt-stage-box tn-stage">
+            <div className="wt-stage-head is-centered">
+              <h2>{focusedCard.name}</h2>
+            </div>
+            <TimelineBlockActive
+              key={focusedCard.planItemId}
+              block={focusedCard}
+              media={focusedMedia}
+              weight={focusedVals.weight}
+              reps={focusedVals.reps}
+              completed={Boolean(plan.find(p => p.id === focusedCard.planItemId)?.done)}
+              nextSetNumber={focusedCount + 1}
+              isLiftingThis={isLiftingFocused}
+              isLiftingOther={Boolean(lifting && !isLiftingFocused)}
+              liftingExerciseName={liftingCard?.name}
+              hasPriorSet={Boolean(timeline.lastSet)}
+              isSwitching={isSwitching}
+              liveRestSec={timeline.liveRestSec}
+              liveLiftSec={timeline.liveLiftSec}
+              busy={busy}
+              onWeightChange={(w) => setDrafts((c) => ({ ...c, [focusedCard.planItemId]: { ...focusedVals, weight: w } }))}
+              onRepsChange={(r) => setDrafts((c) => ({ ...c, [focusedCard.planItemId]: { ...focusedVals, reps: r } }))}
+              onStartLift={() => void handleStartLift(focusedCard.planItemId)}
+              onCancelLift={handleCancelLift}
+              onFinishSet={() => void handleFinishSet(focusedCard.planItemId, focusedCard.weight, focusedCard.reps)}
+              onJumpToLifting={() => { if (lifting) setActivePlanId(lifting.planItemId); }}
+              onEditSet={handleEditSet}
+              onDeleteSet={handleDeleteSet}
+            />
+          </div>
+
+          {nextItem && (
+            <button type="button" className="tn-next" onClick={() => { setActivePlanId(nextItem.id); haptic(4); }}>
+              <span className="tn-next-thumb">
+                {nextMedia?.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={nextMedia.image} alt="" />
+                ) : null}
+              </span>
+              <span className="tn-next-txt">
+                <small>下一个</small>
+                <b>{nextItem.name}</b>
+              </span>
+              <span className="tn-next-meta">
+                {nextItem.sets} × {nextItem.reps}{nextItem.weight > 0 ? ` · ${nextItem.weight} kg` : ''}
+              </span>
+              <Icon name="chevron-right" size={16} className="tn-next-chev" />
+            </button>
+          )}
+        </>
       ) : (
         <div className="empty-plan">
-          <b>今天的时间轴还是空的</b>
-          <p>点下方「+ 加动作」添加今天要练的动作。</p>
-          <button type="button" className="ghost-pill" onClick={() => setAddOpen(true)}>添加第一个动作</button>
+          <b>{plan.some(p => p.done) ? '今日计划已完成' : '今天还没有训练动作'}</b>
+          <button type="button" className="ghost-pill" onClick={() => setAddOpen(true)}>{plan.some(p => p.done) ? '加练' : '从动作库选动作'}</button>
         </div>
-      )}
-
-      {allCards.length > 0 && (
-        <HorizontalTimelineDock
-          slots={slots}
-          activePlanId={focusedCard?.planItemId ?? null}
-          liftingPlanId={lifting?.planItemId ?? null}
-          liveLiftSec={timeline.liveLiftSec}
-          demoMap={demoMap}
-          nowReady={nowMs !== null}
-          onSelect={(id) => { setActivePlanId(id); haptic(5); }}
-          onReorder={handleReorderCard}
-          onRemove={(id) => void removePlanItem(id)}
-          onOpenAdd={() => setAddOpen(true)}
-        />
       )}
 
       {quickRows.length > 0 && (
@@ -501,47 +531,53 @@ export default function WorkoutTimeline({
         </section>
       )}
 
-      {addOpen && (
-        <div className="demo-sheet" role="dialog" aria-modal="true" aria-label="在时间轴添加动作" onClick={() => setAddOpen(false)}>
-          <div className="demo-card rn-add-sheet" onClick={(e) => e.stopPropagation()}>
+      {planOpen && (
+        <div className="demo-sheet tn-plan-sheet" role="dialog" aria-modal="true" aria-label="今日计划" onClick={() => setPlanOpen(false)}>
+          <div className="demo-card" onClick={(e) => e.stopPropagation()}>
             <div className="demo-card-head">
-              <b>添加训练动作</b>
-              <button type="button" className="chip" onClick={() => setAddOpen(false)}>关闭</button>
+              <b>今日计划</b>
+              <span className="tn-plan-actions">
+                <button type="button" className="chip" onClick={() => { setPlanOpen(false); setAddOpen(true); }}>+ 加动作</button>
+                <button type="button" className="chip" onClick={() => setPlanOpen(false)}>关闭</button>
+              </span>
             </div>
-            <input className="rn-add-search" type="search" autoFocus placeholder="搜动作名，如 卧推、深蹲、侧平举…" value={addQuery} onChange={(e) => setAddQuery(e.target.value)} />
-            <ul className="rn-add-list">
-              {addResults.length === 0 ? (
-                <li className="rn-add-empty">没有找到对应动作</li>
-              ) : (
-                addResults.map((ex) => {
-                  const existing = plan.find((p) => p.exercise_id === ex.id);
-                  return (
-                    <li key={ex.id}>
-                      <button
-                        type="button"
-                        disabled={Boolean(addBusyId)}
-                        onClick={() => {
-                          if (existing) {
-                            setAddOpen(false);
-                            setAddQuery('');
-                            setActivePlanId(existing.id);
-                            haptic(6);
-                            return;
-                          }
-                          void addExercise(ex.id);
-                        }}
-                      >
-                        <span>{ex.zh_name || ex.name}</span>
-                        <small>{existing ? '已在计划' : addBusyId === ex.id ? '加入中…' : '加入'}</small>
-                      </button>
-                    </li>
-                  );
-                })
-              )}
-            </ul>
+            <p className="tn-plan-hint">点动作或卡片切换 · 长按拖动排序 · × 移出</p>
+            <div className="tn-plan-chips" aria-label="切换动作">
+              {plan.map((p, i) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  data-active={p.id === focusedCard?.planItemId || undefined}
+                  onClick={() => { setActivePlanId(p.id); setPlanOpen(false); haptic(4); }}
+                >
+                  {i + 1} {p.name}
+                </button>
+              ))}
+            </div>
+            <HorizontalTimelineDock
+              slots={slots}
+              activePlanId={focusedCard?.planItemId ?? null}
+              liftingPlanId={lifting?.planItemId ?? null}
+              liveLiftSec={timeline.liveLiftSec}
+              demoMap={demoMap}
+              nowReady={nowMs !== null}
+              onSelect={(id) => { setActivePlanId(id); setPlanOpen(false); haptic(5); }}
+              onReorder={handleReorderCard}
+              onRemove={(id) => void removePlanItem(id)}
+              onOpenAdd={() => { setPlanOpen(false); setAddOpen(true); }}
+            />
           </div>
         </div>
       )}
+
+      {addOpen && <TrainingExercisePicker busyId={addBusyId} onClose={() => setAddOpen(false)}
+        actionLabel={id => plan.some(p => p.exercise_id === id && !p.done) ? '已在计划' : '加入'}
+        onChoose={id => {
+          const existing = plan.find(p => p.exercise_id === id && !p.done);
+          if (!existing) { void addExercise(id); return; }
+          setActivePlanId(existing.id);
+          setAddOpen(false);
+        }} error={err} />}
     </section>
   );
 }

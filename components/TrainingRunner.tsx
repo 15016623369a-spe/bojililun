@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import TrainingExercisePicker from './TrainingExercisePicker';
 import { useRouter } from 'next/navigation';
 import { Fragment, useEffect, useRef, useState } from 'react';
 import type { PlanItem, SessionRow, SetRow } from '@/lib/types';
@@ -73,9 +74,6 @@ export default function TrainingRunner({
   const [confirmEnd, setConfirmEnd] = useState(false);
   const [adjustOpen, setAdjustOpen] = useState<'weight' | 'reps' | null>(null);
   const [addOpen, setAddOpen] = useState(false);
-  const [addQuery, setAddQuery] = useState('');
-  const [addResults, setAddResults] = useState<{ id: string; zh_name: string; name: string; target: string }[]>([]);
-  const [addLoading, setAddLoading] = useState(false);
   const [addBusyId, setAddBusyId] = useState<string | null>(null);
   const actionsKey = `fitcheck-training-action:${session.id}`;
   useEffect(() => { setPlanList(plan); }, [plan]);
@@ -180,20 +178,6 @@ export default function TrainingRunner({
     haptic(8);
   }
 
-  useEffect(() => {
-    if (!addOpen) return;
-    const ctrl = new AbortController();
-    setAddLoading(true);
-    const timer = window.setTimeout(() => {
-      fetch(`/api/exercises?order=plan&limit=24&q=${encodeURIComponent(addQuery.trim())}`, { signal: ctrl.signal })
-        .then((r) => r.json())
-        .then((d: { items?: { id: string; zh_name: string; name: string; target: string }[] }) => setAddResults(d.items ?? []))
-        .catch(() => {})
-        .finally(() => setAddLoading(false));
-    }, addQuery ? 140 : 0);
-    return () => { window.clearTimeout(timer); ctrl.abort(); };
-  }, [addOpen, addQuery]);
-
   async function addExerciseMidSession(exerciseId: string) {
     if (addBusyId) return;
     setAddBusyId(exerciseId);
@@ -215,7 +199,6 @@ export default function TrainingRunner({
         setDemoMap((cur) => ({ ...cur, [data.item!.exercise_id]: data.demonstration! }));
       }
       setAddOpen(false);
-      setAddQuery('');
       chooseAction(data.item.id);
     } catch (e) {
       setError((e as Error).message);
@@ -1035,47 +1018,9 @@ export default function TrainingRunner({
         </main>
       </div>
 
-      {addOpen && (
-        <div className="demo-sheet" role="dialog" aria-modal="true" aria-label="中途添加动作" onClick={() => setAddOpen(false)}>
-          <div className="demo-card rn-add-sheet" onClick={(event) => event.stopPropagation()}>
-            <div className="demo-card-head">
-              <b>添加动作</b>
-              <button type="button" className="chip" onClick={() => setAddOpen(false)}>关闭</button>
-            </div>
-            <input
-              className="rn-add-search"
-              type="search"
-              autoFocus
-              placeholder="搜动作名，如 卧推、侧平举、划船…"
-              value={addQuery}
-              onChange={(e) => setAddQuery(e.target.value)}
-            />
-            <ul className="rn-add-list">
-              {addLoading && addResults.length === 0 ? (
-                <li className="rn-add-empty">加载中…</li>
-              ) : addResults.length === 0 ? (
-                <li className="rn-add-empty">没有找到对应动作</li>
-              ) : (
-                addResults.map((ex) => {
-                  const alreadyIn = planList.some((p) => p.exercise_id === ex.id);
-                  return (
-                    <li key={ex.id}>
-                      <button
-                        type="button"
-                        disabled={Boolean(addBusyId)}
-                        onClick={() => void addExerciseMidSession(ex.id)}
-                      >
-                        <span>{ex.zh_name || ex.name}</span>
-                        <small>{addBusyId === ex.id ? '加入中…' : alreadyIn ? '再加一项' : '加入'}</small>
-                      </button>
-                    </li>
-                  );
-                })
-              )}
-            </ul>
-          </div>
-        </div>
-      )}
+      {addOpen && <TrainingExercisePicker busyId={addBusyId} onClose={() => setAddOpen(false)}
+        actionLabel={id => planList.some(p => p.exercise_id === id) ? '再加一项' : '加入'}
+        onChoose={id => void addExerciseMidSession(id)} error={error} />}
 
       {demo && (
         <div className="demo-sheet" role="dialog" aria-modal="true" aria-label={`${item.name}动作演示`} onClick={() => setDemo(false)}>
