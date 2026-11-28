@@ -1090,3 +1090,13 @@ a.entry-detail:hover { text-decoration: underline; text-underline-offset: 3px; }
 .training-profile-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 8px; }
 .training-profile-setup .training-profile-actions { margin-top: 0; }
 .training-profile-setup .training-profile-actions .journal-primary { width: 100%; }
+
+/* 独立屏（如今日训练）左上角圆形返回键 */
+.journal-head-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.journal-head-back {
+  width: 34px; height: 34px; border-radius: 50%; flex: none;
+  display: grid; place-items: center; color: var(--ink);
+  background: rgb(var(--dk-fg-rgb, 21 22 19) / 6%);
+  transition: transform .16s var(--ease-spring), background-color .16s ease;
+}
+.journal-head-back:active { transform: scale(.92); }

@@ -472,18 +472,20 @@ export default function WorkoutTimeline({
         </div>
       )}
 
-      <HorizontalTimelineDock
-        slots={slots}
-        activePlanId={focusedCard?.planItemId ?? null}
-        liftingPlanId={lifting?.planItemId ?? null}
-        liveLiftSec={timeline.liveLiftSec}
-        demoMap={demoMap}
-        nowReady={nowMs !== null}
-        onSelect={(id) => { setActivePlanId(id); haptic(5); }}
-        onReorder={handleReorderCard}
-        onRemove={(id) => void removePlanItem(id)}
-        onOpenAdd={() => setAddOpen(true)}
-      />
+      {allCards.length > 0 && (
+        <HorizontalTimelineDock
+          slots={slots}
+          activePlanId={focusedCard?.planItemId ?? null}
+          liftingPlanId={lifting?.planItemId ?? null}
+          liveLiftSec={timeline.liveLiftSec}
+          demoMap={demoMap}
+          nowReady={nowMs !== null}
+          onSelect={(id) => { setActivePlanId(id); haptic(5); }}
+          onReorder={handleReorderCard}
+          onRemove={(id) => void removePlanItem(id)}
+          onOpenAdd={() => setAddOpen(true)}
+        />
+      )}
 
       {quickRows.length > 0 && (
         <section className="done-section" aria-label="其他记录">
